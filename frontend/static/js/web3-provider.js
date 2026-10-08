@@ -1,6 +1,10 @@
 /**
  * Web3 Provider & State Manager for Supply Chain Finance DApp
- * Handles: MetaMask connection, Network guard (Sepolia), Account routing, and Demo role simulation.
+ * Handles: MetaMask connection, Network guard (Sepolia), Account routing.
+ *
+ * 核心设计：本项目是多页面应用（MPA），每次页面跳转都会重新加载此脚本。
+ * 因此必须在每次 DOMContentLoaded 时静默地重新检测 MetaMask 已授权账户，
+ * 而不是要求用户再次手动点击"连接"。
  */
 
 window.DAppState = {
@@ -10,13 +14,15 @@ window.DAppState = {
     role: "NONE",
     contractClient: null,
     apiClient: null,
-    isReady: false
+    isReady: false,
+    _addresses: null,
+    _abis: null
 };
 
 async function initWeb3() {
     window.DAppState.apiClient = new window.ApiClient();
 
-    // Load addresses if available
+    // Load deployed addresses
     let addresses = window.AppConfig.DEFAULT_ADDRESSES;
     try {
         const resp = await fetch("/static/js/deployed_addresses.json");
@@ -25,6 +31,7 @@ async function initWeb3() {
             if (data.contracts) addresses = data.contracts;
         }
     } catch (_) {}
+    window.DAppState._addresses = addresses;
 
     // Load ABIs
     const abis = {};
@@ -35,27 +42,35 @@ async function initWeb3() {
             if (r.ok) abis[name] = await r.json();
         } catch (_) {}
     }
+    window.DAppState._abis = abis;
 
     if (window.ethereum) {
         window.DAppState.provider = new ethers.BrowserProvider(window.ethereum);
-        
-        // Check if already authorized
-        const accounts = await window.DAppState.provider.send("eth_accounts", []).catch(() => []);
-        if (accounts.length > 0) {
-            await handleAccountsChanged(accounts);
+
+        // 先用 eth_accounts 静默查询（不弹窗）
+        let accounts = await window.DAppState.provider.send("eth_accounts", []).catch(() => []);
+
+        // 如果 eth_accounts 返回空，尝试直接通过 ethereum.request 再查一次
+        // 某些 MetaMask 版本对 ethers BrowserProvider 包装后的 send 行为不一致
+        if (accounts.length === 0 && window.ethereum.selectedAddress) {
+            accounts = [window.ethereum.selectedAddress];
         }
 
-        // Init contract client
-        if (window.DAppState.signer) {
+        if (accounts.length > 0) {
+            // 初始化 contractClient（需要在 handleAccountsChanged 之前，
+            // 因为里面要用 contractClient 查链上角色）
+            window.DAppState.signer = await window.DAppState.provider.getSigner();
             window.DAppState.contractClient = new window.ContractClient(
                 window.DAppState.provider,
                 window.DAppState.signer,
                 addresses,
                 abis
             );
+            await handleAccountsChanged(accounts);
         }
     }
 
+    window.DAppState.isReady = true;
     updateUI();
 }
 
@@ -67,7 +82,22 @@ async function connectWallet() {
     }
 
     try {
+        if (!window.DAppState.provider) {
+            window.DAppState.provider = new ethers.BrowserProvider(window.ethereum);
+        }
         const accounts = await window.DAppState.provider.send("eth_requestAccounts", []);
+
+        // 确保 signer 和 contractClient 在角色检测前就位
+        window.DAppState.signer = await window.DAppState.provider.getSigner();
+        if (!window.DAppState.contractClient && window.DAppState._addresses && window.DAppState._abis) {
+            window.DAppState.contractClient = new window.ContractClient(
+                window.DAppState.provider,
+                window.DAppState.signer,
+                window.DAppState._addresses,
+                window.DAppState._abis
+            );
+        }
+
         await handleAccountsChanged(accounts);
         await ensureSepoliaNetwork();
         UIFeedback.showToast("钱包连接成功！", "success");
