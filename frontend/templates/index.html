@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>去中心化供应链金融 DApp | NTU SC6113</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Ethers.js v6 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <span class="logo-icon">🔗</span>
+                <span class="logo-text">SCF DApp</span>
+                <span class="badge">NTU SC6113</span>
+            </div>
+            <div class="nav-status">
+                <span id="network-badge" class="badge badge-warning">未连接网络</span>
+                <span id="role-badge" class="badge badge-secondary">未登录</span>
+                <button id="connect-wallet-btn" class="btn btn-primary" onclick="connectWallet()">连接 MetaMask</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <section class="hero">
+            <h1>基于以太坊智能合约的去中心化供应链金融平台</h1>
+            <p class="subtitle">实现应收账款数字凭证拆分、流转转让、原子化放款与全流程透明防伪</p>
+            <div class="actions">
+                <a href="#roles" class="btn btn-outline">查看 5 大角色工作台</a>
+                <a href="/static/docs/PRD.html" target="_blank" class="btn btn-secondary">阅读产品 PRD</a>
+            </div>
+        </section>
+
+        <section id="roles" class="roles-grid">
+            <div class="card">
+                <div class="card-icon">🏭</div>
+                <h3>供应商 (Supplier)</h3>
+                <p>提交发票凭证、拆分流转应收账款、发起低成本保理融资申请。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🏢</div>
+                <h3>核心企业 (Core Enterprise)</h3>
+                <p>多级核验真实采购应付发票、到期款项 1:1 链上全额清算。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🏦</div>
+                <h3>资金方 (Financier)</h3>
+                <p>基于大企业信用凭证提供流动性报价，原子化当场放款与到期收回。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🛡️</div>
+                <h3>审计员 (Auditor)</h3>
+                <p>穿透式溯源发票生命周期，突发异常资产链上一键冻结/解冻。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">⚙️</div>
+                <h3>平台管理员 (Admin)</h3>
+                <p>企业入驻资质审核、全网角色授权与撤销、紧急熔断暂停控制。</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>NTU SC6113 Course Project · Group Assignment · 2026</p>
+    </footer>
+
+    <script src="/static/js/web3-provider.js"></script>
+</body>
+</html>
