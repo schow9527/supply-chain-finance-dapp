@@ -1,0 +1,11 @@
+{
+  "name": "scf-dapp-frontend",
+  "version": "1.0.0",
+  "description": "Frontend UI & Web3 client unit tests for SC6113 Supply Chain Finance DApp",
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": ["web3", "dapp", "scf", "tests"],
+  "author": "Member 3",
+  "license": "MIT"
+}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}交易历史中心 | SCF DApp{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="page-header">
+        <div>
+            <h2>我的链上交互交易记录 (F-24)</h2>
+            <p style="color:var(--text-muted); font-size:0.875rem;">查看当前钱包地址发起的全部智能合约写操作及 Sepolia Etherscan 溯源链接</p>
+        </div>
+        <div>
+            <button class="btn btn-outline" onclick="loadTransactions()">🔄 刷新交易</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>交易类型 / 业务描述</th>
+                    <th>目标合约</th>
+                    <th>交易哈希 (Tx Hash)</th>
+                    <th>区块高度</th>
+                    <th>提交时间</th>
+                    <th>区块浏览器</th>
+                </tr>
+            </thead>
+            <tbody id="tx-history-tbody">
+                <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载交易历史...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadTransactions() {
+    const acc = window.DAppState.account;
+    const tbody = document.getElementById("tx-history-tbody");
+    if (!acc) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">请先连接 MetaMask 钱包</td></tr>`;
+        return;
+    }
+
+    try {
+        const txs = await window.DAppState.apiClient.getTransactions(acc) || [];
+        if (txs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">当前地址暂无历史交互交易</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = txs.map(tx => `
+            <tr>
+                <td><strong>${tx.action || "合约交互"}</strong></td>
+                <td><code>${tx.contract_name || "DApp"}</code></td>
+                <td><code>${tx.tx_hash.slice(0, 10)}...${tx.tx_hash.slice(-8)}</code></td>
+                <td>#${tx.block_number || "-"}</td>
+                <td>${tx.timestamp || "-"}</td>
+                <td>
+                    <a href="https://sepolia.etherscan.io/tx/${tx.tx_hash}" target="_blank" class="btn btn-sm btn-outline">
+                        Etherscan ↗
+                    </a>
+                </td>
+            </tr>
+        `).join("");
+    } catch (_) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无交易记录</td></tr>`;
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadTransactions, 600);
+});
+</script>
+{% endblock %}

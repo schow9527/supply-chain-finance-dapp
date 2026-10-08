@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}凭证穿透追踪与冻结 | 审计员{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "tracing" %}
+    {% include "auditor/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>凭证全生命周期穿透追踪与冻结控制 (F-13 / F-14)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">输入凭证 ID 查看自发票开具起的转让、融资、还款链路，行使法定冻结权</p>
+            </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+            <div style="display:flex; gap:0.75rem; align-items:center;">
+                <input type="number" id="search-token-id" class="form-control" placeholder="输入凭证 Token ID (例如：1)" style="max-width:300px;">
+                <button class="btn btn-primary" onclick="searchReceivableTrace()">🔍 穿透追踪</button>
+            </div>
+        </div>
+
+        <div id="trace-result-card" class="hidden" style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:1rem; margin-bottom:1.5rem;">
+                <div>
+                    <h3 id="trace-title">凭证 #1</h3>
+                    <span id="trace-freeze-status" class="badge badge-success">正常流转中</span>
+                </div>
+                <div id="trace-action-buttons">
+                    <button id="freeze-btn" class="btn btn-danger" onclick="openFreezeModal()">❄️ 冻结此凭证 (F-13)</button>
+                    <button id="unfreeze-btn" class="btn btn-outline hidden" onclick="handleUnfreeze()">☀️ 解冻凭证 (F-13)</button>
+                </div>
+            </div>
+
+            <h4>📜 链上生命周期流转时间线 (F-14)</h4>
+            <div class="timeline" id="trace-timeline">
+                <!-- Dynamically generated timeline nodes -->
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Freeze Modal -->
+<div id="freeze-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>冻结可疑数字凭证 (F-13)</h3>
+            <button class="modal-close-btn" onclick="closeFreezeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.875rem; color:var(--danger); margin-bottom:1rem;">
+                警告：冻结后该凭证将被链上锁定，禁止任何转让、质押融资或兑付操作。
+            </p>
+            <div class="form-group">
+                <label>冻结原因 (必填) <span style="color:var(--danger)">*</span></label>
+                <textarea id="freeze-reason-input" class="form-control" rows="3" placeholder="例如：涉嫌发票造假调查中，或司法保全冻结"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeFreezeModal()">取消</button>
+            <button class="btn btn-danger" onclick="confirmFreeze()">确认执行链上冻结</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentTraceId = null;
+let currentIsFrozen = false;
+
+async function searchReceivableTrace() {
+    const id = document.getElementById("search-token-id").value.trim();
+    if (!id) {
+        UIFeedback.showToast("请输入凭证 ID", "warning");
+        return;
+    }
+    currentTraceId = id;
+
+    try {
+        const history = await window.DAppState.apiClient.getReceivableHistory(id) || [];
+        const card = document.getElementById("trace-result-card");
+        card.classList.remove("hidden");
+        document.getElementById("trace-title").innerText = `凭证资产 #${id}`;
+
+        const timeline = document.getElementById("trace-timeline");
+        if (history.length === 0) {
+            timeline.innerHTML = `
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <strong>凭证签发铸造</strong>
+                        <div style="font-size:0.8125rem; color:var(--text-muted); margin-top:0.25rem;">核心企业核验发票，ERC-1155 凭证生效</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            timeline.innerHTML = history.map(item => `
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <strong>${item.title || "状态变更"}</strong>
+                        <div style="font-size:0.8125rem; color:var(--text-muted); margin-top:0.25rem;">
+                            ${item.desc || ""} | 操作方: <code>${window.AppConfig.shortAddress(item.operator || "")}</code>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${item.time || "-"}</div>
+                    </div>
+                </div>
+            `).join("");
+        }
+    } catch (_) {
+        UIFeedback.showToast("查询失败或凭证不存在", "error");
+    }
+}
+
+function openFreezeModal() {
+    document.getElementById("freeze-reason-input").value = "";
+    document.getElementById("freeze-modal").classList.remove("hidden");
+}
+function closeFreezeModal() {
+    document.getElementById("freeze-modal").classList.add("hidden");
+}
+async function confirmFreeze() {
+    const reason = document.getElementById("freeze-reason-input").value.trim();
+    if (!reason) {
+        UIFeedback.showToast("请填写冻结原因！", "warning");
+        return;
+    }
+
+    try {
+        await window.DAppState.contractClient.freezeReceivable(currentTraceId, reason);
+        closeFreezeModal();
+        UIFeedback.showToast("凭证已成功在链上冻结！", "warning");
+        document.getElementById("trace-freeze-status").innerText = "已冻结";
+        document.getElementById("trace-freeze-status").className = "badge badge-danger";
+        document.getElementById("freeze-btn").classList.add("hidden");
+        document.getElementById("unfreeze-btn").classList.remove("hidden");
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function handleUnfreeze() {
+    if (!confirm(`确认解除凭证 #${currentTraceId} 的冻结状态？`)) return;
+
+    try {
+        await window.DAppState.contractClient.unfreezeReceivable(currentTraceId);
+        UIFeedback.showToast("凭证已成功解冻恢复！", "success");
+        document.getElementById("trace-freeze-status").innerText = "正常流转中";
+        document.getElementById("trace-freeze-status").className = "badge badge-success";
+        document.getElementById("unfreeze-btn").classList.add("hidden");
+        document.getElementById("freeze-btn").classList.remove("hidden");
+    } catch (e) {
+        console.error(e);
+    }
+}
+</script>
+{% endblock %}

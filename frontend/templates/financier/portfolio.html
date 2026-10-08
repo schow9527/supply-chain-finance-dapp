@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}已放款资产管理 | 资金方{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "portfolio" %}
+    {% include "financier/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>持有放款资产与到期收回 (F-20 / F-21)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">监控已放款应收凭证的还款状态，到期全额兑付稳定币或执行逾期标记存证</p>
+            </div>
+            <div>
+                <button class="btn btn-outline" onclick="loadPortfolio()">🔄 刷新持有资产</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>凭证 ID (Token ID)</th>
+                        <th>持有本息面值</th>
+                        <th>承兑核心企业</th>
+                        <th>到期日</th>
+                        <th>资金池回款状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="portfolio-tbody">
+                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载持有放款资产...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let portfolioHoldings = [];
+
+async function loadPortfolio() {
+    const acc = window.DAppState.account;
+    const tbody = document.getElementById("portfolio-tbody");
+    if (!acc) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">请先连接 MetaMask 钱包</td></tr>`;
+        return;
+    }
+
+    try {
+        const holdings = await window.DAppState.apiClient.getReceivables(acc) || [];
+        portfolioHoldings = holdings;
+
+        if (portfolioHoldings.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">当前未持有任何已放款凭证资产</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = portfolioHoldings.map(h => {
+            const isRepaid = h.repay_status === "REPAID";
+            const isOverdue = h.is_overdue || false;
+
+            return `
+                <tr>
+                    <td><strong>#${h.receivable_id}</strong></td>
+                    <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(h.balance)}</strong> mUSDT</td>
+                    <td><code>${window.AppConfig.shortAddress(h.buyer_address || "核心企业")}</code></td>
+                    <td>${window.AppConfig.formatTimestamp(h.due_date)}</td>
+                    <td>
+                        <span class="badge badge-${isRepaid ? 'success' : (isOverdue ? 'danger' : 'warning')}">
+                            ${isRepaid ? '核心企业已付款(可兑付)' : (isOverdue ? '已逾期未付' : '等待核心企业到期付款')}
+                        </span>
+                    </td>
+                    <td>
+                        ${isRepaid ? `
+                            <button class="btn btn-sm btn-success" onclick="handleRedeem(${h.receivable_id})">
+                                💰 销毁并1:1兑付 (F-20)
+                            </button>
+                        ` : `
+                            <button class="btn btn-sm btn-danger" onclick="handleMarkOverdue(${h.receivable_id})">
+                                ⚠️ 标记逾期 (F-21)
+                            </button>
+                        `}
+                    </td>
+                </tr>
+            `;
+        }).join("");
+    } catch (_) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无资产记录</td></tr>`;
+    }
+}
+
+async function handleRedeem(receivableId) {
+    if (!confirm(`确认销毁凭证 #${receivableId} 并按 1:1 面值从资金池提取测试稳定币？`)) return;
+
+    try {
+        await window.DAppState.contractClient.redeemReceivable(receivableId);
+        UIFeedback.showToast("兑付成功！稳定币本息已全部打入您的钱包！", "success");
+        await loadPortfolio();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function handleMarkOverdue(receivableId) {
+    if (!confirm(`确认在链上将该笔逾期款项标记？逾期记录将永久留痕于区块链事件及核心企业信用面板。`)) return;
+
+    try {
+        await window.DAppState.contractClient.markOverdue(receivableId);
+        UIFeedback.showToast("已成功标记逾期账款并在链上存证！", "warning");
+        await loadPortfolio();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadPortfolio, 600);
+});
+</script>
+{% endblock %}

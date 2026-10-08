@@ -1,72 +1,94 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>去中心化供应链金融 DApp | NTU SC6113</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <!-- Ethers.js v6 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
-</head>
-<body>
-    <header class="navbar">
-        <div class="nav-container">
-            <div class="logo">
-                <span class="logo-icon">🔗</span>
-                <span class="logo-text">SCF DApp</span>
-                <span class="badge">NTU SC6113</span>
+{% extends "base.html" %}
+
+{% block title %}去中心化供应链金融 DApp | 首页{% endblock %}
+
+{% block content %}
+<main class="container">
+    <section class="hero">
+        <h1>基于以太坊智能合约的去中心化供应链金融平台</h1>
+        <p class="subtitle">解决中小微企业融资难、银行发票核验难、核心大厂信用难穿透的行业痛点</p>
+        <div class="actions">
+            <a href="/register" class="btn btn-primary">🏢 申请企业入驻</a>
+            <button onclick="claimTestTokens()" class="btn btn-outline">💧 领取 10,000 测试稳定币</button>
+            <a href="/common/transactions" class="btn btn-secondary">📜 交易记录</a>
+            <a href="/common/events" class="btn btn-secondary">🔍 事件审计</a>
+        </div>
+    </section>
+
+    <!-- Role Quick Navigation -->
+    <h2 style="font-size: 1.25rem; margin-bottom: 1rem; color: var(--text-main);">选择工作台角色控制台</h2>
+    <div class="roles-grid">
+        <a href="/supplier/dashboard" class="card">
+            <div class="card-icon">🏭</div>
+            <h3>供应商控制台 (Supplier)</h3>
+            <p>登记发票、拆分转让 ERC-1155 凭证、向资金池申请贴现融资。</p>
+        </a>
+        <a href="/core_enterprise/dashboard" class="card">
+            <div class="card-icon">🏢</div>
+            <h3>核心企业控制台 (Core Enterprise)</h3>
+            <p>核验上游发票并链上确认铸证，临期款项预警与到期 1:1 全额清算。</p>
+        </a>
+        <a href="/financier/dashboard" class="card">
+            <div class="card-icon">🏦</div>
+            <h3>资金方控制台 (Financier)</h3>
+            <p>浏览公开融资市场、在线输入贴现率报价、到期兑付稳定币。</p>
+        </a>
+        <a href="/auditor/overview" class="card">
+            <div class="card-icon">🛡️</div>
+            <h3>审计员控制台 (Auditor)</h3>
+            <p>全平台业务宏观总览，时间线穿透追溯凭证流转，异常凭证一键冻结。</p>
+        </a>
+        <a href="/admin/registrations" class="card">
+            <div class="card-icon">⚙️</div>
+            <h3>平台管理员控制台 (Admin)</h3>
+            <p>企业入驻资质人工审查与链上角色发牌，系统全局紧急熔断暂停。</p>
+        </a>
+    </div>
+
+    <!-- 8-step process illustration -->
+    <section style="background:#fff; border:1px solid var(--border); border-radius:10px; padding:1.5rem; margin-top:1.5rem;">
+        <h3 style="margin-bottom:1rem;">📌 核心业务流程 (8 步主线流程)</h3>
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; text-align:center;">
+            <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
+                <div style="font-weight:700; color:var(--primary);">1. 供应商</div>
+                <div style="font-size:0.75rem;">开具并上传发票</div>
             </div>
-            <div class="nav-status">
-                <span id="network-badge" class="badge badge-warning">未连接网络</span>
-                <span id="role-badge" class="badge badge-secondary">未登录</span>
-                <button id="connect-wallet-btn" class="btn btn-primary" onclick="connectWallet()">连接 MetaMask</button>
+            <div style="align-self:center;">➔</div>
+            <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
+                <div style="font-weight:700; color:var(--primary);">2. 核心企业</div>
+                <div style="font-size:0.75rem;">确认发票真实性</div>
+            </div>
+            <div style="align-self:center;">➔</div>
+            <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
+                <div style="font-weight:700; color:var(--primary);">3. 合约自动</div>
+                <div style="font-size:0.75rem;">铸造等额应收凭证</div>
+            </div>
+            <div style="align-self:center;">➔</div>
+            <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
+                <div style="font-weight:700; color:var(--primary);">4. 供应商</div>
+                <div style="font-size:0.75rem;">申请融资 / 拆分转让</div>
+            </div>
+            <div style="align-self:center;">➔</div>
+            <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
+                <div style="font-weight:700; color:var(--primary);">5. 资金方</div>
+                <div style="font-size:0.75rem;">提交贴现率报价</div>
+            </div>
+            <div style="align-self:center;">➔</div>
+            <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
+                <div style="font-weight:700; color:var(--primary);">6. 供应商</div>
+                <div style="font-size:0.75rem;">接受报价当场放款</div>
+            </div>
+            <div style="align-self:center;">➔</div>
+            <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
+                <div style="font-weight:700; color:var(--primary);">7. 核心企业</div>
+                <div style="font-size:0.75rem;">到期支付面值还款</div>
+            </div>
+            <div style="align-self:center;">➔</div>
+            <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
+                <div style="font-weight:700; color:var(--primary);">8. 持有人</div>
+                <div style="font-size:0.75rem;">销毁凭证1:1兑付</div>
             </div>
         </div>
-    </header>
-
-    <main class="main-content">
-        <section class="hero">
-            <h1>基于以太坊智能合约的去中心化供应链金融平台</h1>
-            <p class="subtitle">实现应收账款数字凭证拆分、流转转让、原子化放款与全流程透明防伪</p>
-            <div class="actions">
-                <a href="#roles" class="btn btn-outline">查看 5 大角色工作台</a>
-                <a href="/static/docs/PRD.html" target="_blank" class="btn btn-secondary">阅读产品 PRD</a>
-            </div>
-        </section>
-
-        <section id="roles" class="roles-grid">
-            <div class="card">
-                <div class="card-icon">🏭</div>
-                <h3>供应商 (Supplier)</h3>
-                <p>提交发票凭证、拆分流转应收账款、发起低成本保理融资申请。</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">🏢</div>
-                <h3>核心企业 (Core Enterprise)</h3>
-                <p>多级核验真实采购应付发票、到期款项 1:1 链上全额清算。</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">🏦</div>
-                <h3>资金方 (Financier)</h3>
-                <p>基于大企业信用凭证提供流动性报价，原子化当场放款与到期收回。</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">🛡️</div>
-                <h3>审计员 (Auditor)</h3>
-                <p>穿透式溯源发票生命周期，突发异常资产链上一键冻结/解冻。</p>
-            </div>
-            <div class="card">
-                <div class="card-icon">⚙️</div>
-                <h3>平台管理员 (Admin)</h3>
-                <p>企业入驻资质审核、全网角色授权与撤销、紧急熔断暂停控制。</p>
-            </div>
-        </section>
-    </main>
-
-    <footer class="footer">
-        <p>NTU SC6113 Course Project · Group Assignment · 2026</p>
-    </footer>
-
-    <script src="/static/js/web3-provider.js"></script>
-</body>
-</html>
+    </section>
+</main>
+{% endblock %}

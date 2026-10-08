@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}我的应收凭证 (ERC-1155) | 供应商{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "receivables" %}
+    {% include "supplier/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>我的应收凭证资产池 (F-11 / F-12 / F-15)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">基于 ERC-1155 标准，支持向下游供应商拆分转让信用或申请资金池融资</p>
+            </div>
+            <div>
+                <button class="btn btn-outline" onclick="loadReceivables()">🔄 刷新链上凭证余额</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>凭证 ID (Token ID)</th>
+                        <th>持有面值份额</th>
+                        <th>核心企业承兑方</th>
+                        <th>到期日</th>
+                        <th>凭证状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="receivables-table-body">
+                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载链上凭证...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- Modal 1: 拆分转让凭证 (F-12) -->
+<div id="transfer-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>拆分转让凭证给下一级供应商 (F-12)</h3>
+            <button class="modal-close-btn" onclick="closeTransferModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="transfer-token-id">
+            <div class="form-group">
+                <label>凭证 ID：<span id="transfer-token-label" style="font-weight:700;"></span></label>
+                <div class="form-hint">当前可转让最大面值：<span id="transfer-max-amount" style="font-weight:700; color:var(--primary);"></span> mUSDT</div>
+            </div>
+            <div class="form-group">
+                <label>转让目标供应商钱包地址 <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="transfer-to-address" class="form-control" placeholder="0x..." required>
+                <div class="form-hint">必须是已在平台注册的供应商地址</div>
+            </div>
+            <div class="form-group">
+                <label>拆分转让金额 (mUSDT) <span style="color:var(--danger)">*</span></label>
+                <input type="number" step="0.01" min="1" id="transfer-amount-input" class="form-control" required placeholder="例如：10000">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeTransferModal()">取消</button>
+            <button class="btn btn-primary" onclick="confirmTransferReceivable()">🚀 签名并转让</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: 申请融资 (F-15) -->
+<div id="finance-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>申请流动性保理融资 (F-15)</h3>
+            <button class="modal-close-btn" onclick="closeFinanceModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="finance-token-id">
+            <div class="form-group">
+                <label>凭证 ID：<span id="finance-token-label" style="font-weight:700;"></span></label>
+                <div class="form-hint">可融资金额上限：<span id="finance-max-amount" style="font-weight:700; color:var(--primary);"></span> mUSDT</div>
+            </div>
+            <div class="form-group">
+                <label>申请融资金额 (mUSDT) <span style="color:var(--danger)">*</span></label>
+                <input type="number" step="0.01" min="1" id="finance-amount-input" class="form-control" required placeholder="例如：20000">
+                <div class="form-hint">凭证将暂时托管至资金池合约，待资金方报价</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeFinanceModal()">取消</button>
+            <button class="btn btn-primary" onclick="confirmRequestFinancing()">🚀 签名并提交申请</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let heldReceivables = [];
+
+async function loadReceivables() {
+    const acc = window.DAppState.account;
+    const tbody = document.getElementById("receivables-table-body");
+    if (!acc) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">请先连接 MetaMask 钱包</td></tr>`;
+        return;
+    }
+
+    try {
+        heldReceivables = await window.DAppState.apiClient.getReceivables(acc) || [];
+        renderReceivables();
+    } catch (_) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无凭证资产</td></tr>`;
+    }
+}
+
+function renderReceivables() {
+    const tbody = document.getElementById("receivables-table-body");
+    if (heldReceivables.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">当前未持有任何应收账款凭证</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = heldReceivables.map(r => `
+        <tr>
+            <td><strong>#${r.receivable_id}</strong></td>
+            <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(r.balance)}</strong> mUSDT</td>
+            <td><code>${window.AppConfig.shortAddress(r.buyer_address || "核心企业")}</code></td>
+            <td>${window.AppConfig.formatTimestamp(r.due_date)}</td>
+            <td>
+                <span class="badge badge-${r.is_frozen ? 'danger' : 'success'}">
+                    ${r.is_frozen ? '已冻结' : '正常流转'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline" ${r.is_frozen ? 'disabled' : ''} onclick="openTransferModal(${r.receivable_id}, '${r.balance}')">拆分转让</button>
+                <button class="btn btn-sm btn-primary" ${r.is_frozen ? 'disabled' : ''} onclick="openFinanceModal(${r.receivable_id}, '${r.balance}')">申请融资</button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+// 拆分转让弹窗
+function openTransferModal(id, balance) {
+    document.getElementById("transfer-token-id").value = id;
+    document.getElementById("transfer-token-label").innerText = `#${id}`;
+    document.getElementById("transfer-max-amount").innerText = window.AppConfig.formatTokens(balance);
+    document.getElementById("transfer-amount-input").value = "";
+    document.getElementById("transfer-to-address").value = "";
+    document.getElementById("transfer-modal").classList.remove("hidden");
+}
+function closeTransferModal() {
+    document.getElementById("transfer-modal").classList.add("hidden");
+}
+async function confirmTransferReceivable() {
+    const id = document.getElementById("transfer-token-id").value;
+    const to = document.getElementById("transfer-to-address").value.trim();
+    const amt = document.getElementById("transfer-amount-input").value;
+    if (!to || !amt) {
+        UIFeedback.showToast("请填写完整转让信息！", "warning");
+        return;
+    }
+
+    try {
+        const amountWei = window.AppConfig.parseTokens(amt);
+        await window.DAppState.contractClient.transferReceivable(to, id, amountWei);
+        closeTransferModal();
+        UIFeedback.showToast("凭证拆分转让已成功上链！", "success");
+        await loadReceivables();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+// 融资申请弹窗
+function openFinanceModal(id, balance) {
+    document.getElementById("finance-token-id").value = id;
+    document.getElementById("finance-token-label").innerText = `#${id}`;
+    document.getElementById("finance-max-amount").innerText = window.AppConfig.formatTokens(balance);
+    document.getElementById("finance-amount-input").value = "";
+    document.getElementById("finance-modal").classList.remove("hidden");
+}
+function closeFinanceModal() {
+    document.getElementById("finance-modal").classList.add("hidden");
+}
+async function confirmRequestFinancing() {
+    const id = document.getElementById("finance-token-id").value;
+    const amt = document.getElementById("finance-amount-input").value;
+    if (!amt) {
+        UIFeedback.showToast("请填写融资金额！", "warning");
+        return;
+    }
+
+    try {
+        const amountWei = window.AppConfig.parseTokens(amt);
+        // Ensure approval for pool
+        const poolAddr = window.DAppState.contractClient.addresses.FinancingPool;
+        if (poolAddr) {
+            await window.DAppState.contractClient.setApprovalForAllReceivables(poolAddr, true);
+        }
+        await window.DAppState.contractClient.requestFinancing(id, amountWei);
+        closeFinanceModal();
+        UIFeedback.showToast("融资申请已提交至市场！", "success");
+        setTimeout(() => window.location.href = "/supplier/financing", 1200);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadReceivables, 600);
+});
+</script>
+{% endblock %}

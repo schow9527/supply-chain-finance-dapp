@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}供应商仪表盘 | SCF DApp{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "dashboard" %}
+    {% include "supplier/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>供应商综合概览看板</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">监控应收账款流转与保理融资流动性</p>
+            </div>
+            <div>
+                <a href="/supplier/upload_invoice" class="btn btn-primary">➕ 上传新发票</a>
+            </div>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">持有凭证总面值 (ERC-1155)</div>
+                <div class="kpi-value" id="kpi-receivable-total">0.00 <span style="font-size:1rem;">mUSDT</span></div>
+                <div class="kpi-sub">核心企业确认签发的有效账款</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">待核心企业确认发票</div>
+                <div class="kpi-value" id="kpi-pending-invoices">0 <span style="font-size:1rem;">张</span></div>
+                <div class="kpi-sub">已上链，待买方财务核验</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">融资中需求 / 报价中</div>
+                <div class="kpi-value" id="kpi-financing-active">0.00 <span style="font-size:1rem;">mUSDT</span></div>
+                <div class="kpi-sub">等待接受资金方报价</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">累计已融资金额</div>
+                <div class="kpi-value" id="kpi-funded-total" style="color:var(--success);">0.00 <span style="font-size:1rem;">mUSDT</span></div>
+                <div class="kpi-sub">已完成原子化放款到账</div>
+            </div>
+        </div>
+
+        <!-- Recent Invoices & Quick Actions -->
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3 style="font-size:1.125rem;">近期发票登记动态</h3>
+                <a href="/supplier/invoices" class="btn btn-sm btn-outline">查看全部发票</a>
+            </div>
+            <div class="table-container" style="margin-top:0;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>发票号</th>
+                            <th>采购方核心企业</th>
+                            <th>面值总额</th>
+                            <th>到期日期</th>
+                            <th>审核状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboard-invoices-tbody">
+                        <tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无发票记录，点击右上角上传第一张发票</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSupplierDashboard() {
+    const acc = window.DAppState.account;
+    if (!acc) return;
+
+    try {
+        const data = await window.DAppState.apiClient.getDashboard(acc);
+        if (data) {
+            document.getElementById("kpi-receivable-total").innerHTML = `${window.AppConfig.formatTokens(data.receivable_total || "0")} <span style="font-size:1rem;">mUSDT</span>`;
+            document.getElementById("kpi-pending-invoices").innerHTML = `${data.pending_invoices_count || 0} <span style="font-size:1rem;">张</span>`;
+            document.getElementById("kpi-financing-active").innerHTML = `${window.AppConfig.formatTokens(data.financing_active_amount || "0")} <span style="font-size:1rem;">mUSDT</span>`;
+            document.getElementById("kpi-funded-total").innerHTML = `${window.AppConfig.formatTokens(data.funded_total_amount || "0")} <span style="font-size:1rem;">mUSDT</span>`;
+        }
+
+        const invs = await window.DAppState.apiClient.getInvoices({ supplier: acc });
+        if (invs && invs.length > 0) {
+            const tbody = document.getElementById("dashboard-invoices-tbody");
+            tbody.innerHTML = invs.slice(0, 5).map(inv => `
+                <tr>
+                    <td><b>${inv.invoice_no}</b></td>
+                    <td>${window.AppConfig.shortAddress(inv.buyer_address)}</td>
+                    <td>${window.AppConfig.formatTokens(inv.amount)} mUSDT</td>
+                    <td>${window.AppConfig.formatTimestamp(inv.due_date)}</td>
+                    <td>
+                        <span class="badge badge-${inv.status === 'CONFIRMED' ? 'success' : (inv.status === 'REJECTED' ? 'danger' : 'warning')}">
+                            ${inv.status === 'CONFIRMED' ? '已确认铸证' : (inv.status === 'REJECTED' ? '已拒绝' : '待确认')}
+                        </span>
+                    </td>
+                    <td><a href="/supplier/invoices" class="btn btn-sm btn-outline">详情</a></td>
+                </tr>
+            `).join("");
+        }
+    } catch (_) {}
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadSupplierDashboard, 600);
+});
+</script>
+{% endblock %}

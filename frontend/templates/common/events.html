@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}链上审计事件日志 | SCF DApp{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="page-header">
+        <div>
+            <h2>以太坊智能合约审计事件流 (F-25)</h2>
+            <p style="color:var(--text-muted); font-size:0.875rem;">17 类业务合约事件全量索引，支持多维筛选穿透审计</p>
+        </div>
+        <div>
+            <button class="btn btn-outline" onclick="loadEvents()">🔄 刷新事件流</button>
+        </div>
+    </div>
+
+    <!-- Filter form -->
+    <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1rem; margin-bottom:1.25rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+        <select id="contract-filter" class="form-control" style="max-width:200px;" onchange="loadEvents()">
+            <option value="">全部智能合约</option>
+            <option value="RoleManager">RoleManager</option>
+            <option value="InvoiceRegistry">InvoiceRegistry</option>
+            <option value="ReceivableToken">ReceivableToken</option>
+            <option value="FinancingPool">FinancingPool</option>
+            <option value="MockStablecoin">MockStablecoin</option>
+        </select>
+        <input type="text" id="event-name-filter" class="form-control" placeholder="按事件名筛选 (如 InvoiceSubmitted)" style="max-width:240px;" oninput="loadEvents()">
+        <input type="text" id="address-filter" class="form-control" placeholder="按涉及地址筛选 (0x...)" style="max-width:240px;" oninput="loadEvents()">
+    </div>
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>事件名称</th>
+                    <th>来源合约</th>
+                    <th>区块高度</th>
+                    <th>解析参数 (Indexed / Data)</th>
+                    <th>交易哈希</th>
+                    <th>时间</th>
+                </tr>
+            </thead>
+            <tbody id="events-tbody">
+                <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载合约事件...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadEvents() {
+    const tbody = document.getElementById("events-tbody");
+    const contractName = document.getElementById("contract-filter").value;
+    const eventName = document.getElementById("event-name-filter").value.trim();
+    const address = document.getElementById("address-filter").value.trim();
+
+    try {
+        const events = await window.DAppState.apiClient.getEvents({
+            contract: contractName,
+            name: eventName,
+            address: address
+        }) || [];
+
+        if (events.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">暂无匹配的链上事件记录</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = events.map(ev => `
+            <tr>
+                <td><strong style="color:var(--primary);">${ev.event_name}</strong></td>
+                <td><span class="badge badge-secondary">${ev.contract_name}</span></td>
+                <td>#${ev.block_number}</td>
+                <td><pre style="font-size:0.75rem; background:#f8fafc; padding:0.375rem; border-radius:4px; max-width:320px; overflow-x:auto;">${ev.event_args_json}</pre></td>
+                <td>
+                    <a href="https://sepolia.etherscan.io/tx/${ev.tx_hash}" target="_blank">
+                        <code>${ev.tx_hash.slice(0, 8)}...${ev.tx_hash.slice(-6)}</code>
+                    </a>
+                </td>
+                <td>${ev.timestamp || "-"}</td>
+            </tr>
+        `).join("");
+    } catch (_) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无事件数据</td></tr>`;
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadEvents, 600);
+});
+</script>
+{% endblock %}

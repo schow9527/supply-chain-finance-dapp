@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}供应链金融 DApp | NTU SC6113{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Ethers.js v6 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <span class="logo-icon">🔗</span>
+                <span class="logo-text">SCF DApp</span>
+                <span class="badge">NTU SC6113</span>
+            </a>
+            <div class="nav-status">
+                <span id="network-badge" class="badge badge-warning">未连接网络</span>
+                <span id="role-badge" class="badge badge-secondary">未登录</span>
+                <button id="connect-wallet-btn" class="btn btn-primary" onclick="connectWallet()">连接 MetaMask</button>
+            </div>
+        </div>
+    </header>
+
+    {% block content %}{% endblock %}
+
+    <footer class="footer">
+        <p>NTU SC6113 Course Project · Group Assignment · 2026</p>
+    </footer>
+
+    <!-- Global Core Web3 & API Scripts -->
+    <script src="/static/js/config.js"></script>
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/ui-feedback.js"></script>
+    <script src="/static/js/contract-client.js"></script>
+    <script src="/static/js/web3-provider.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

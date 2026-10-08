@@ -1,126 +1,44 @@
-:root {
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --bg-page: #f8fafc;
-    --card-bg: #ffffff;
-    --text-main: #0f172a;
-    --text-muted: #64748b;
-    --border: #e2e8f0;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-}
+@import url("base.css");
+@import url("components.css");
+@import url("dashboard.css");
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: var(--bg-page);
-    color: var(--text-main);
-    line-height: 1.6;
-}
-
-.navbar {
-    background: #ffffff;
-    border-bottom: 1px solid var(--border);
-    padding: 0.75rem 2rem;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-}
-
-.nav-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.logo {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1.25rem;
-    font-weight: 700;
-}
-
-.nav-status {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.badge {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.6rem;
-    border-radius: 9999px;
-    font-weight: 600;
-}
-
-.badge-warning { background: #fef3c7; color: #b45309; }
-.badge-secondary { background: #f1f5f9; color: #475569; }
-.badge-success { background: #d1fae5; color: #065f46; }
-
-.btn {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
-}
-
-.btn-primary { background: var(--primary); color: #fff; }
-.btn-primary:hover { background: var(--primary-hover); }
-.btn-outline { border-color: var(--border); background: #fff; color: var(--text-main); }
-.btn-secondary { background: #e2e8f0; color: var(--text-main); }
-
-.main-content {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 0 1.5rem;
-}
-
+/* Hero & Landing section styles */
 .hero {
     text-align: center;
-    padding: 3rem 1rem;
-    background: #fff;
+    padding: 3.5rem 1.5rem;
+    background: #ffffff;
     border-radius: 12px;
     border: 1px solid var(--border);
     margin-bottom: 2rem;
+    box-shadow: var(--shadow-sm);
 }
 
 .hero h1 {
-    font-size: 2rem;
+    font-size: 2.25rem;
     margin-bottom: 1rem;
     color: var(--text-main);
+    letter-spacing: -0.025em;
 }
 
 .hero .subtitle {
     font-size: 1.125rem;
     color: var(--text-muted);
-    max-width: 700px;
-    margin: 0 auto 1.5rem;
+    max-width: 720px;
+    margin: 0 auto 1.75rem;
 }
 
 .hero .actions {
     display: flex;
     justify-content: center;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .roles-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1.5rem;
+    margin-bottom: 2.5rem;
 }
 
 .card {
@@ -129,21 +47,26 @@ body {
     border-radius: 10px;
     padding: 1.5rem;
     transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
 }
 
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-md);
+    border-color: #cbd5e1;
 }
 
 .card-icon {
-    font-size: 2rem;
+    font-size: 2.25rem;
     margin-bottom: 0.75rem;
 }
 
 .card h3 {
     font-size: 1.125rem;
     margin-bottom: 0.5rem;
+    color: var(--text-main);
 }
 
 .card p {
@@ -156,4 +79,7 @@ body {
     padding: 2rem 0;
     color: var(--text-muted);
     font-size: 0.875rem;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+    background: #ffffff;
 }

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}资金方仪表盘 | SCF DApp{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "dashboard" %}
+    {% include "financier/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>资金方信贷投放概览 (F-23)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">基于核心企业信用评级参与优质应收账款贴现投资，锁定确定性到期回款</p>
+            </div>
+            <div>
+                <a href="/financier/market" class="btn btn-primary">📈 前往融资市场竞价</a>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">累计已放款资金</div>
+                <div class="kpi-value" id="kpi-funded-total" style="color:var(--primary);">0.00 <span style="font-size:1rem;">mUSDT</span></div>
+                <div class="kpi-sub">已通过智能合约原子化放款给供应商</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">持仓待回款本息总额</div>
+                <div class="kpi-value" id="kpi-portfolio-total">0.00 <span style="font-size:1rem;">mUSDT</span></div>
+                <div class="kpi-sub">持有中待核心企业清算的凭证面值</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">市场活跃融资需求</div>
+                <div class="kpi-value" id="kpi-market-requests">0 <span style="font-size:1rem;">笔</span></div>
+                <div class="kpi-sub">等待银行与保理机构出具报价</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">逾期风险预警资产</div>
+                <div class="kpi-value" id="kpi-overdue-total" style="color:var(--danger);">0 <span style="font-size:1rem;">笔</span></div>
+                <div class="kpi-sub">已过到期日且未结清付款</div>
+            </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3 style="font-size:1.125rem;">信贷资产运营建议</h3>
+            </div>
+            <p style="color:var(--text-muted); font-size:0.875rem;">
+                • 当前测试网环境可通过首页或浮窗领取 10,000 mUSDT 测试币进行放款体验。<br>
+                • 报价前请确保已为 <code>FinancingPool</code> 智能合约完成充足的稳定币扣款授权。
+            </p>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadFinancierDashboard() {
+    const acc = window.DAppState.account;
+    if (!acc) return;
+
+    try {
+        const reqs = await window.DAppState.apiClient.getFinancingRequests("PENDING_QUOTE") || [];
+        document.getElementById("kpi-market-requests").innerHTML = `${reqs.length} <span style="font-size:1rem;">笔</span>`;
+
+        const holdings = await window.DAppState.apiClient.getReceivables(acc) || [];
+        let totalHoldings = 0n;
+        holdings.forEach(h => { totalHoldings += BigInt(h.balance); });
+        document.getElementById("kpi-portfolio-total").innerHTML = `${window.AppConfig.formatTokens(totalHoldings.toString())} <span style="font-size:1rem;">mUSDT</span>`;
+    } catch (_) {}
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadFinancierDashboard, 600);
+});
+</script>
+{% endblock %}

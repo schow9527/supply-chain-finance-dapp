@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}系统控制与角色撤销 | 管理员{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "system" %}
+    {% include "admin/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>系统紧急熔断与角色撤销管理 (F-04 / F-05)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">突发安全事件时一键全局熔断写操作，或依法吊销违规企业链上角色</p>
+            </div>
+        </div>
+
+        <!-- 1. Emergency Pause (F-05) -->
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.5rem; margin-bottom:2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h3 style="margin-bottom:0.375rem;">🚨 全局紧急熔断暂停开关 (F-05)</h3>
+                    <p style="font-size:0.875rem; color:var(--text-muted);">
+                        暂停期间，全网所有发票登记、凭证转让、融资申请与放款写操作将被智能合约无条件拦截，查询不受影响。
+                    </p>
+                </div>
+                <div style="text-align:right;">
+                    <div style="margin-bottom:0.5rem;">当前系统状态：<strong id="pause-status-text" style="color:var(--success);">正常运行中</strong></div>
+                    <button id="toggle-pause-btn" class="btn btn-danger" onclick="handleTogglePause()">🛑 紧急暂停全网系统</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Revoke Role (F-04) -->
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.5rem; max-width:650px;">
+            <h3 style="margin-bottom:0.75rem;">⛔ 撤销企业链上角色 (F-04)</h3>
+            <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.25rem;">
+                撤销后该地址将立即失去对应角色权限，所有专属写操作将被合约拒绝。
+            </p>
+
+            <form onsubmit="handleRevokeRole(event)">
+                <div class="form-group">
+                    <label>目标企业钱包地址 <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="revoke-address-input" class="form-control" required placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$">
+                </div>
+
+                <div class="form-group">
+                    <label>要撤销的角色 <span style="color:var(--danger)">*</span></label>
+                    <select id="revoke-role-select" class="form-control" required>
+                        <option value="SUPPLIER">供应商 (SUPPLIER_ROLE)</option>
+                        <option value="CORE_ENTERPRISE">核心企业 (CORE_ENTERPRISE_ROLE)</option>
+                        <option value="FINANCIER">资金方 (FINANCIER_ROLE)</option>
+                        <option value="AUDITOR">审计员 (AUDITOR_ROLE)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-danger">执行链上角色撤销 (MetaMask 签名)</button>
+            </form>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let isCurrentlyPaused = false;
+
+const ROLE_HASHES = {
+    SUPPLIER: ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER_ROLE")),
+    CORE_ENTERPRISE: ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE_ROLE")),
+    FINANCIER: ethers.keccak256(ethers.toUtf8Bytes("FINANCIER_ROLE")),
+    AUDITOR: ethers.keccak256(ethers.toUtf8Bytes("AUDITOR_ROLE"))
+};
+
+async function checkSystemPauseState() {
+    if (!window.DAppState.contractClient || !window.DAppState.contractClient.contracts.RoleManager) return;
+
+    try {
+        isCurrentlyPaused = await window.DAppState.contractClient.contracts.RoleManager.isPaused();
+        const textEl = document.getElementById("pause-status-text");
+        const btnEl = document.getElementById("toggle-pause-btn");
+
+        if (isCurrentlyPaused) {
+            textEl.innerText = "已紧急暂停";
+            textEl.style.color = "var(--danger)";
+            btnEl.innerText = "▶ 恢复系统运行";
+            btnEl.className = "btn btn-success";
+        } else {
+            textEl.innerText = "正常运行中";
+            textEl.style.color = "var(--success)";
+            btnEl.innerText = "🛑 紧急暂停全网系统";
+            btnEl.className = "btn btn-danger";
+        }
+    } catch (_) {}
+}
+
+async function handleTogglePause() {
+    const action = isCurrentlyPaused ? "恢复" : "暂停";
+    if (!confirm(`确认要向以太坊发起【${action}系统】的管理员交易？`)) return;
+
+    try {
+        if (isCurrentlyPaused) {
+            await window.DAppState.contractClient.unpauseSystem();
+            UIFeedback.showToast("系统已恢复正常运作！", "success");
+        } else {
+            await window.DAppState.contractClient.pauseSystem();
+            UIFeedback.showToast("系统已进入紧急熔断暂停状态！", "warning");
+        }
+        await checkSystemPauseState();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function handleRevokeRole(e) {
+    e.preventDefault();
+    const targetAddr = document.getElementById("revoke-address-input").value.trim();
+    const roleKey = document.getElementById("revoke-role-select").value;
+
+    if (!confirm(`确认在链上撤销地址 ${targetAddr} 的 ${roleKey} 权限？`)) return;
+
+    const roleBytes32 = ROLE_HASHES[roleKey];
+    try {
+        await window.DAppState.contractClient.revokeRole(roleBytes32, targetAddr);
+        UIFeedback.showToast("已成功撤销该账户的角色权限！", "success");
+        document.getElementById("revoke-address-input").value = "";
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(checkSystemPauseState, 800);
+});
+</script>
+{% endblock %}

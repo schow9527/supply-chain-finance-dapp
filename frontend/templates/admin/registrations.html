@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}企业入驻审核与链上发牌 | 管理员{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "registrations" %}
+    {% include "admin/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>企业入驻资质审核与链上角色发牌 (F-03)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">审查企业信息，通过后直接向以太坊 RoleManager 合约发起 grantRole 交易</p>
+            </div>
+            <div>
+                <button class="btn btn-outline" onclick="loadApplications()">🔄 刷新申请列表</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>企业名称</th>
+                        <th>联系人</th>
+                        <th>申请角色</th>
+                        <th>申请钱包地址</th>
+                        <th>审核状态</th>
+                        <th>审查操作</th>
+                    </tr>
+                </thead>
+                <tbody id="applications-tbody">
+                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载入驻申请...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let appList = [];
+
+// Role hashes corresponding to RoleManager.sol
+const ROLE_HASHES = {
+    ADMIN: ethers.keccak256(ethers.toUtf8Bytes("ADMIN_ROLE")),
+    SUPPLIER: ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER_ROLE")),
+    CORE_ENTERPRISE: ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE_ROLE")),
+    FINANCIER: ethers.keccak256(ethers.toUtf8Bytes("FINANCIER_ROLE")),
+    AUDITOR: ethers.keccak256(ethers.toUtf8Bytes("AUDITOR_ROLE"))
+};
+
+async function loadApplications() {
+    const tbody = document.getElementById("applications-tbody");
+    try {
+        const list = await window.DAppState.apiClient.getEnterprises() || [];
+        appList = list;
+
+        if (appList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">当前暂无待审核的企业申请</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = appList.map(a => `
+            <tr>
+                <td><strong>${a.enterprise_name}</strong></td>
+                <td>${a.contact_person}</td>
+                <td><span class="badge badge-info">${window.AppConfig.ROLE_LABELS[a.role_applied] || a.role_applied}</span></td>
+                <td><code>${window.AppConfig.shortAddress(a.wallet_address)}</code></td>
+                <td>
+                    <span class="badge badge-${a.status === 'APPROVED' ? 'success' : (a.status === 'REJECTED' ? 'danger' : 'warning')}">
+                        ${a.status === 'APPROVED' ? '已核准发牌' : (a.status === 'REJECTED' ? '已驳回' : '待审核')}
+                    </span>
+                </td>
+                <td>
+                    ${a.status === 'PENDING' ? `
+                        <button class="btn btn-sm btn-success" onclick="handleApproveApplication(${a.id}, '${a.role_applied}', '${a.wallet_address}')">
+                            ✓ 链上核准发牌 (F-03)
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="handleRejectApplication(${a.id})">
+                            ✕ 驳回
+                        </button>
+                    ` : (a.tx_hash ? `<a href="https://sepolia.etherscan.io/tx/${a.tx_hash}" target="_blank" class="btn btn-sm btn-outline">查看授权交易</a>` : '-')}
+                </td>
+            </tr>
+        `).join("");
+    } catch (_) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无申请数据</td></tr>`;
+    }
+}
+
+async function handleApproveApplication(id, roleKey, walletAddress) {
+    if (!confirm(`确认在区块链上为地址 ${walletAddress} 授予【${window.AppConfig.ROLE_LABELS[roleKey] || roleKey}】权限？`)) return;
+
+    const roleBytes32 = ROLE_HASHES[roleKey];
+    if (!roleBytes32) {
+        UIFeedback.showToast("未识别的角色类型", "error");
+        return;
+    }
+
+    try {
+        const receipt = await window.DAppState.contractClient.grantRole(roleBytes32, walletAddress);
+        // Sync to backend
+        try {
+            await window.DAppState.apiClient.reviewEnterprise(id, {
+                status: "APPROVED",
+                tx_hash: receipt.hash
+            });
+        } catch (_) {}
+        UIFeedback.showToast("已成功在链上授予企业角色！", "success");
+        await loadApplications();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function handleRejectApplication(id) {
+    const reason = prompt("请输入驳回申请的具体原因：");
+    if (!reason) return;
+
+    try {
+        await window.DAppState.apiClient.reviewEnterprise(id, {
+            status: "REJECTED",
+            reject_reason: reason
+        });
+        UIFeedback.showToast("已驳回该企业入驻申请", "info");
+        await loadApplications();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadApplications, 600);
+});
+</script>
+{% endblock %}

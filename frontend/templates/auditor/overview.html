@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}全局审计看板 | 审计员{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "overview" %}
+    {% include "auditor/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>供应链金融监管与审计全局总览 (F-23)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">实时穿透监控全网凭证发行、信用流转深度与信贷资产逾期违约风险</p>
+            </div>
+            <div>
+                <a href="/auditor/tracing" class="btn btn-primary">🔍 凭证追踪与冻结</a>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">平台存证发票总量</div>
+                <div class="kpi-value" id="kpi-total-invoices">0 <span style="font-size:1rem;">张</span></div>
+                <div class="kpi-sub">防重登记哈希 100% 留痕</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">ERC-1155 凭证发行总额</div>
+                <div class="kpi-value" id="kpi-total-receivables">0.00 <span style="font-size:1rem;">mUSDT</span></div>
+                <div class="kpi-sub">核心企业确权承兑资产规模</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">平台放款融资本金</div>
+                <div class="kpi-value" id="kpi-total-financed" style="color:var(--primary);">0.00 <span style="font-size:1rem;">mUSDT</span></div>
+                <div class="kpi-sub">资金方实际放款流动性</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">全网逾期坏账率</div>
+                <div class="kpi-value" id="kpi-overdue-rate" style="color:var(--success);">0.00%</div>
+                <div class="kpi-sub">履约状态健康受控</div>
+            </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
+            <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">🛡️ 审计合规与穿透监督职责</h3>
+            <p style="color:var(--text-muted); font-size:0.875rem; line-height:1.7;">
+                1. <strong>全生命周期追溯</strong>：任何一张已铸造凭证均可追溯其起源发票、流转拆分至二级/三级供应商的全路径。<br>
+                2. <strong>司法/违规链上紧急冻结</strong>：如发现某发票涉嫌欺诈或核心企业陷入破产纠纷，审计员拥有专属 <code>freeze()</code> 权限冻结指定凭证，使其无法继续转让、贴现或兑付。
+            </p>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadAuditorOverview() {
+    try {
+        const invs = await window.DAppState.apiClient.getInvoices() || [];
+        document.getElementById("kpi-total-invoices").innerHTML = `${invs.length} <span style="font-size:1rem;">张</span>`;
+
+        let totalAmt = 0n;
+        invs.forEach(i => { if (i.status === 'CONFIRMED') totalAmt += BigInt(i.amount); });
+        document.getElementById("kpi-total-receivables").innerHTML = `${window.AppConfig.formatTokens(totalAmt.toString())} <span style="font-size:1rem;">mUSDT</span>`;
+    } catch (_) {}
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadAuditorOverview, 600);
+});
+</script>
+{% endblock %}

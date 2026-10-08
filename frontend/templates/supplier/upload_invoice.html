@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}上传发票登记 | 供应商{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "upload" %}
+    {% include "supplier/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>上传应收发票上链登记 (F-06 / F-07)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">发票 PDF 存储于链下，文件哈希与元数据上链，机制防重登记</p>
+            </div>
+        </div>
+
+        <div class="form-card" style="max-width:700px; margin:0 auto;">
+            <form id="invoice-upload-form" onsubmit="handleInvoiceSubmit(event)">
+                <div class="form-group">
+                    <label>发票编号 (Invoice No.) <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="invoice-no-input" class="form-control" required placeholder="例如：INV-2026-NTU-001">
+                    <div class="form-hint">企业自编发票流水号，合约将校验防重复性</div>
+                </div>
+
+                <div class="form-group">
+                    <label>买方核心企业钱包地址 <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="buyer-address-input" class="form-control" required placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$">
+                    <div class="form-hint">必须是已获平台管理员链上授权的核心企业地址</div>
+                </div>
+
+                <div class="form-group">
+                    <label>发票面值金额 (mUSDT) <span style="color:var(--danger)">*</span></label>
+                    <input type="number" step="0.01" min="1" id="amount-input" class="form-control" required placeholder="例如：50000">
+                    <div class="form-hint">确认后将按 1:1 铸造等额 ERC-1155 应收凭证</div>
+                </div>
+
+                <div class="form-group">
+                    <label>款项到期日 (Due Date) <span style="color:var(--danger)">*</span></label>
+                    <input type="date" id="due-date-input" class="form-control" required>
+                    <div class="form-hint">必须晚于当前日期</div>
+                </div>
+
+                <div class="form-group">
+                    <label>发票 PDF 原件文件 <span style="color:var(--danger)">*</span></label>
+                    <input type="file" id="pdf-file-input" class="form-control" accept=".pdf" required onchange="handleFileChange(event)">
+                    <div id="file-hash-preview" class="form-hint" style="word-break:break-all;">未选择文件</div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+                    <a href="/supplier/dashboard" class="btn btn-outline">取消</a>
+                    <button type="submit" id="submit-invoice-btn" class="btn btn-primary">🚀 提交链上登记 (MetaMask 签名)</button>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let computedFileHash = "0x" + "0".repeat(64);
+
+async function handleFileChange(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById("file-hash-preview");
+    if (!file) return;
+
+    preview.innerText = "正在计算 PDF 文件 SHA-256 哈希...";
+    try {
+        const buffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+        computedFileHash = "0x" + hashHex;
+        preview.innerHTML = `<strong>SHA-256 哈希：</strong><code>${computedFileHash}</code> (大小: ${(file.size / 1024).toFixed(1)} KB)`;
+    } catch (err) {
+        preview.innerText = "哈希计算失败: " + err.message;
+    }
+}
+
+async function handleInvoiceSubmit(e) {
+    e.preventDefault();
+    if (!window.DAppState.account) {
+        UIFeedback.showToast("请先连接 MetaMask 钱包！", "warning");
+        return;
+    }
+
+    const invoiceNo = document.getElementById("invoice-no-input").value.trim();
+    const buyer = document.getElementById("buyer-address-input").value.trim();
+    const amountVal = document.getElementById("amount-input").value;
+    const dueDateStr = document.getElementById("due-date-input").value;
+    const fileInput = document.getElementById("pdf-file-input");
+
+    if (!dueDateStr) {
+        UIFeedback.showToast("请选择到期日期！", "warning");
+        return;
+    }
+
+    const dueDateTs = Math.floor(new Date(dueDateStr).getTime() / 1000);
+    const nowTs = Math.floor(Date.now() / 1000);
+    if (dueDateTs <= nowTs) {
+        UIFeedback.showToast("发票到期日必须晚于当前时间！", "error");
+        return;
+    }
+
+    const amountWei = window.AppConfig.parseTokens(amountVal);
+
+    // 1. Upload file to backend for storage
+    if (fileInput.files.length > 0) {
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        formData.append("invoice_no", invoiceNo);
+        formData.append("supplier", window.DAppState.account);
+        formData.append("buyer", buyer);
+        try {
+            await window.DAppState.apiClient.uploadInvoiceFile(formData);
+        } catch (_) {
+            console.warn("Backend offline or upload failed, continuing with on-chain submit");
+        }
+    }
+
+    // 2. Submit to InvoiceRegistry Smart Contract with 4-stage lifecycle modal
+    try {
+        await window.DAppState.contractClient.submitInvoice(
+            buyer,
+            amountWei,
+            dueDateTs,
+            computedFileHash,
+            invoiceNo
+        );
+        UIFeedback.showToast("发票登记成功！已提交核心企业审核。", "success");
+        setTimeout(() => {
+            window.location.href = "/supplier/invoices";
+        }, 1500);
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// Set minimum date to tomorrow
+document.addEventListener("DOMContentLoaded", () => {
+    const dateInput = document.getElementById("due-date-input");
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    dateInput.min = tomorrow.toISOString().split("T")[0];
+});
+</script>
+{% endblock %}

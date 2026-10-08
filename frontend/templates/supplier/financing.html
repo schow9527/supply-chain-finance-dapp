@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}我的融资与报价 | 供应商{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "financing" %}
+    {% include "supplier/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>我的融资申请与报价管理 (F-17 / F-18)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">比选各家银行/资金方贴现报价，一键接受放款并原子化收款</p>
+            </div>
+            <div>
+                <a href="/supplier/receivables" class="btn btn-outline">➕ 从凭证发起融资</a>
+            </div>
+        </div>
+
+        <div id="financing-requests-container" style="display:flex; flex-direction:column; gap:1.25rem;">
+            <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:2rem; text-align:center; color:var(--text-muted);">
+                正在加载融资需求与报价列表...
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadFinancingRequests() {
+    const acc = window.DAppState.account;
+    const container = document.getElementById("financing-requests-container");
+    if (!acc) {
+        container.innerHTML = `<div style="background:#fff; padding:2rem; text-align:center; border:1px solid var(--border); border-radius:8px; color:var(--text-muted);">请先连接 MetaMask 钱包</div>`;
+        return;
+    }
+
+    try {
+        const requests = await window.DAppState.apiClient.getFinancingRequests() || [];
+        const myRequests = requests.filter(r => r.supplier_address.toLowerCase() === acc.toLowerCase());
+
+        if (myRequests.length === 0) {
+            container.innerHTML = `
+                <div style="background:#fff; padding:3rem 1.5rem; text-align:center; border:1px solid var(--border); border-radius:8px;">
+                    <p style="color:var(--text-muted); margin-bottom:1rem;">当前暂无进行中的融资申请</p>
+                    <a href="/supplier/receivables" class="btn btn-primary">前往“我的应收凭证”发起第一笔融资</a>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = myRequests.map(req => `
+            <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:0.75rem; margin-bottom:1rem;">
+                    <div>
+                        <h3 style="font-size:1.125rem;">融资申请 #${req.onchain_request_id || req.id} (凭证 #${req.receivable_id})</h3>
+                        <span style="font-size:0.8125rem; color:var(--text-muted);">申请融资金额：<strong>${window.AppConfig.formatTokens(req.amount)}</strong> mUSDT</span>
+                    </div>
+                    <div>
+                        <span class="badge badge-${req.status === 'FUNDED' ? 'success' : (req.status === 'CANCELLED' ? 'secondary' : 'warning')}">
+                            ${req.status === 'FUNDED' ? '已放款到账' : (req.status === 'CANCELLED' ? '已取消' : '等待报价中')}
+                        </span>
+                        ${req.status === 'PENDING_QUOTE' ? `<button class="btn btn-sm btn-danger" style="margin-left:0.5rem;" onclick="handleCancelRequest(${req.onchain_request_id || req.id})">取消申请</button>` : ''}
+                    </div>
+                </div>
+
+                <!-- Quotes section -->
+                <div style="background:#f8fafc; border-radius:6px; padding:1rem; border:1px solid var(--border);">
+                    <h4 style="font-size:0.875rem; margin-bottom:0.75rem; color:var(--text-muted);">资金方竞价报价列表</h4>
+                    <div id="quotes-box-${req.id}">
+                        ${renderQuotesList(req)}
+                    </div>
+                </div>
+            </div>
+        `).join("");
+    } catch (_) {
+        container.innerHTML = `<div style="background:#fff; padding:2rem; text-align:center; border:1px solid var(--border); border-radius:8px; color:var(--text-muted);">暂无融资数据</div>`;
+    }
+}
+
+function renderQuotesList(req) {
+    const quotes = req.quotes || [];
+    if (quotes.length === 0) {
+        return `<p style="font-size:0.8125rem; color:var(--text-muted); text-align:center; padding:0.5rem 0;">暂无资金方报价，请等待银行或保理公司提交贴现率</p>`;
+    }
+
+    return quotes.map(q => {
+        const rateBps = q.discount_rate_bps;
+        const netCashWei = window.AppConfig.calculateFundedAmount(req.amount, rateBps);
+        const netCashTokens = window.AppConfig.formatTokens(netCashWei.toString());
+
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:0.75rem 1rem; border-radius:6px; border:1px solid var(--border); margin-bottom:0.5rem;">
+                <div>
+                    <div><strong>资金方：</strong><code>${window.AppConfig.shortAddress(q.financier_address)}</code></div>
+                    <div style="font-size:0.8125rem; color:var(--text-muted); margin-top:0.25rem;">
+                        年化贴现率：<b style="color:var(--primary);">${window.AppConfig.formatBps(rateBps)}</b> |
+                        实际到手金额：<b style="color:var(--success);">${netCashTokens}</b> mUSDT
+                    </div>
+                </div>
+                <div>
+                    ${req.status === 'PENDING_QUOTE' ? `
+                        <button class="btn btn-sm btn-success" onclick="handleAcceptQuote(${req.onchain_request_id || req.id}, ${q.onchain_quote_id || q.id})">
+                            🤝 接受报价并当场放款 (F-17)
+                        </button>
+                    ` : (req.accepted_quote_id === q.id ? `<span class="badge badge-success">已成交</span>` : '-')}
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+async function handleAcceptQuote(reqId, quoteId) {
+    if (!confirm("确认接受该资金方的贴现报价并立即放款？一笔交易将同时划转凭证与收取稳定币。")) return;
+
+    try {
+        await window.DAppState.contractClient.acceptQuote(reqId, quoteId);
+        UIFeedback.showToast("放款成功！稳定币已全额打入您的钱包！", "success");
+        await loadFinancingRequests();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function handleCancelRequest(reqId) {
+    if (!confirm("确认取消该笔融资申请？质押中的凭证将原路退回至您的账户。")) return;
+
+    try {
+        await window.DAppState.contractClient.cancelFinancingRequest(reqId);
+        UIFeedback.showToast("融资申请已取消，凭证已释放！", "info");
+        await loadFinancingRequests();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadFinancingRequests, 600);
+});
+</script>
+{% endblock %}

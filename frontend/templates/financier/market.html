@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}融资市场与竞价报价 | 资金方{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "market" %}
+    {% include "financier/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>供应链融资贴现竞价市场 (F-16)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">查看供应商提交的质押凭证，设定贴现率提交报价，争取优质供应链信贷资产</p>
+            </div>
+            <div>
+                <button class="btn btn-outline" onclick="loadMarketRequests()">🔄 刷新市场需求</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>申请单号</th>
+                        <th>凭证 ID</th>
+                        <th>申请供应商</th>
+                        <th>融资金额需求</th>
+                        <th>状态</th>
+                        <th>竞价操作</th>
+                    </tr>
+                </thead>
+                <tbody id="market-requests-tbody">
+                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载融资市场...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- Quote Modal (F-16) -->
+<div id="quote-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>出具保理贴现报价 (F-16)</h3>
+            <button class="modal-close-btn" onclick="closeQuoteModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="quote-request-id">
+            <input type="hidden" id="quote-request-amount">
+
+            <div class="form-group">
+                <label>融资申请单：<span id="quote-request-label" style="font-weight:700;"></span></label>
+                <div>申请金额面值：<strong id="quote-amount-label" style="color:var(--primary);"></strong> mUSDT</div>
+            </div>
+
+            <div class="form-group">
+                <label>贴现率百分比 (%) <span style="color:var(--danger)">*</span></label>
+                <input type="number" step="0.01" min="0.1" max="99.9" id="discount-rate-input" class="form-control" required placeholder="例如：5.00" oninput="calculateQuotePreview()">
+                <div class="form-hint">折算为合约基点 (1% = 100 bps)</div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid var(--border); border-radius:6px; padding:0.75rem; font-size:0.875rem;">
+                <div>供应商实际到手金额：<strong id="preview-supplier-cash" style="color:var(--success);">-</strong> mUSDT</div>
+                <div>资金方到期预计收益：<strong id="preview-financier-profit" style="color:var(--primary);">-</strong> mUSDT</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeQuoteModal()">取消</button>
+            <button class="btn btn-primary" onclick="confirmSubmitQuote()">🚀 签名并提交报价</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let marketList = [];
+
+async function loadMarketRequests() {
+    const tbody = document.getElementById("market-requests-tbody");
+    try {
+        const reqs = await window.DAppState.apiClient.getFinancingRequests("PENDING_QUOTE") || [];
+        marketList = reqs;
+
+        if (marketList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">当前市场暂无待报价的融资申请</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = marketList.map(req => `
+            <tr>
+                <td><strong>#${req.onchain_request_id || req.id}</strong></td>
+                <td>#${req.receivable_id}</td>
+                <td><code>${window.AppConfig.shortAddress(req.supplier_address)}</code></td>
+                <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(req.amount)}</strong> mUSDT</td>
+                <td><span class="badge badge-warning">竞价中</span></td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="openQuoteModal(${req.onchain_request_id || req.id}, '${req.amount}')">
+                        💡 提交报价 (F-16)
+                    </button>
+                </td>
+            </tr>
+        `).join("");
+    } catch (_) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无市场数据</td></tr>`;
+    }
+}
+
+function openQuoteModal(reqId, amountWei) {
+    document.getElementById("quote-request-id").value = reqId;
+    document.getElementById("quote-request-amount").value = amountWei;
+    document.getElementById("quote-request-label").innerText = `#${reqId}`;
+    document.getElementById("quote-amount-label").innerText = window.AppConfig.formatTokens(amountWei);
+    document.getElementById("discount-rate-input").value = "5.00";
+    calculateQuotePreview();
+    document.getElementById("quote-modal").classList.remove("hidden");
+}
+
+function closeQuoteModal() {
+    document.getElementById("quote-modal").classList.add("hidden");
+}
+
+function calculateQuotePreview() {
+    const amtWeiStr = document.getElementById("quote-request-amount").value;
+    const rateVal = parseFloat(document.getElementById("discount-rate-input").value) || 0;
+    const bps = Math.round(rateVal * 100);
+
+    if (bps > 0 && bps < 10000 && amtWeiStr) {
+        const fundedWei = window.AppConfig.calculateFundedAmount(amtWeiStr, bps);
+        const profitWei = BigInt(amtWeiStr) - fundedWei;
+        document.getElementById("preview-supplier-cash").innerText = window.AppConfig.formatTokens(fundedWei.toString());
+        document.getElementById("preview-financier-profit").innerText = window.AppConfig.formatTokens(profitWei.toString());
+    } else {
+        document.getElementById("preview-supplier-cash").innerText = "-";
+        document.getElementById("preview-financier-profit").innerText = "-";
+    }
+}
+
+async function confirmSubmitQuote() {
+    const reqId = document.getElementById("quote-request-id").value;
+    const amtWeiStr = document.getElementById("quote-request-amount").value;
+    const rateVal = parseFloat(document.getElementById("discount-rate-input").value);
+    if (!rateVal || rateVal <= 0 || rateVal >= 100) {
+        UIFeedback.showToast("请输入合法的贴现率 (0.1% ~ 99.9%)", "warning");
+        return;
+    }
+
+    const discountRateBps = Math.round(rateVal * 100);
+
+    try {
+        // Pre-approve stablecoin if needed
+        const poolAddr = window.DAppState.contractClient.addresses.FinancingPool;
+        if (poolAddr) {
+            const fundedWei = window.AppConfig.calculateFundedAmount(amtWeiStr, discountRateBps);
+            UIFeedback.showToast("检测并预设稳定币放款划扣额度...", "info");
+            await window.DAppState.contractClient.approveStablecoin(poolAddr, fundedWei.toString());
+        }
+
+        await window.DAppState.contractClient.submitQuote(reqId, discountRateBps);
+        closeQuoteModal();
+        UIFeedback.showToast("贴现报价提交成功！等待供应商选择成交。", "success");
+        await loadMarketRequests();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadMarketRequests, 600);
+});
+</script>
+{% endblock %}

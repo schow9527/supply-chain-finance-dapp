@@ -1,0 +1,311 @@
+[
+  {
+    "inputs": [
+      {
+        "name": "_roleManager",
+        "type": "address"
+      },
+      {
+        "name": "_receivableToken",
+        "type": "address"
+      },
+      {
+        "name": "_invoiceRegistry",
+        "type": "address"
+      },
+      {
+        "name": "_stablecoin",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "requestId",
+        "type": "uint256"
+      }
+    ],
+    "name": "FinancingCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "requestId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "quoteId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "supplier",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "financier",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "fundedAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "FinancingFunded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "requestId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "supplier",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "receivableId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "FinancingRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "receivableId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "marker",
+        "type": "address"
+      }
+    ],
+    "name": "MarkedOverdue",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "requestId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "quoteId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "financier",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "discountRateBps",
+        "type": "uint256"
+      }
+    ],
+    "name": "QuoteSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "receivableId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "holder",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "Redeemed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "receivableId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "Repaid",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "name": "requestId",
+        "type": "uint256"
+      },
+      {
+        "name": "quoteId",
+        "type": "uint256"
+      }
+    ],
+    "name": "acceptQuote",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "requestId",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelRequest",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "requestId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getQuotesForRequest",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "receivableId",
+        "type": "uint256"
+      }
+    ],
+    "name": "markOverdue",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "receivableId",
+        "type": "uint256"
+      }
+    ],
+    "name": "redeem",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "receivableId",
+        "type": "uint256"
+      }
+    ],
+    "name": "repay",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "receivableId",
+        "type": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "requestFinancing",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "requestId",
+        "type": "uint256"
+      },
+      {
+        "name": "discountRateBps",
+        "type": "uint256"
+      }
+    ],
+    "name": "submitQuote",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

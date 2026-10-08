@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}应付账款清册 | 核心企业{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% set active_page = "payables" %}
+    {% include "core_enterprise/sidebar.html" %}
+
+    <main class="content-area">
+        <div class="page-header">
+            <div>
+                <h2>应付账款清册与到期付款 (F-19)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">到期款项全额一次性存入智能合约资金池，供凭证最终持有人 1:1 兑付销毁</p>
+            </div>
+            <div>
+                <button class="btn btn-outline" onclick="loadPayables()">🔄 刷新应付账款</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>凭证 ID / 发票号</th>
+                        <th>受票供应商</th>
+                        <th>应付面值</th>
+                        <th>到期还款日</th>
+                        <th>清算还款状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="payables-tbody">
+                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载应付清册...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let payablesList = [];
+
+async function loadPayables() {
+    const acc = window.DAppState.account;
+    const tbody = document.getElementById("payables-tbody");
+    if (!acc) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">请先连接 MetaMask 钱包</td></tr>`;
+        return;
+    }
+
+    try {
+        const invs = await window.DAppState.apiClient.getInvoices({ buyer: acc, status: "CONFIRMED" }) || [];
+        payablesList = invs;
+
+        if (payablesList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">暂无已确认的应付账款</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = payablesList.map(inv => `
+            <tr>
+                <td><strong>#${inv.onchain_id || inv.id}</strong> (${inv.invoice_no})</td>
+                <td><code>${window.AppConfig.shortAddress(inv.supplier_address)}</code></td>
+                <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(inv.amount)}</strong> mUSDT</td>
+                <td>${window.AppConfig.formatTimestamp(inv.due_date)}</td>
+                <td>
+                    <span class="badge badge-${inv.repay_status === 'REPAID' ? 'success' : (inv.is_overdue ? 'danger' : 'warning')}">
+                        ${inv.repay_status === 'REPAID' ? '已全额结清' : (inv.is_overdue ? '已逾期' : '待到期清偿')}
+                    </span>
+                </td>
+                <td>
+                    ${inv.repay_status !== 'REPAID' ? `
+                        <button class="btn btn-sm btn-primary" onclick="handleRepayInvoice(${inv.onchain_id || inv.id}, '${inv.amount}')">
+                            💳 到期付款 (F-19)
+                        </button>
+                    ` : '<span style="color:var(--success); font-weight:600;">✓ 已履约</span>'}
+                </td>
+            </tr>
+        `).join("");
+    } catch (_) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无应付账款数据</td></tr>`;
+    }
+}
+
+async function handleRepayInvoice(receivableId, amountWei) {
+    if (!confirm(`确认向资金池全额支付 ${window.AppConfig.formatTokens(amountWei)} mUSDT 还款？`)) return;
+
+    try {
+        const poolAddr = window.DAppState.contractClient.addresses.FinancingPool;
+        // Step 1: Approve MockStablecoin transfer
+        if (poolAddr) {
+            UIFeedback.showToast("正在检测并执行稳定币扣款授权...", "info");
+            await window.DAppState.contractClient.approveStablecoin(poolAddr, amountWei);
+        }
+
+        // Step 2: Call repay
+        await window.DAppState.contractClient.repayInvoice(receivableId);
+        UIFeedback.showToast("到期还款成功！款项已存入资金池，供持有人兑付！", "success");
+        await loadPayables();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(loadPayables, 600);
+});
+</script>
+{% endblock %}
