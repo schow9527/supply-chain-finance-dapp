@@ -1,83 +1,69 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
-/**
- * @title RoleManager
- * @dev Manages 5 roles (Admin, Supplier, CoreEnterprise, Financier, Auditor) and emergency pause.
- * Specification according to PRD section 5 & 6.
- */
-contract RoleManager {
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant SUPPLIER_ROLE = keccak256("SUPPLIER_ROLE");
-    bytes32 public constant CORE_ENTERPRISE_ROLE = keccak256("CORE_ENTERPRISE_ROLE");
-    bytes32 public constant FINANCIER_ROLE = keccak256("FINANCIER_ROLE");
-    bytes32 public constant AUDITOR_ROLE = keccak256("AUDITOR_ROLE");
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-    mapping(bytes32 => mapping(address => bool)) private _roles;
-    mapping(address => bytes32) private _primaryRole;
-    bool private _paused;
+/// @title RoleManager
+/// @notice Single source of truth for user roles and the global emergency pause.
+///         Each address may hold at most one role. Admin = DEFAULT_ADMIN_ROLE.
+contract RoleManager is AccessControl, Pausable {
+    bytes32 public constant SUPPLIER = keccak256("SUPPLIER");
+    bytes32 public constant CORE_ENTERPRISE = keccak256("CORE_ENTERPRISE");
+    bytes32 public constant FUNDER = keccak256("FUNDER");
+    bytes32 public constant AUDITOR = keccak256("AUDITOR");
 
-    event RoleGranted(bytes32 indexed role, address indexed account, address indexed operator);
-    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed operator);
-    event Paused(address indexed account);
-    event Unpaused(address indexed account);
+    /// @dev Tracks whether an address already holds a role (DEFAULT_ADMIN_ROLE is bytes32(0),
+    ///      so a separate flag is needed).
+    mapping(address => bool) public isRegistered;
+    mapping(address => bytes32) private _roleOf;
 
-    modifier onlyAdmin() {
-        require(hasRole(ADMIN_ROLE, msg.sender), "RoleManager: Caller is not an admin");
-        _;
+    error InvalidRole(bytes32 role);
+    error AccountAlreadyHasRole(address account, bytes32 currentRole);
+    error RenounceDisabled();
+
+    constructor(address admin) {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
-    modifier whenNotPaused() {
-        require(!_paused, "RoleManager: System is paused");
-        _;
+    /// @notice Returns the role held by `account`. Check `isRegistered` first,
+    ///         since an unregistered address also returns bytes32(0).
+    function roleOf(address account) external view returns (bytes32) {
+        return _roleOf[account];
     }
 
-    constructor() {
-        _grantRole(ADMIN_ROLE, msg.sender);
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
     }
 
-    function hasRole(bytes32 role, address account) public view returns (bool) {
-        return _roles[role][account];
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 
-    function getPrimaryRole(address account) external view returns (bytes32) {
-        return _primaryRole[account];
+    /// @dev Disabled so the platform can never lose its last admin by accident.
+    function renounceRole(bytes32, address) public pure override {
+        revert RenounceDisabled();
     }
 
-    function isPaused() external view returns (bool) {
-        return _paused;
+    function _grantRole(bytes32 role, address account) internal override returns (bool) {
+        if (
+            role != DEFAULT_ADMIN_ROLE && role != SUPPLIER && role != CORE_ENTERPRISE && role != FUNDER
+                && role != AUDITOR
+        ) revert InvalidRole(role);
+        if (hasRole(role, account)) return false;
+        if (isRegistered[account]) revert AccountAlreadyHasRole(account, _roleOf[account]);
+
+        isRegistered[account] = true;
+        _roleOf[account] = role;
+        return super._grantRole(role, account);
     }
 
-    function grantRole(bytes32 role, address account) external onlyAdmin whenNotPaused {
-        require(account != address(0), "RoleManager: Invalid address");
-        require(!_roles[role][account], "RoleManager: Account already has role");
-        _grantRole(role, account);
-    }
-
-    function revokeRole(bytes32 role, address account) external onlyAdmin whenNotPaused {
-        require(_roles[role][account], "RoleManager: Account does not have role");
-        _roles[role][account] = false;
-        if (_primaryRole[account] == role) {
-            _primaryRole[account] = bytes32(0);
+    function _revokeRole(bytes32 role, address account) internal override returns (bool) {
+        bool revoked = super._revokeRole(role, account);
+        if (revoked) {
+            delete isRegistered[account];
+            delete _roleOf[account];
         }
-        emit RoleRevoked(role, account, msg.sender);
-    }
-
-    function pause() external onlyAdmin {
-        require(!_paused, "RoleManager: Already paused");
-        _paused = true;
-        emit Paused(msg.sender);
-    }
-
-    function unpause() external onlyAdmin {
-        require(_paused, "RoleManager: Not paused");
-        _paused = false;
-        emit Unpaused(msg.sender);
-    }
-
-    function _grantRole(bytes32 role, address account) internal {
-        _roles[role][account] = true;
-        _primaryRole[account] = role;
-        emit RoleGranted(role, account, msg.sender);
+        return revoked;
     }
 }

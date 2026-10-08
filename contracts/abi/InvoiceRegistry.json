@@ -1,0 +1,462 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "roleManager_",
+        "type": "address",
+        "internalType": "contract RoleManager"
+      },
+      {
+        "name": "receivableToken_",
+        "type": "address",
+        "internalType": "contract ReceivableToken"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "computeDedupKey",
+    "inputs": [
+      {
+        "name": "invoiceNo",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "supplier",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "confirmInvoice",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getInvoice",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct InvoiceRegistry.Invoice",
+        "components": [
+          {
+            "name": "supplier",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "dueDate",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "status",
+            "type": "uint8",
+            "internalType": "enum InvoiceRegistry.InvoiceStatus"
+          },
+          {
+            "name": "buyer",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "fileHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "dedupKey",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "invoiceNo",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "invoiceCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "invoiceIdByKey",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "receivableToken",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract ReceivableToken"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "rejectInvoice",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "roleManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract RoleManager"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "submitInvoice",
+    "inputs": [
+      {
+        "name": "invoiceNo",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "dueDate",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "fileHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "InvoiceConfirmed",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "InvoiceRejected",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "InvoiceSubmitted",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "supplier",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "invoiceNo",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "dueDate",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "fileHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "InvalidAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidBuyer",
+    "inputs": [
+      {
+        "name": "buyer",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidDueDate",
+    "inputs": [
+      {
+        "name": "dueDate",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidFileHash",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidInvoiceNo",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvoiceAlreadyExists",
+    "inputs": [
+      {
+        "name": "existingInvoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvoiceNotFound",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvoiceNotPending",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum InvoiceRegistry.InvoiceStatus"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotInvoiceBuyer",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "caller",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ReasonRequired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SupplierNoLongerRegistered",
+    "inputs": [
+      {
+        "name": "supplier",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SystemPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "requiredRole",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  }
+]

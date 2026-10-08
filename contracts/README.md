@@ -1,53 +1,79 @@
-# 智能合约模块 (Smart Contracts)
+# Contracts — Supply-Chain Finance DApp
 
-> **责任人**：成员 1  
-> **技术栈**：Solidity (^0.8.20), Hardhat, Ethers.js, OpenZeppelin  
+成员 1 负责。Solidity 0.8.24 + OpenZeppelin 5.6 + Foundry。
 
----
+> 工具链用 Foundry 而不是 Hardhat：测试直接用 Solidity 写、速度快，`forge snapshot` / `--gas-report` 便于做 Gas 优化前后对比，`forge coverage` 直接出覆盖率。
 
-## 目录结构
+目录：`contracts/` 合约源码 · `test/` 测试 · `script/` 部署与 ABI 导出 · `abi/` ABI · `deployments/` 部署地址 · `remix/` Remix 部署用的单文件 · `docs/` 接口与部署文档
 
-```
-contracts/
-├── contracts/             # Solidity 合约源文件
-│   ├── RoleManager.sol    # 角色管理与系统紧急暂停
-│   ├── ReceivableToken.sol# ERC-1155 应收账款凭证
-│   ├── InvoiceRegistry.sol# 发票登记、去重与核心企业确认
-│   ├── FinancingPool.sol  # 融资申请、报价、放款、还款与兑付
-│   └── MockStablecoin.sol # ERC-20 测试稳定币及水龙头
-├── scripts/
-│   └── deploy.js          # 合约部署与跨合约权限配置脚本
-├── test/                  # 合约单元测试目录
-├── hardhat.config.js      # Hardhat 配置文件 (含 Sepolia 网络配置)
-├── package.json           # 依赖与编译命令配置
-└── README.md
-```
+## 合约一览
 
-## 快速上手
+| 合约 | 职责 |
+|---|---|
+| `RoleManager` | 5 种角色的授予/撤销（每个地址只能有一种角色）、全局紧急暂停 |
+| `InvoiceRegistry` | 登记发票、哈希去重、核心企业确认/拒绝；确认时调用 Token 铸造凭证 |
+| `ReceivableToken` | ERC-1155 应收凭证（id = 发票 id，数量 = 面值），拆分转让、冻结；存凭证状态 |
+| `FinancingPool` | 融资申请（凭证托管）、报价（资金锁定）、放款、到期付款、兑付、逾期 |
+| `MockStablecoin` | 测试稳定币 mUSD（**6 位小数**），任何人可 `faucet()` 领 100,000 |
 
-### 1. 安装依赖
+调用关系：Registry → Token（mint）；Pool → Token（转移、burn、改状态）；Pool → mUSD；三个业务合约都 → RoleManager（查角色、查暂停）。
+
+接口细节（函数、事件、错误、前端需要的 approve）见 [docs/interface.md](docs/interface.md)。
+
+## Sepolia 部署信息（2026-10-08）
+
+| 合约 | 地址 |
+|---|---|
+| RoleManager | [`0x441c4300B1c6F900050A298D6960A5C0A7e43942`](https://sepolia.etherscan.io/address/0x441c4300B1c6F900050A298D6960A5C0A7e43942) |
+| ReceivableToken | [`0x3aeD657136595F6A88635a61DC78f65865Fe2Bd7`](https://sepolia.etherscan.io/address/0x3aeD657136595F6A88635a61DC78f65865Fe2Bd7) |
+| MockStablecoin | [`0xd404f89dFC7d623ad43Eb068CB14Abf4aaC89b1D`](https://sepolia.etherscan.io/address/0xd404f89dFC7d623ad43Eb068CB14Abf4aaC89b1D) |
+| InvoiceRegistry | [`0x8813F8dEb1FE0e3a0cAbE348D07b44C933644C96`](https://sepolia.etherscan.io/address/0x8813F8dEb1FE0e3a0cAbE348D07b44C933644C96) |
+| FinancingPool | [`0xa978E8eB77BFa67c5638A874EDe258260810c678`](https://sepolia.etherscan.io/address/0xa978E8eB77BFa67c5638A874EDe258260810c678) |
+
+- 管理员：`0x0ced068d2f30d72ca4c8d41d9619a2183d06834f`
+- 起始区块（后端事件同步从这里开始）：`11868898`
+- 机器可读版本：[deployments/11155111.json](deployments/11155111.json)
+- 部署方式：Remix + MetaMask，solc 0.8.24 / cancun / optimizer 200
+
+## 常用命令
+
 ```bash
-cd contracts
-npm install
+# 先安装 Foundry: https://book.getfoundry.sh/getting-started/installation
+npm install                 # 安装 OpenZeppelin 与 forge-std
+forge build
+forge test                  # 运行全部测试
+forge coverage --report summary
+forge test --gas-report     # Gas 报告
+./script/export-abi.sh      # 导出 ABI 到 abi/
 ```
 
-### 2. 编译合约
+### 本地链部署（开发联调用）
+
 ```bash
-npx hardhat compile
+anvil
+forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 \
+  --unlocked --sender 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 --broadcast
 ```
 
-### 3. 运行测试
+地址写入 `deployments/31337.json`。可用 `DEMO_SUPPLIERS=addr1,addr2` 等环境变量在部署时直接授予角色（见 `.env.example`）。
+
+### Sepolia 部署
+
+**方式 A：Remix + MetaMask（推荐）**，按 [docs/deploy-remix.md](docs/deploy-remix.md) 一步步操作，使用的文件是 `remix/SupplyChainFinance.sol`。
+
+**方式 B：Foundry 脚本**
+
 ```bash
-npx hardhat test
+cp .env.example .env        # 填 RPC 和 Etherscan key
+source .env
+forge script script/Deploy.s.sol --rpc-url sepolia --account <keystore名> --broadcast --verify
 ```
 
-### 4. 部署至 Sepolia 测试网
-配置上级目录或本地 `.env` 中的 `WEB3_PROVIDER_URI` 与 `DEPLOYER_PRIVATE_KEY`，执行：
-```bash
-npm run deploy:sepolia
-```
+用 `cast wallet import <名字> --interactive` 导入部署钱包，**不要把私钥写进文件或命令行**。地址写入 `deployments/11155111.json`，`startBlock` 是后端事件同步的起始区块。
 
-部署完成后，将生成的合约地址同步至：
-1. `docs/contracts_spec.md`
-2. `frontend/static/js/deployed_addresses.json`
-3. `backend/.env`
+## 给其他成员的输出
+
+- `abi/*.json` — 纯 ABI，web3.py / ethers.js 直接加载
+- `deployments/<chainId>.json` — 合约地址、管理员地址、起始区块
+- `docs/interface.md` — 函数、事件、错误码说明
+- `docs/gas-report-baseline.txt`、`docs/gas-snapshot-baseline` — 优化前的 Gas 基线

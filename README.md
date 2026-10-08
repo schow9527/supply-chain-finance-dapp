@@ -18,17 +18,19 @@
 
 ```
 supply-chain-finance-dapp/
-├── contracts/                  # 【成员 1 负责】智能合约模块
+├── contracts/                  # 【成员 1 负责】智能合约模块（Foundry）
 │   ├── contracts/              # Solidity 合约源文件
 │   │   ├── RoleManager.sol     # 5 种角色权限与系统紧急暂停
 │   │   ├── ReceivableToken.sol # ERC-1155 应收凭证 (拆分、转让、冻结)
 │   │   ├── InvoiceRegistry.sol # 发票去重登记与核心企业确认
 │   │   ├── FinancingPool.sol   # 融资申请、报价、原子化放款、还款与兑付
-│   │   └── MockStablecoin.sol  # ERC-20 测试代币 (mUSDT) 与水龙头
-│   ├── scripts/                # 部署脚本 (deploy.js)
-│   ├── test/                   # 合约自动化测试用例
-│   ├── hardhat.config.js       # Hardhat 编译与测试网网络配置
-│   ├── package.json            # 合约工具链依赖
+│   │   └── MockStablecoin.sol  # ERC-20 测试代币 (mUSD) 与水龙头
+│   ├── test/                   # Foundry 单元测试 (47 个)
+│   ├── script/                 # 部署脚本 (Deploy.s.sol) 与 ABI 导出
+│   ├── abi/                    # 导出的 ABI（前后端直接加载）
+│   ├── deployments/            # 各网络合约地址（11155111.json = Sepolia）
+│   ├── docs/                   # 合约接口说明、Remix 部署指南、Gas 基线
+│   ├── foundry.toml            # 编译与网络配置
 │   └── README.md               # 合约开发与部署指南
 │
 ├── backend/                    # 【成员 2 负责】后端 API 与链上同步服务
@@ -87,11 +89,12 @@ cd supply-chain-finance-dapp
 
 ### 2. 智能合约模块（成员 1）
 ```bash
+# 需先安装 Foundry：https://book.getfoundry.sh/getting-started/installation
 cd contracts
 npm install
-npx hardhat compile
-# 部署至 Sepolia 测试网
-npm run deploy:sepolia
+forge build
+forge test
+# 已部署的 Sepolia 地址见 contracts/deployments/11155111.json
 ```
 
 ### 3. 后端与全栈服务启动（成员 2 & 成员 3 联调）
