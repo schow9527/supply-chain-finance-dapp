@@ -56,7 +56,6 @@ async function initWeb3() {
         }
     }
 
-    renderDemoSwitcher();
     updateUI();
 }
 
@@ -216,58 +215,6 @@ function updateUI() {
     // Broadcast account changed to all listening views
     if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("walletAccountChanged", { detail: { account: acc, role: role } }));
-    }
-}
-
-/**
- * Demo Switcher widget to help Member 6 test and record demo video across 5 roles
- */
-function renderDemoSwitcher() {
-    if (document.getElementById("demo-switcher-widget")) return;
-    const div = document.createElement("div");
-    div.id = "demo-switcher-widget";
-    div.className = "demo-switcher";
-    div.innerHTML = `
-        <div class="demo-switcher-header" onclick="this.parentElement.classList.toggle('collapsed')">
-            <span>🛠️ 演示角色模拟器 (视频录制助手)</span>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div class="demo-switcher-body">
-            <small>点击模拟不同角色界面 (无需反复换私钥)：</small>
-            <div class="role-pills">
-                <button class="pill-btn" onclick="simulateRole('SUPPLIER')">供应商</button>
-                <button class="pill-btn" onclick="simulateRole('CORE_ENTERPRISE')">核心企业</button>
-                <button class="pill-btn" onclick="simulateRole('FINANCIER')">资金方</button>
-                <button class="pill-btn" onclick="simulateRole('AUDITOR')">审计员</button>
-                <button class="pill-btn" onclick="simulateRole('ADMIN')">管理员</button>
-                <button class="pill-btn pill-reset" onclick="simulateRole('NONE')">重置</button>
-            </div>
-            <div style="margin-top:8px;">
-                <button class="btn btn-sm btn-outline" style="width:100%;" onclick="claimTestTokens()">💧 领取 10,000 测试稳定币</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(div);
-}
-
-function simulateRole(role) {
-    window.DAppState.role = role;
-    if (!window.DAppState.account) {
-        window.DAppState.account = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-    }
-    updateUI();
-    UIFeedback.showToast(`已切换至【${window.AppConfig.ROLE_LABELS[role] || role}】模拟视图`, "info");
-    
-    // Auto route if on landing or specific console
-    const routeMap = {
-        SUPPLIER: "/supplier/dashboard",
-        CORE_ENTERPRISE: "/core_enterprise/dashboard",
-        FINANCIER: "/financier/dashboard",
-        AUDITOR: "/auditor/overview",
-        ADMIN: "/admin/registrations"
-    };
-    if (routeMap[role] && window.location.pathname === "/") {
-        window.location.href = routeMap[role];
     }
 }
 

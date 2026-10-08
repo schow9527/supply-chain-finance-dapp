@@ -20,12 +20,13 @@
     };
 
     const CUSTOM_ERROR_MESSAGES = {
+        "SafeCastOverflowedUintDowncast": "输入金额过大，超出了系统所允许的最大限度。",
         "SystemPaused": "系统当前处于紧急暂停状态，写操作已被熔断。",
         "EnforcedPause": "系统当前处于紧急暂停状态，写操作已被熔断。",
         "Unauthorized": "当前账户没有执行该操作的权限。",
         "AccessControlUnauthorizedAccount": "权限不足：当前账户未被授予该合约角色。",
         "AccountAlreadyHasRole": "该账户已经拥有链上角色，不能重复授予。",
-        "InvoiceAlreadyExists": "防重拦截：该发票号与承兑买方组合已在链上登记，禁止重复提交！",
+        "InvoiceAlreadyExists": "防重拦截：该发票号与承兑买方组合已在链上登记，禁止重复提交。",
         "InvoiceNotFound": "未找到指定编号的发票记录。",
         "InvoiceNotPending": "发票当前状态不允许执行此操作。",
         "NotInvoiceBuyer": "权限校验失败：该发票开具的承兑买方并非当前账户。",
