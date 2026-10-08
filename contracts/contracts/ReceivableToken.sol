@@ -1,147 +1,204 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
-import "./RoleManager.sol";
+import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import {RoleManager} from "./RoleManager.sol";
+import {RoleGuarded} from "./utils/RoleGuarded.sol";
 
-/**
- * @title ReceivableToken
- * @dev ERC-1155 compliant/semi-fungible token representing accounts receivable.
- * Only InvoiceRegistry can mint; only FinancingPool can burn.
- * Auditor can freeze / unfreeze specific receivables.
- */
-contract ReceivableToken {
-    RoleManager public roleManager;
+/// @title ReceivableToken
+/// @notice ERC-1155 receivable vouchers. Token id == confirmed invoice id; amount == face value
+///         in stablecoin base units, so a voucher can be split across many holders.
+///         Only InvoiceRegistry mints, only FinancingPool burns / changes repayment status.
+contract ReceivableToken is ERC1155, RoleGuarded {
+    enum Status {
+        None,
+        Active, // confirmed, not yet repaid
+        Repaid, // core enterprise paid; holders may redeem 1:1
+        Overdue // past due and unpaid, flagged by a funder
+    }
+
+    struct Receivable {
+        address buyer; // core enterprise that owes the money
+        address originalSupplier;
+        uint64 dueDate;
+        Status status;
+        bool frozen;
+        uint256 faceValue;
+    }
+
+    mapping(uint256 => Receivable) private _receivables;
+
     address public invoiceRegistry;
     address public financingPool;
 
-    // Token ID => account => balance
-    mapping(uint256 => mapping(address => uint256)) private _balances;
-    // Token ID => total supply
-    mapping(uint256 => uint256) private _totalSupply;
-    // Token ID => isFrozen
-    mapping(uint256 => bool) public isFrozen;
-    // Token ID => freeze reason
-    mapping(uint256 => string) public freezeReason;
+    event SystemContractsSet(address invoiceRegistry, address financingPool);
+    event ReceivableMinted(
+        uint256 indexed id, address indexed supplier, address indexed buyer, uint256 faceValue, uint64 dueDate
+    );
+    event ReceivableTransferred(uint256 indexed id, address indexed from, address indexed to, uint256 amount);
+    event ReceivableFrozen(uint256 indexed id, address indexed auditor, string reason);
+    event ReceivableUnfrozen(uint256 indexed id, address indexed auditor, string reason);
+    event ReceivableStatusChanged(uint256 indexed id, Status status);
 
-    // Operator approvals: owner => operator => approved
-    mapping(address => mapping(address => bool)) private _operatorApprovals;
+    error SystemContractsAlreadySet();
+    error ZeroAddress();
+    error OnlyInvoiceRegistry();
+    error OnlyFinancingPool();
+    error ReceivableNotFound(uint256 id);
+    error ReceivableAlreadyExists(uint256 id);
+    error ReceivableIsFrozen(uint256 id);
+    error ReceivableNotFrozen(uint256 id);
+    error ReceivableNotActive(uint256 id, Status status);
+    error ReceivableMatured(uint256 id, uint64 dueDate);
+    error InvalidRecipient(address to);
+    error ReasonRequired();
+    error ZeroAmount();
 
-    event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value);
-    event ReceivableTransferred(address indexed from, address indexed to, uint256 indexed id, uint256 amount);
-    event ReceivableFrozen(uint256 indexed id, string reason, address indexed auditor);
-    event ReceivableUnfrozen(uint256 indexed id, address indexed auditor);
-    event ApprovalForAll(address indexed account, address indexed operator, bool approved);
+    constructor(RoleManager roleManager_) ERC1155("") RoleGuarded(roleManager_) {}
 
     modifier onlyInvoiceRegistry() {
-        require(msg.sender == invoiceRegistry, "ReceivableToken: Caller is not InvoiceRegistry");
+        _onlyInvoiceRegistry();
         _;
     }
 
     modifier onlyFinancingPool() {
-        require(msg.sender == financingPool, "ReceivableToken: Caller is not FinancingPool");
+        _onlyFinancingPool();
         _;
     }
 
-    modifier onlyAuditor() {
-        require(roleManager.hasRole(roleManager.AUDITOR_ROLE(), msg.sender), "ReceivableToken: Caller is not Auditor");
-        _;
+    function _onlyInvoiceRegistry() private view {
+        if (msg.sender != invoiceRegistry) revert OnlyInvoiceRegistry();
     }
 
-    modifier whenNotPaused() {
-        require(!roleManager.isPaused(), "ReceivableToken: System is paused");
-        _;
+    function _onlyFinancingPool() private view {
+        if (msg.sender != financingPool) revert OnlyFinancingPool();
     }
 
-    modifier notFrozen(uint256 id) {
-        require(!isFrozen[id], "ReceivableToken: Receivable is frozen");
-        _;
+    // ---------------------------------------------------------------------
+    // Admin wiring (one-time)
+    // ---------------------------------------------------------------------
+
+    function setSystemContracts(address invoiceRegistry_, address financingPool_)
+        external
+        onlyRoleOf(roleManager.DEFAULT_ADMIN_ROLE())
+    {
+        if (invoiceRegistry != address(0)) revert SystemContractsAlreadySet();
+        if (invoiceRegistry_ == address(0) || financingPool_ == address(0)) revert ZeroAddress();
+        invoiceRegistry = invoiceRegistry_;
+        financingPool = financingPool_;
+        emit SystemContractsSet(invoiceRegistry_, financingPool_);
     }
 
-    constructor(address _roleManager) {
-        require(_roleManager != address(0), "ReceivableToken: Invalid RoleManager address");
-        roleManager = RoleManager(_roleManager);
+    // ---------------------------------------------------------------------
+    // Views
+    // ---------------------------------------------------------------------
+
+    function getReceivable(uint256 id) external view returns (Receivable memory) {
+        return _receivables[id];
     }
 
-    function setInvoiceRegistry(address _invoiceRegistry) external {
-        require(roleManager.hasRole(roleManager.ADMIN_ROLE(), msg.sender), "ReceivableToken: Admin only");
-        invoiceRegistry = _invoiceRegistry;
+    /// @notice FinancingPool may move any holder's vouchers without a separate
+    ///         setApprovalForAll transaction; it only does so on the holder's own request.
+    function isApprovedForAll(address account, address operator) public view override returns (bool) {
+        return operator == financingPool || super.isApprovedForAll(account, operator);
     }
 
-    function setFinancingPool(address _financingPool) external {
-        require(roleManager.hasRole(roleManager.ADMIN_ROLE(), msg.sender), "ReceivableToken: Admin only");
-        financingPool = _financingPool;
+    // ---------------------------------------------------------------------
+    // User actions
+    // ---------------------------------------------------------------------
+
+    /// @notice Split-transfer part of a voucher to another registered supplier.
+    function transferReceivable(address to, uint256 id, uint256 amount)
+        external
+        onlyRoleOf(roleManager.SUPPLIER())
+    {
+        if (amount == 0) revert ZeroAmount();
+        safeTransferFrom(msg.sender, to, id, amount, "");
+        emit ReceivableTransferred(id, msg.sender, to, amount);
     }
 
-    function balanceOf(address account, uint256 id) public view returns (uint256) {
-        return _balances[id][account];
+    function freeze(uint256 id, string calldata reason) external onlyRoleOf(roleManager.AUDITOR()) {
+        Receivable storage r = _existing(id);
+        if (r.frozen) revert ReceivableIsFrozen(id);
+        if (bytes(reason).length == 0) revert ReasonRequired();
+        r.frozen = true;
+        emit ReceivableFrozen(id, msg.sender, reason);
     }
 
-    function totalSupply(uint256 id) public view returns (uint256) {
-        return _totalSupply[id];
+    function unfreeze(uint256 id, string calldata reason) external onlyRoleOf(roleManager.AUDITOR()) {
+        Receivable storage r = _existing(id);
+        if (!r.frozen) revert ReceivableNotFrozen(id);
+        if (bytes(reason).length == 0) revert ReasonRequired();
+        r.frozen = false;
+        emit ReceivableUnfrozen(id, msg.sender, reason);
     }
 
-    function isApprovedForAll(address account, address operator) public view returns (bool) {
-        return _operatorApprovals[account][operator] || operator == financingPool;
+    // ---------------------------------------------------------------------
+    // System hooks
+    // ---------------------------------------------------------------------
+
+    function mint(address supplier, uint256 id, address buyer, uint256 faceValue, uint64 dueDate)
+        external
+        onlyInvoiceRegistry
+    {
+        if (_receivables[id].status != Status.None) revert ReceivableAlreadyExists(id);
+        if (faceValue == 0) revert ZeroAmount();
+        _receivables[id] = Receivable({
+            buyer: buyer,
+            originalSupplier: supplier,
+            dueDate: dueDate,
+            status: Status.Active,
+            frozen: false,
+            faceValue: faceValue
+        });
+        _mint(supplier, id, faceValue, "");
+        emit ReceivableMinted(id, supplier, buyer, faceValue, dueDate);
     }
 
-    function setApprovalForAll(address operator, bool approved) external {
-        _operatorApprovals[msg.sender][operator] = approved;
-        emit ApprovalForAll(msg.sender, operator, approved);
+    function burn(address holder, uint256 id, uint256 amount) external onlyFinancingPool {
+        _burn(holder, id, amount);
     }
 
-    function mint(address to, uint256 id, uint256 amount) external onlyInvoiceRegistry whenNotPaused {
-        require(to != address(0), "ReceivableToken: Mint to zero address");
-        _totalSupply[id] += amount;
-        _balances[id][to] += amount;
-        emit TransferSingle(msg.sender, address(0), to, id, amount);
+    function setStatus(uint256 id, Status status) external onlyFinancingPool {
+        _existing(id).status = status;
+        emit ReceivableStatusChanged(id, status);
     }
 
-    function burn(address from, uint256 id, uint256 amount) external onlyFinancingPool whenNotPaused notFrozen(id) {
-        require(_balances[id][from] >= amount, "ReceivableToken: Burn amount exceeds balance");
-        _balances[id][from] -= amount;
-        _totalSupply[id] -= amount;
-        emit TransferSingle(msg.sender, from, address(0), id, amount);
+    // ---------------------------------------------------------------------
+    // Transfer rules
+    // ---------------------------------------------------------------------
+
+    /// @dev Enforced on every holder-to-holder move (mint / burn are gated by their callers):
+    ///      - system not paused, voucher not frozen
+    ///      - FinancingPool may move vouchers between pool, suppliers and funders
+    ///      - anyone else: only supplier -> supplier, only while Active and before the due date
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
+        if (from != address(0) && to != address(0)) {
+            _checkNotPaused();
+            bool byPool = msg.sender == financingPool;
+            if (byPool) {
+                if (
+                    to != financingPool && !roleManager.hasRole(roleManager.SUPPLIER(), to)
+                        && !roleManager.hasRole(roleManager.FUNDER(), to)
+                ) revert InvalidRecipient(to);
+            } else {
+                _checkRole(roleManager.SUPPLIER(), from);
+                if (!roleManager.hasRole(roleManager.SUPPLIER(), to)) revert InvalidRecipient(to);
+            }
+            for (uint256 i; i < ids.length; ++i) {
+                Receivable storage r = _receivables[ids[i]];
+                if (r.frozen) revert ReceivableIsFrozen(ids[i]);
+                if (!byPool) {
+                    if (r.status != Status.Active) revert ReceivableNotActive(ids[i], r.status);
+                    if (block.timestamp >= r.dueDate) revert ReceivableMatured(ids[i], r.dueDate);
+                }
+            }
+        }
+        super._update(from, to, ids, values);
     }
 
-    function transferReceivable(address to, uint256 id, uint256 amount) external whenNotPaused notFrozen(id) {
-        require(to != address(0), "ReceivableToken: Transfer to zero address");
-        require(
-            roleManager.hasRole(roleManager.SUPPLIER_ROLE(), to) ||
-            roleManager.hasRole(roleManager.FINANCIER_ROLE(), to) ||
-            to == financingPool,
-            "ReceivableToken: Recipient must be registered supplier, financier, or pool"
-        );
-        require(_balances[id][msg.sender] >= amount, "ReceivableToken: Insufficient balance");
-
-        _balances[id][msg.sender] -= amount;
-        _balances[id][to] += amount;
-
-        emit TransferSingle(msg.sender, msg.sender, to, id, amount);
-        emit ReceivableTransferred(msg.sender, to, id, amount);
-    }
-
-    function transferFrom(address from, address to, uint256 id, uint256 amount) external whenNotPaused notFrozen(id) {
-        require(msg.sender == from || isApprovedForAll(from, msg.sender), "ReceivableToken: Caller not owner nor approved");
-        require(_balances[id][from] >= amount, "ReceivableToken: Insufficient balance");
-
-        _balances[id][from] -= amount;
-        _balances[id][to] += amount;
-
-        emit TransferSingle(msg.sender, from, to, id, amount);
-        emit ReceivableTransferred(from, to, id, amount);
-    }
-
-    function freeze(uint256 id, string calldata reason) external onlyAuditor whenNotPaused {
-        require(!isFrozen[id], "ReceivableToken: Already frozen");
-        isFrozen[id] = true;
-        freezeReason[id] = reason;
-        emit ReceivableFrozen(id, reason, msg.sender);
-    }
-
-    function unfreeze(uint256 id) external onlyAuditor whenNotPaused {
-        require(isFrozen[id], "ReceivableToken: Not frozen");
-        isFrozen[id] = false;
-        freezeReason[id] = "";
-        emit ReceivableUnfrozen(id, msg.sender);
+    function _existing(uint256 id) private view returns (Receivable storage r) {
+        r = _receivables[id];
+        if (r.status == Status.None) revert ReceivableNotFound(id);
     }
 }

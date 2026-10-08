@@ -1,224 +1,300 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
-import "./RoleManager.sol";
-import "./ReceivableToken.sol";
-import "./InvoiceRegistry.sol";
-import "./MockStablecoin.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {RoleManager} from "./RoleManager.sol";
+import {ReceivableToken} from "./ReceivableToken.sol";
+import {RoleGuarded} from "./utils/RoleGuarded.sol";
 
-/**
- * @title FinancingPool
- * @dev Manages financing requests, quotes, atomic funding, repayment, redemption, and overdue marking.
- * Matches PRD sections 5 & 6.
- */
-contract FinancingPool {
-    RoleManager public roleManager;
-    ReceivableToken public receivableToken;
-    InvoiceRegistry public invoiceRegistry;
-    MockStablecoin public stablecoin;
+/// @title FinancingPool
+/// @notice Discount financing of receivable vouchers, maturity repayment and redemption.
+///
+///         Flow: supplier requests financing (voucher amount escrowed here) -> funders quote a
+///         discount rate (payout escrowed here) -> supplier accepts one quote (voucher to funder,
+///         payout to supplier, atomically) -> core enterprise repays face value at maturity ->
+///         every holder redeems vouchers 1:1 for stablecoin.
+contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
+    using SafeERC20 for IERC20;
 
-    enum RequestStatus { PENDING_QUOTE, FUNDED, CANCELLED }
-    enum RepayStatus { UNPAID, REPAID, OVERDUE }
+    uint16 public constant BPS = 10_000;
 
-    struct FinancingRequest {
-        uint256 requestId;
+    enum RequestStatus {
+        None,
+        Open,
+        Funded,
+        Cancelled
+    }
+
+    enum QuoteStatus {
+        None,
+        Active,
+        Accepted,
+        Withdrawn
+    }
+
+    struct Request {
         uint256 receivableId;
         address supplier;
-        uint256 amount;
         RequestStatus status;
+        uint256 amount; // voucher amount (face value units) escrowed
         uint256 acceptedQuoteId;
     }
 
     struct Quote {
-        uint256 quoteId;
         uint256 requestId;
-        address financier;
-        uint256 discountRateBps; // e.g. 500 = 5.00%
-        bool exists;
+        address funder;
+        uint16 discountBps;
+        QuoteStatus status;
+        uint256 payout; // stablecoin escrowed; what the supplier receives
     }
 
-    uint256 public nextRequestId = 1;
-    uint256 public nextQuoteId = 1;
+    IERC20 public immutable stablecoin;
+    ReceivableToken public immutable receivableToken;
 
-    // requestId => FinancingRequest
-    mapping(uint256 => FinancingRequest) public requests;
-    // quoteId => Quote
-    mapping(uint256 => Quote) public quotes;
-    // requestId => list of quoteIds
-    mapping(uint256 => uint256[]) private _requestQuotes;
+    uint256 public requestCount;
+    uint256 public quoteCount;
+    mapping(uint256 => Request) private _requests;
+    mapping(uint256 => Quote) private _quotes;
+    /// @notice Number of receivables flagged overdue per core enterprise.
+    mapping(address => uint256) public overdueCount;
 
-    // receivableId => RepayStatus
-    mapping(uint256 => RepayStatus) public invoiceRepayStatus;
-    // receivableId => total repaid stablecoin deposited
-    mapping(uint256 => uint256) public repaidFunds;
-
-    event FinancingRequested(uint256 indexed requestId, address indexed supplier, uint256 indexed receivableId, uint256 amount);
-    event QuoteSubmitted(uint256 indexed requestId, uint256 indexed quoteId, address indexed financier, uint256 discountRateBps);
-    event FinancingFunded(uint256 indexed requestId, uint256 indexed quoteId, address indexed supplier, address financier, uint256 fundedAmount);
-    event FinancingCancelled(uint256 indexed requestId);
+    event FinancingRequested(
+        uint256 indexed requestId, uint256 indexed receivableId, address indexed supplier, uint256 amount
+    );
+    event QuoteSubmitted(
+        uint256 indexed quoteId, uint256 indexed requestId, address indexed funder, uint16 discountBps, uint256 payout
+    );
+    event QuoteWithdrawn(uint256 indexed quoteId, uint256 indexed requestId, address indexed funder);
+    event FinancingFunded(
+        uint256 indexed requestId,
+        uint256 indexed quoteId,
+        uint256 indexed receivableId,
+        address supplier,
+        address funder,
+        uint256 amount,
+        uint256 payout
+    );
+    event FinancingCancelled(uint256 indexed requestId, uint256 indexed receivableId, address indexed supplier);
     event Repaid(uint256 indexed receivableId, address indexed buyer, uint256 amount);
     event Redeemed(uint256 indexed receivableId, address indexed holder, uint256 amount);
-    event MarkedOverdue(uint256 indexed receivableId, address indexed buyer, address indexed marker);
+    event MarkedOverdue(uint256 indexed receivableId, address indexed buyer, address indexed funder);
 
-    modifier onlySupplier() {
-        require(roleManager.hasRole(roleManager.SUPPLIER_ROLE(), msg.sender), "FinancingPool: Caller is not Supplier");
-        _;
+    error ZeroAmount();
+    error RequestNotFound(uint256 requestId);
+    error RequestNotOpen(uint256 requestId, RequestStatus status);
+    error NotRequestOwner(uint256 requestId, address caller);
+    error QuoteNotFound(uint256 quoteId);
+    error QuoteNotActive(uint256 quoteId, QuoteStatus status);
+    error QuoteRequestMismatch(uint256 quoteId, uint256 requestId);
+    error NotQuoteOwner(uint256 quoteId, address caller);
+    error InvalidDiscount(uint16 discountBps);
+    error ReceivableNotFinanceable(uint256 receivableId);
+    error NotReceivableBuyer(uint256 receivableId, address caller);
+    error NotRepayable(uint256 receivableId, ReceivableToken.Status status);
+    error NotRedeemable(uint256 receivableId, ReceivableToken.Status status);
+    error ReceivableIsFrozen(uint256 receivableId);
+    error NothingToRedeem(uint256 receivableId);
+    error NotOverdueYet(uint256 receivableId, uint64 dueDate);
+    error NotReceivableHolder(uint256 receivableId, address caller);
+
+    constructor(RoleManager roleManager_, ReceivableToken receivableToken_, IERC20 stablecoin_)
+        RoleGuarded(roleManager_)
+    {
+        receivableToken = receivableToken_;
+        stablecoin = stablecoin_;
     }
 
-    modifier onlyFinancier() {
-        require(roleManager.hasRole(roleManager.FINANCIER_ROLE(), msg.sender), "FinancingPool: Caller is not Financier");
-        _;
+    // ---------------------------------------------------------------------
+    // Views
+    // ---------------------------------------------------------------------
+
+    function getRequest(uint256 requestId) external view returns (Request memory) {
+        return _requests[requestId];
     }
 
-    modifier whenNotPaused() {
-        require(!roleManager.isPaused(), "FinancingPool: System is paused");
-        _;
+    function getQuote(uint256 quoteId) external view returns (Quote memory) {
+        return _quotes[quoteId];
     }
 
-    constructor(
-        address _roleManager,
-        address _receivableToken,
-        address _invoiceRegistry,
-        address _stablecoin
-    ) {
-        roleManager = RoleManager(_roleManager);
-        receivableToken = ReceivableToken(_receivableToken);
-        invoiceRegistry = InvoiceRegistry(_invoiceRegistry);
-        stablecoin = MockStablecoin(_stablecoin);
+    function previewPayout(uint256 amount, uint16 discountBps) public pure returns (uint256) {
+        return amount * (BPS - discountBps) / BPS;
     }
 
-    function requestFinancing(uint256 receivableId, uint256 amount) external onlySupplier whenNotPaused returns (uint256) {
-        require(amount > 0, "FinancingPool: Amount must be > 0");
-        require(!receivableToken.isFrozen(receivableId), "FinancingPool: Receivable is frozen");
-        require(receivableToken.balanceOf(msg.sender, receivableId) >= amount, "FinancingPool: Insufficient balance");
+    // ---------------------------------------------------------------------
+    // Financing
+    // ---------------------------------------------------------------------
 
-        // Escrow receivable tokens to FinancingPool contract
-        receivableToken.transferFrom(msg.sender, address(this), receivableId, amount);
+    /// @notice Escrows `amount` of the caller's voucher in this pool, so the same amount can
+    ///         never back two open requests.
+    function requestFinancing(uint256 receivableId, uint256 amount)
+        external
+        whenActive
+        nonReentrant
+        onlyRoleOf(roleManager.SUPPLIER())
+        returns (uint256 requestId)
+    {
+        if (amount == 0) revert ZeroAmount();
+        _requireFinanceable(receivableId);
 
-        uint256 reqId = nextRequestId++;
-        requests[reqId] = FinancingRequest({
-            requestId: reqId,
+        requestId = ++requestCount;
+        _requests[requestId] = Request({
             receivableId: receivableId,
             supplier: msg.sender,
+            status: RequestStatus.Open,
             amount: amount,
-            status: RequestStatus.PENDING_QUOTE,
             acceptedQuoteId: 0
         });
+        emit FinancingRequested(requestId, receivableId, msg.sender, amount);
 
-        emit FinancingRequested(reqId, msg.sender, receivableId, amount);
-        return reqId;
+        // Reverts with ERC1155InsufficientBalance if the caller does not hold enough.
+        receivableToken.safeTransferFrom(msg.sender, address(this), receivableId, amount, "");
     }
 
-    function submitQuote(uint256 requestId, uint256 discountRateBps) external onlyFinancier whenNotPaused returns (uint256) {
-        FinancingRequest storage req = requests[requestId];
-        require(req.requestId != 0, "FinancingPool: Request not found");
-        require(req.status == RequestStatus.PENDING_QUOTE, "FinancingPool: Request is not pending quote");
-        require(discountRateBps < 10000, "FinancingPool: Discount rate must be < 100%");
+    /// @notice Funder offers a discount rate; the resulting payout is escrowed immediately so that
+    ///         acceptance can never fail for lack of funder balance or allowance.
+    ///         Requires prior stablecoin.approve(pool, payout).
+    function submitQuote(uint256 requestId, uint16 discountBps)
+        external
+        whenActive
+        nonReentrant
+        onlyRoleOf(roleManager.FUNDER())
+        returns (uint256 quoteId)
+    {
+        if (discountBps >= BPS) revert InvalidDiscount(discountBps);
+        Request storage req = _openRequest(requestId);
+        _requireFinanceable(req.receivableId);
 
-        uint256 qId = nextQuoteId++;
-        quotes[qId] = Quote({
-            quoteId: qId,
+        uint256 payout = previewPayout(req.amount, discountBps);
+        quoteId = ++quoteCount;
+        _quotes[quoteId] = Quote({
             requestId: requestId,
-            financier: msg.sender,
-            discountRateBps: discountRateBps,
-            exists: true
+            funder: msg.sender,
+            discountBps: discountBps,
+            status: QuoteStatus.Active,
+            payout: payout
         });
+        emit QuoteSubmitted(quoteId, requestId, msg.sender, discountBps, payout);
 
-        _requestQuotes[requestId].push(qId);
-        emit QuoteSubmitted(requestId, qId, msg.sender, discountRateBps);
-        return qId;
+        stablecoin.safeTransferFrom(msg.sender, address(this), payout);
     }
 
-    function getQuotesForRequest(uint256 requestId) external view returns (uint256[] memory) {
-        return _requestQuotes[requestId];
+    /// @notice Funder takes back an unaccepted quote (any time, including after the request closed).
+    function withdrawQuote(uint256 quoteId) external whenActive nonReentrant {
+        Quote storage q = _activeQuote(quoteId);
+        if (q.funder != msg.sender) revert NotQuoteOwner(quoteId, msg.sender);
+
+        q.status = QuoteStatus.Withdrawn;
+        emit QuoteWithdrawn(quoteId, q.requestId, msg.sender);
+
+        stablecoin.safeTransfer(msg.sender, q.payout);
     }
 
-    function acceptQuote(uint256 requestId, uint256 quoteId) external whenNotPaused {
-        FinancingRequest storage req = requests[requestId];
-        require(req.requestId != 0, "FinancingPool: Request not found");
-        require(req.status == RequestStatus.PENDING_QUOTE, "FinancingPool: Request already closed");
-        require(msg.sender == req.supplier, "FinancingPool: Only supplier can accept quote");
+    /// @notice Atomic settlement: voucher -> funder and payout -> supplier in one transaction.
+    function acceptQuote(uint256 requestId, uint256 quoteId) external whenActive nonReentrant {
+        Request storage req = _openRequest(requestId);
+        if (req.supplier != msg.sender) revert NotRequestOwner(requestId, msg.sender);
+        Quote storage q = _activeQuote(quoteId);
+        if (q.requestId != requestId) revert QuoteRequestMismatch(quoteId, requestId);
+        _requireFinanceable(req.receivableId);
 
-        Quote storage q = quotes[quoteId];
-        require(q.exists && q.requestId == requestId, "FinancingPool: Invalid quote for this request");
-
-        // Check frozen status
-        require(!receivableToken.isFrozen(req.receivableId), "FinancingPool: Receivable is frozen");
-
-        // Calculate funded amount: amount * (10000 - discountRateBps) / 10000
-        uint256 fundedAmount = (req.amount * (10000 - q.discountRateBps)) / 10000;
-
-        // Update state first (Checks-Effects-Interactions pattern)
-        req.status = RequestStatus.FUNDED;
+        req.status = RequestStatus.Funded;
         req.acceptedQuoteId = quoteId;
+        q.status = QuoteStatus.Accepted;
+        emit FinancingFunded(requestId, quoteId, req.receivableId, msg.sender, q.funder, req.amount, q.payout);
 
-        // 1. Transfer stablecoin from Financier directly to Supplier
-        bool success = stablecoin.transferFrom(q.financier, req.supplier, fundedAmount);
-        require(success, "FinancingPool: Stablecoin transfer failed");
-
-        // 2. Transfer escrowed receivable tokens from FinancingPool to Financier
-        receivableToken.transferReceivable(q.financier, req.receivableId, req.amount);
-
-        emit FinancingFunded(requestId, quoteId, req.supplier, q.financier, fundedAmount);
+        receivableToken.safeTransferFrom(address(this), q.funder, req.receivableId, req.amount, "");
+        stablecoin.safeTransfer(msg.sender, q.payout);
     }
 
-    function cancelRequest(uint256 requestId) external whenNotPaused {
-        FinancingRequest storage req = requests[requestId];
-        require(req.requestId != 0, "FinancingPool: Request not found");
-        require(msg.sender == req.supplier, "FinancingPool: Only supplier can cancel");
-        require(req.status == RequestStatus.PENDING_QUOTE, "FinancingPool: Cannot cancel non-pending request");
+    /// @notice Cancel before any quote is accepted; escrowed voucher returns to the supplier.
+    ///         Other funders then withdraw their quotes via withdrawQuote.
+    function cancelRequest(uint256 requestId) external whenActive nonReentrant {
+        Request storage req = _openRequest(requestId);
+        if (req.supplier != msg.sender) revert NotRequestOwner(requestId, msg.sender);
 
-        req.status = RequestStatus.CANCELLED;
+        req.status = RequestStatus.Cancelled;
+        emit FinancingCancelled(requestId, req.receivableId, msg.sender);
 
-        // Return escrowed receivable tokens to Supplier
-        receivableToken.transferReceivable(req.supplier, req.receivableId, req.amount);
-
-        emit FinancingCancelled(requestId);
+        receivableToken.safeTransferFrom(address(this), msg.sender, req.receivableId, req.amount, "");
     }
 
-    function repay(uint256 receivableId) external whenNotPaused {
-        InvoiceRegistry.Invoice memory inv = invoiceRegistry.getInvoice(receivableId);
-        require(inv.id != 0, "FinancingPool: Invoice not found");
-        require(msg.sender == inv.buyer, "FinancingPool: Only core enterprise can repay");
-        require(invoiceRepayStatus[receivableId] != RepayStatus.REPAID, "FinancingPool: Already repaid");
+    // ---------------------------------------------------------------------
+    // Maturity
+    // ---------------------------------------------------------------------
 
-        invoiceRepayStatus[receivableId] = RepayStatus.REPAID;
-        repaidFunds[receivableId] += inv.amount;
+    /// @notice Core enterprise pays the full face value. Allowed before or after the due date
+    ///         (including once flagged overdue). Requires prior stablecoin.approve(pool, faceValue).
+    function repay(uint256 receivableId) external whenActive nonReentrant {
+        ReceivableToken.Receivable memory r = receivableToken.getReceivable(receivableId);
+        if (r.buyer != msg.sender) revert NotReceivableBuyer(receivableId, msg.sender);
+        if (r.status != ReceivableToken.Status.Active && r.status != ReceivableToken.Status.Overdue) {
+            revert NotRepayable(receivableId, r.status);
+        }
 
-        // Core enterprise pays total invoice amount to FinancingPool contract
-        bool success = stablecoin.transferFrom(msg.sender, address(this), inv.amount);
-        require(success, "FinancingPool: Repay stablecoin transfer failed");
+        receivableToken.setStatus(receivableId, ReceivableToken.Status.Repaid);
+        emit Repaid(receivableId, msg.sender, r.faceValue);
 
-        emit Repaid(receivableId, msg.sender, inv.amount);
+        stablecoin.safeTransferFrom(msg.sender, address(this), r.faceValue);
     }
 
-    function redeem(uint256 receivableId) external whenNotPaused {
-        require(invoiceRepayStatus[receivableId] == RepayStatus.REPAID, "FinancingPool: Invoice not yet repaid");
-        require(!receivableToken.isFrozen(receivableId), "FinancingPool: Receivable is frozen");
-
+    /// @notice Current holder burns all of their voucher units and receives stablecoin 1:1.
+    function redeem(uint256 receivableId) external whenActive nonReentrant {
+        ReceivableToken.Receivable memory r = receivableToken.getReceivable(receivableId);
+        if (r.status != ReceivableToken.Status.Repaid) revert NotRedeemable(receivableId, r.status);
+        if (r.frozen) revert ReceivableIsFrozen(receivableId);
         uint256 balance = receivableToken.balanceOf(msg.sender, receivableId);
-        require(balance > 0, "FinancingPool: No receivable balance to redeem");
-        require(repaidFunds[receivableId] >= balance, "FinancingPool: Insufficient pool funds");
+        if (balance == 0) revert NothingToRedeem(receivableId);
 
-        repaidFunds[receivableId] -= balance;
-
-        // Burn the caller's receivable tokens
         receivableToken.burn(msg.sender, receivableId, balance);
-
-        // Send 1:1 stablecoin to caller
-        bool success = stablecoin.transfer(msg.sender, balance);
-        require(success, "FinancingPool: Stablecoin redemption transfer failed");
-
         emit Redeemed(receivableId, msg.sender, balance);
+
+        stablecoin.safeTransfer(msg.sender, balance);
     }
 
-    function markOverdue(uint256 receivableId) external onlyFinancier whenNotPaused {
-        InvoiceRegistry.Invoice memory inv = invoiceRegistry.getInvoice(receivableId);
-        require(inv.id != 0, "FinancingPool: Invoice not found");
-        require(block.timestamp > inv.dueDate, "FinancingPool: Invoice is not past due date");
-        require(invoiceRepayStatus[receivableId] != RepayStatus.REPAID, "FinancingPool: Invoice already repaid");
+    /// @notice A funder holding the voucher flags it overdue once past due and unpaid.
+    function markOverdue(uint256 receivableId)
+        external
+        whenActive
+        nonReentrant
+        onlyRoleOf(roleManager.FUNDER())
+    {
+        ReceivableToken.Receivable memory r = receivableToken.getReceivable(receivableId);
+        if (receivableToken.balanceOf(msg.sender, receivableId) == 0) {
+            revert NotReceivableHolder(receivableId, msg.sender);
+        }
+        if (r.status != ReceivableToken.Status.Active) revert NotRepayable(receivableId, r.status);
+        if (block.timestamp <= r.dueDate) revert NotOverdueYet(receivableId, r.dueDate);
 
-        invoiceRepayStatus[receivableId] = RepayStatus.OVERDUE;
-        emit MarkedOverdue(receivableId, inv.buyer, msg.sender);
+        overdueCount[r.buyer] += 1;
+        emit MarkedOverdue(receivableId, r.buyer, msg.sender);
+
+        receivableToken.setStatus(receivableId, ReceivableToken.Status.Overdue);
+    }
+
+    // ---------------------------------------------------------------------
+    // Internal
+    // ---------------------------------------------------------------------
+
+    function _requireFinanceable(uint256 receivableId) private view {
+        ReceivableToken.Receivable memory r = receivableToken.getReceivable(receivableId);
+        if (r.frozen) revert ReceivableIsFrozen(receivableId);
+        if (r.status != ReceivableToken.Status.Active || block.timestamp >= r.dueDate) {
+            revert ReceivableNotFinanceable(receivableId);
+        }
+    }
+
+    function _openRequest(uint256 requestId) private view returns (Request storage req) {
+        req = _requests[requestId];
+        if (req.status == RequestStatus.None) revert RequestNotFound(requestId);
+        if (req.status != RequestStatus.Open) revert RequestNotOpen(requestId, req.status);
+    }
+
+    function _activeQuote(uint256 quoteId) private view returns (Quote storage q) {
+        q = _quotes[quoteId];
+        if (q.status == QuoteStatus.None) revert QuoteNotFound(quoteId);
+        if (q.status != QuoteStatus.Active) revert QuoteNotActive(quoteId, q.status);
     }
 }

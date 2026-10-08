@@ -1,0 +1,10 @@
+{
+  "chainId": 11155111,
+  "startBlock": 11868898,
+  "admin": "0x0ced068d2f30d72ca4c8d41d9619a2183d06834f",
+  "RoleManager": "0x441c4300B1c6F900050A298D6960A5C0A7e43942",
+  "ReceivableToken": "0x3aeD657136595F6A88635a61DC78f65865Fe2Bd7",
+  "MockStablecoin": "0xd404f89dFC7d623ad43Eb068CB14Abf4aaC89b1D",
+  "InvoiceRegistry": "0x8813F8dEb1FE0e3a0cAbE348D07b44C933644C96",
+  "FinancingPool": "0xa978E8eB77BFa67c5638A874EDe258260810c678"
+}

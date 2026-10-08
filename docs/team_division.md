@@ -9,7 +9,7 @@
 
 | 角色序号 | 职责范畴 | 主要交付物 | 涉及代码/文档路径 |
 | :---: | :--- | :--- | :--- |
-| **成员 1** | **智能合约开发** | 5 个 Solidity 合约、Hardhat 自动化单元测试、Sepolia 测试网部署、导出 ABI | `contracts/` |
+| **成员 1** | **智能合约开发** | 5 个 Solidity 合约、Foundry 自动化单元测试、Sepolia 测试网部署、导出 ABI | `contracts/` |
 | **成员 2** | **后端开发与部署** | Python Flask REST API、Web3.py 链上事件监听器、Render 部署、`docs/api.md` | `backend/` |
 | **成员 3** | **前端开发与 Web3** | 响应式 Web 页面 (19 个视图)、MetaMask/Ethers.js 交互集成、Gas 预估与状态提示 | `frontend/` |
 | **成员 4** | **行业研究与技术报告** | 供应链金融背景调研、技术报告 (10~15 页)、成员贡献汇总 | `docs/reports/` |
@@ -43,7 +43,7 @@
 
 1. **第一阶段（启动与环境搭建）**：
    - 确定测试网络（建议 Sepolia）；
-   - 跑通 Hardhat 编译测试环境与 Flask 本地服务。
+   - 跑通 Foundry 编译测试环境与 Flask 本地服务。
 2. **第二阶段（核心功能实现）**：
    - 成员 1 完成 5 个合约编写与本地测试，导出 ABI；
    - 成员 2 实现数据库模型与核心 API；

@@ -1,14 +1,19 @@
 {
-  "name": "supply-chain-finance-dapp",
+  "name": "supply-chain-finance-contracts",
   "version": "1.0.0",
-  "description": "Decentralized Supply Chain Finance DApp for NTU SC6113",
+  "private": true,
+  "description": "Smart contracts for the SC6113 supply-chain finance DApp (Foundry)",
   "scripts": {
-    "compile": "npx hardhat compile",
-    "test": "npx hardhat test",
-    "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia"
+    "build": "forge build",
+    "test": "forge test",
+    "coverage": "forge coverage --report summary",
+    "gas": "forge test --gas-report",
+    "export-abi": "./script/export-abi.sh"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.6.1"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
-    "hardhat": "^2.22.0"
+    "forge-std": "github:foundry-rs/forge-std#v1.17.0"
   }
 }
