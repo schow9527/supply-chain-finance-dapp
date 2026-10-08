@@ -6,8 +6,8 @@
   "scripts": {
     "build": "forge build",
     "test": "forge test",
-    "coverage": "forge coverage --report summary",
-    "gas": "forge test --gas-report",
+    "coverage": "forge coverage --report summary --no-match-coverage \"script|test\"",
+    "gas": "forge test --match-contract GasBenchmark --isolate",
     "export-abi": "./script/export-abi.sh"
   },
   "dependencies": {

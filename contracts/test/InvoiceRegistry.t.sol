@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {BaseTest} from "./Base.t.sol";
 import {InvoiceRegistry} from "../contracts/InvoiceRegistry.sol";
 import {ReceivableToken} from "../contracts/ReceivableToken.sol";
@@ -49,6 +50,22 @@ contract InvoiceRegistryTest is BaseTest {
         vm.expectRevert(InvoiceRegistry.InvalidInvoiceNo.selector);
         registry.submitInvoice("", core, FACE, dueDate, FILE_HASH);
         vm.stopPrank();
+    }
+
+    function test_RevertWhen_AmountExceedsUint96() public {
+        uint256 tooBig = uint256(type(uint96).max) + 1;
+        vm.prank(supplier);
+        vm.expectRevert(abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 96, tooBig));
+        registry.submitInvoice("INV-BIG", core, tooBig, dueDate, FILE_HASH);
+    }
+
+    function test_InvoiceNoOnlyInEvent() public {
+        vm.expectEmit(true, true, true, true, address(registry));
+        emit InvoiceRegistry.InvoiceSubmitted(1, supplier, core, "INV-001", FACE, dueDate, FILE_HASH);
+        uint256 id = _submit("INV-001");
+        assertEq(
+            registry.getInvoice(id).dedupKey, registry.computeDedupKey("INV-001", supplier, core, FACE)
+        );
     }
 
     function test_RevertWhen_NonSupplierSubmits() public {

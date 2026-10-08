@@ -2,8 +2,10 @@
 pragma solidity ^0.8.24;
 
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {RoleManager} from "./RoleManager.sol";
 import {RoleGuarded} from "./utils/RoleGuarded.sol";
+import {Roles} from "./utils/Roles.sol";
 
 /// @title ReceivableToken
 /// @notice ERC-1155 receivable vouchers. Token id == confirmed invoice id; amount == face value
@@ -17,13 +19,16 @@ contract ReceivableToken is ERC1155, RoleGuarded {
         Overdue // past due and unpaid, flagged by a funder
     }
 
+    /// @dev Packed into 2 storage slots (uint96 covers 7.9e22 mUSD at 6 decimals).
     struct Receivable {
+        // slot 0
         address buyer; // core enterprise that owes the money
-        address originalSupplier;
         uint64 dueDate;
         Status status;
         bool frozen;
-        uint256 faceValue;
+        // slot 1
+        address originalSupplier;
+        uint96 faceValue;
     }
 
     mapping(uint256 => Receivable) private _receivables;
@@ -80,7 +85,7 @@ contract ReceivableToken is ERC1155, RoleGuarded {
 
     function setSystemContracts(address invoiceRegistry_, address financingPool_)
         external
-        onlyRoleOf(roleManager.DEFAULT_ADMIN_ROLE())
+        onlyRoleOf(Roles.ADMIN)
     {
         if (invoiceRegistry != address(0)) revert SystemContractsAlreadySet();
         if (invoiceRegistry_ == address(0) || financingPool_ == address(0)) revert ZeroAddress();
@@ -108,16 +113,14 @@ contract ReceivableToken is ERC1155, RoleGuarded {
     // ---------------------------------------------------------------------
 
     /// @notice Split-transfer part of a voucher to another registered supplier.
-    function transferReceivable(address to, uint256 id, uint256 amount)
-        external
-        onlyRoleOf(roleManager.SUPPLIER())
-    {
+    /// @dev The sender's SUPPLIER role is enforced in _update.
+    function transferReceivable(address to, uint256 id, uint256 amount) external {
         if (amount == 0) revert ZeroAmount();
         safeTransferFrom(msg.sender, to, id, amount, "");
         emit ReceivableTransferred(id, msg.sender, to, amount);
     }
 
-    function freeze(uint256 id, string calldata reason) external onlyRoleOf(roleManager.AUDITOR()) {
+    function freeze(uint256 id, string calldata reason) external onlyRoleOf(Roles.AUDITOR) {
         Receivable storage r = _existing(id);
         if (r.frozen) revert ReceivableIsFrozen(id);
         if (bytes(reason).length == 0) revert ReasonRequired();
@@ -125,7 +128,7 @@ contract ReceivableToken is ERC1155, RoleGuarded {
         emit ReceivableFrozen(id, msg.sender, reason);
     }
 
-    function unfreeze(uint256 id, string calldata reason) external onlyRoleOf(roleManager.AUDITOR()) {
+    function unfreeze(uint256 id, string calldata reason) external onlyRoleOf(Roles.AUDITOR) {
         Receivable storage r = _existing(id);
         if (!r.frozen) revert ReceivableNotFrozen(id);
         if (bytes(reason).length == 0) revert ReasonRequired();
@@ -145,11 +148,11 @@ contract ReceivableToken is ERC1155, RoleGuarded {
         if (faceValue == 0) revert ZeroAmount();
         _receivables[id] = Receivable({
             buyer: buyer,
-            originalSupplier: supplier,
             dueDate: dueDate,
             status: Status.Active,
             frozen: false,
-            faceValue: faceValue
+            originalSupplier: supplier,
+            faceValue: SafeCast.toUint96(faceValue)
         });
         _mint(supplier, id, faceValue, "");
         emit ReceivableMinted(id, supplier, buyer, faceValue, dueDate);
@@ -177,13 +180,13 @@ contract ReceivableToken is ERC1155, RoleGuarded {
             _checkNotPaused();
             bool byPool = msg.sender == financingPool;
             if (byPool) {
-                if (
-                    to != financingPool && !roleManager.hasRole(roleManager.SUPPLIER(), to)
-                        && !roleManager.hasRole(roleManager.FUNDER(), to)
-                ) revert InvalidRecipient(to);
+                if (to != financingPool) {
+                    bytes32 toRole = roleManager.roleOf(to);
+                    if (toRole != Roles.SUPPLIER && toRole != Roles.FUNDER) revert InvalidRecipient(to);
+                }
             } else {
-                _checkRole(roleManager.SUPPLIER(), from);
-                if (!roleManager.hasRole(roleManager.SUPPLIER(), to)) revert InvalidRecipient(to);
+                if (roleManager.roleOf(from) != Roles.SUPPLIER) revert Unauthorized(from, Roles.SUPPLIER);
+                if (roleManager.roleOf(to) != Roles.SUPPLIER) revert InvalidRecipient(to);
             }
             for (uint256 i; i < ids.length; ++i) {
                 Receivable storage r = _receivables[ids[i]];

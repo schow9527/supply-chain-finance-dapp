@@ -1,4 +1,4 @@
-# 合约接口说明（v0.1 草案）
+# 合约接口说明（v0.2）
 
 给成员 2（后端事件同步）和成员 3（前端调用）用。金额单位都是 mUSD 的最小单位（6 位小数，`10_000e6` = 10,000 mUSD）；凭证数量和面值使用同一单位，1 个凭证单位兑付 1 个 mUSD 单位。
 
@@ -51,6 +51,15 @@
 | 报价 `QuoteStatus` | 0 None · 1 Active · 2 Accepted · 3 Withdrawn |
 
 ## 查询函数
+
+> **v0.2 变更（Gas 优化）**：`getInvoice` 返回的结构里**不再包含 `invoiceNo`**，发票号请从 `InvoiceSubmitted` 事件中读取，或者通过后端查询。几个结构体的字段顺序和类型也有调整：金额字段改为 `uint96`，ID 字段改为 `uint64`。如果前端和后端都按字段名读取（例如 ethers 的 `result.amount`），就不需要改代码。
+
+| 查询函数 | 返回结构的字段（按顺序） |
+|---|---|
+| `getInvoice(id)` | supplier, dueDate, status, buyer, amount, fileHash, dedupKey |
+| `getReceivable(id)` | buyer, dueDate, status, frozen, originalSupplier, faceValue |
+| `getRequest(id)` | supplier, status, receivableId, amount, acceptedQuoteId |
+| `getQuote(id)` | funder, discountBps, status, requestId, payout |
 
 - `InvoiceRegistry.getInvoice(id)`、`invoiceCount()`、`computeDedupKey(...)`、`invoiceIdByKey(key)`
 - `ReceivableToken.getReceivable(id)`、`balanceOf(addr, id)`

@@ -11,7 +11,7 @@ test("AppConfig - Constants", () => {
     assert.strictEqual(AppConfig.ROLES.FUNDER, "FUNDER");
     assert.strictEqual(AppConfig.ROLES.AUDITOR, "AUDITOR");
     assert.strictEqual(AppConfig.ROLES.ADMIN, "ADMIN");
-    assert.strictEqual(AppConfig.DEFAULT_ADDRESSES.RoleManager, "0x441c4300B1c6F900050A298D6960A5C0A7e43942");
+    assert.strictEqual(AppConfig.DEFAULT_ADDRESSES.RoleManager, "0x82f86a2B31C424b4833b5BAb82464eB7f69B6a2E");
 });
 
 test("AppConfig - calculateFundedAmount formula", () => {
