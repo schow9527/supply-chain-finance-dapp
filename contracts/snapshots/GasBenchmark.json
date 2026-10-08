@@ -1,0 +1,20 @@
+{
+  "acceptQuote": "80642",
+  "cancelRequest": "42835",
+  "confirmInvoice": "92191",
+  "faucet": "29825",
+  "freeze": "8367",
+  "grantRole": "75349",
+  "markOverdue": "42369",
+  "pause": "24356",
+  "redeem": "24571",
+  "rejectInvoice": "7964",
+  "repay": "47744",
+  "requestFinancing": "121006",
+  "revokeRole": "4786",
+  "submitInvoice": "154764",
+  "submitQuote": "122989",
+  "transferReceivable": "44640",
+  "unfreeze": "6408",
+  "withdrawQuote": "12692"
+}

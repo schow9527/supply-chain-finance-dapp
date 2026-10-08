@@ -42,8 +42,8 @@
 npm install                 # 安装 OpenZeppelin 与 forge-std
 forge build
 forge test                  # 运行全部测试
-forge coverage --report summary
-forge test --gas-report     # Gas 报告
+npm run coverage            # 覆盖率（排除脚本与测试文件）
+npm run gas                 # Gas 基准，结果写入 snapshots/GasBenchmark.json
 ./script/export-abi.sh      # 导出 ABI 到 abi/
 ```
 
@@ -76,4 +76,4 @@ forge script script/Deploy.s.sol --rpc-url sepolia --account <keystore名> --bro
 - `abi/*.json` — 纯 ABI，web3.py / ethers.js 直接加载
 - `deployments/<chainId>.json` — 合约地址、管理员地址、起始区块
 - `docs/interface.md` — 函数、事件、错误码说明
-- `docs/gas-report-baseline.txt`、`docs/gas-snapshot-baseline` — 优化前的 Gas 基线
+- `docs/gas-optimization.md` — Gas 优化前后对比与分析（原始数据在 `docs/gas/`）

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {RoleManager} from "./RoleManager.sol";
 import {ReceivableToken} from "./ReceivableToken.sol";
 import {RoleGuarded} from "./utils/RoleGuarded.sol";
+import {Roles} from "./utils/Roles.sol";
 
 /// @title InvoiceRegistry
 /// @notice Suppliers register invoices (PDF kept off-chain, its hash on-chain); the named core
@@ -16,15 +18,20 @@ contract InvoiceRegistry is RoleGuarded {
         Rejected
     }
 
+    /// @dev Packed into 4 storage slots. The invoice number itself is only emitted in
+    ///      InvoiceSubmitted (the backend indexes it); on-chain we keep its dedup key.
     struct Invoice {
+        // slot 0
         address supplier;
         uint64 dueDate;
         InvoiceStatus status;
+        // slot 1
         address buyer;
-        uint256 amount;
+        uint96 amount;
+        // slot 2
         bytes32 fileHash; // hash of the off-chain PDF
+        // slot 3
         bytes32 dedupKey; // keccak256(invoiceNo, supplier, buyer, amount)
-        string invoiceNo;
     }
 
     ReceivableToken public immutable receivableToken;
@@ -80,9 +87,9 @@ contract InvoiceRegistry is RoleGuarded {
         uint256 amount,
         uint64 dueDate,
         bytes32 fileHash
-    ) external whenActive onlyRoleOf(roleManager.SUPPLIER()) returns (uint256 invoiceId) {
+    ) external whenActive onlyRoleOf(Roles.SUPPLIER) returns (uint256 invoiceId) {
         if (bytes(invoiceNo).length == 0) revert InvalidInvoiceNo();
-        if (!roleManager.hasRole(roleManager.CORE_ENTERPRISE(), buyer)) revert InvalidBuyer(buyer);
+        if (!roleManager.hasRole(Roles.CORE_ENTERPRISE, buyer)) revert InvalidBuyer(buyer);
         if (amount == 0) revert InvalidAmount();
         if (dueDate <= block.timestamp) revert InvalidDueDate(dueDate);
         if (fileHash == bytes32(0)) revert InvalidFileHash();
@@ -98,19 +105,18 @@ contract InvoiceRegistry is RoleGuarded {
             dueDate: dueDate,
             status: InvoiceStatus.Pending,
             buyer: buyer,
-            amount: amount,
+            amount: SafeCast.toUint96(amount),
             fileHash: fileHash,
-            dedupKey: key,
-            invoiceNo: invoiceNo
+            dedupKey: key
         });
 
         emit InvoiceSubmitted(invoiceId, msg.sender, buyer, invoiceNo, amount, dueDate, fileHash);
     }
 
-    function confirmInvoice(uint256 invoiceId) external whenActive onlyRoleOf(roleManager.CORE_ENTERPRISE()) {
+    function confirmInvoice(uint256 invoiceId) external whenActive onlyRoleOf(Roles.CORE_ENTERPRISE) {
         Invoice storage inv = _pendingInvoiceOfCaller(invoiceId);
         if (inv.dueDate <= block.timestamp) revert InvalidDueDate(inv.dueDate);
-        if (!roleManager.hasRole(roleManager.SUPPLIER(), inv.supplier)) {
+        if (!roleManager.hasRole(Roles.SUPPLIER, inv.supplier)) {
             revert SupplierNoLongerRegistered(inv.supplier);
         }
 
@@ -124,7 +130,7 @@ contract InvoiceRegistry is RoleGuarded {
     function rejectInvoice(uint256 invoiceId, string calldata reason)
         external
         whenActive
-        onlyRoleOf(roleManager.CORE_ENTERPRISE())
+        onlyRoleOf(Roles.CORE_ENTERPRISE)
     {
         if (bytes(reason).length == 0) revert ReasonRequired();
         Invoice storage inv = _pendingInvoiceOfCaller(invoiceId);
