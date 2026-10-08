@@ -1,13 +1,13 @@
 {
   "network": "sepolia",
   "chainId": 11155111,
-  "startBlock": 11868898,
+  "startBlock": 11869257,
   "admin": "0x0ced068d2f30d72ca4c8d41d9619a2183d06834f",
   "contracts": {
-    "RoleManager": "0x441c4300B1c6F900050A298D6960A5C0A7e43942",
-    "ReceivableToken": "0x3aeD657136595F6A88635a61DC78f65865Fe2Bd7",
-    "MockStablecoin": "0xd404f89dFC7d623ad43Eb068CB14Abf4aaC89b1D",
-    "InvoiceRegistry": "0x8813F8dEb1FE0e3a0cAbE348D07b44C933644C96",
-    "FinancingPool": "0xa978E8eB77BFa67c5638A874EDe258260810c678"
+    "RoleManager": "0x82f86a2B31C424b4833b5BAb82464eB7f69B6a2E",
+    "ReceivableToken": "0x3c9EcDdf7e788F7B8e04D4177d04B3c291E0368f",
+    "MockStablecoin": "0xE3C713Db876c97600141Ba34C7Cb68898CF1E04F",
+    "InvoiceRegistry": "0x39605C1D4FCE3D85DC14f7f283899b984dd1eD7a",
+    "FinancingPool": "0x2bb0A6e688C331248fe8575121F799B5286985c6"
   }
 }

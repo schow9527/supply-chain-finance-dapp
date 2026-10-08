@@ -81,11 +81,6 @@
         "internalType": "struct FinancingPool.Quote",
         "components": [
           {
-            "name": "requestId",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
             "name": "funder",
             "type": "address",
             "internalType": "address"
@@ -101,9 +96,14 @@
             "internalType": "enum FinancingPool.QuoteStatus"
           },
           {
+            "name": "requestId",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
             "name": "payout",
-            "type": "uint256",
-            "internalType": "uint256"
+            "type": "uint96",
+            "internalType": "uint96"
           }
         ]
       }
@@ -127,11 +127,6 @@
         "internalType": "struct FinancingPool.Request",
         "components": [
           {
-            "name": "receivableId",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
             "name": "supplier",
             "type": "address",
             "internalType": "address"
@@ -142,14 +137,19 @@
             "internalType": "enum FinancingPool.RequestStatus"
           },
           {
+            "name": "receivableId",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
             "name": "amount",
-            "type": "uint256",
-            "internalType": "uint256"
+            "type": "uint96",
+            "internalType": "uint96"
           },
           {
             "name": "acceptedQuoteId",
-            "type": "uint256",
-            "internalType": "uint256"
+            "type": "uint64",
+            "internalType": "uint64"
           }
         ]
       }
@@ -931,6 +931,22 @@
         "name": "status",
         "type": "uint8",
         "internalType": "enum FinancingPool.RequestStatus"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SafeCastOverflowedUintDowncast",
+    "inputs": [
+      {
+        "name": "bits",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "value",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
