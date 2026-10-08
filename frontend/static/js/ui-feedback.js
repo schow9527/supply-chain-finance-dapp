@@ -160,6 +160,9 @@
             });
 
             if (stage === TX_STAGES.ESTIMATING) {
+                // 重置 spinner（上一次交易可能把它替换成了图标）
+                const spinnerWrapper = document.querySelector(".spinner-wrapper");
+                if (spinnerWrapper) spinnerWrapper.innerHTML = '<div class="spinner"></div>';
                 document.getElementById("step-1")?.classList.add("active");
                 titleEl.innerText = "第一阶段：Gas 费用预估 (F-26)";
                 descEl.innerText = "正在向 Sepolia 测试网预估本笔交易的 Gas Limit 与费用...";
@@ -189,11 +192,15 @@
             } else if (stage === TX_STAGES.SUCCESS) {
                 [1, 2, 3, 4].forEach(i => document.getElementById(`step-${i}`)?.classList.add("done"));
                 titleEl.innerText = "第四阶段：交易执行成功！🎉";
+                const spinnerWrapper = document.querySelector(".spinner-wrapper");
+                if (spinnerWrapper) spinnerWrapper.innerHTML = '<div style="font-size:3rem;text-align:center;">✅</div>';
                 descEl.innerHTML = `<span style="color:#10b981;font-weight:600;">${payload.message || "链上交易已顺利确认！"}</span>`;
                 actionBtn.classList.remove("hidden");
                 actionBtn.innerText = "完成并关闭";
             } else if (stage === TX_STAGES.FAILED) {
                 titleEl.innerText = "交易未完成 / 失败 ⚠️";
+                const spinnerWrapper = document.querySelector(".spinner-wrapper");
+                if (spinnerWrapper) spinnerWrapper.innerHTML = '<div style="font-size:3rem;text-align:center;">❌</div>';
                 const errMsg = parseBlockchainError(payload.error);
                 descEl.innerHTML = `<span style="color:#ef4444;font-weight:600;">${errMsg}</span>`;
                 actionBtn.classList.remove("hidden");
