@@ -177,6 +177,12 @@ function updateUI() {
     const acc = window.DAppState.account;
     const role = window.DAppState.role;
 
+    // Auto-fill wallet input on registration page if exists
+    const walletInput = document.getElementById("wallet-address-input");
+    if (walletInput && acc) {
+        walletInput.value = acc;
+    }
+
     const connectBtn = document.getElementById("connect-wallet-btn");
     if (connectBtn) {
         if (acc) {
@@ -205,6 +211,11 @@ function updateUI() {
                 netBadge.className = "badge badge-warning";
             }
         }).catch(() => {});
+    }
+
+    // Broadcast account changed to all listening views
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("walletAccountChanged", { detail: { account: acc, role: role } }));
     }
 }
 
