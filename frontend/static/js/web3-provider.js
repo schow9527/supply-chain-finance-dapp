@@ -90,13 +90,42 @@ async function handleAccountsChanged(accounts) {
     window.DAppState.account = accounts[0];
     window.DAppState.signer = await window.DAppState.provider.getSigner();
 
-    // Query on-chain / database role
+    // Query on-chain role via RoleManager (per Member 1 interface spec)
     try {
-        const me = await window.DAppState.apiClient.getMe(window.DAppState.account);
-        window.DAppState.role = me.role || "NONE";
-        window.DAppState.enterpriseName = me.enterprise_name || "";
-    } catch (_) {
-        window.DAppState.role = "NONE";
+        if (window.DAppState.contractClient && window.DAppState.contractClient.contracts.RoleManager) {
+            const rm = window.DAppState.contractClient.contracts.RoleManager;
+            const isReg = await rm.isRegistered(window.DAppState.account);
+            if (isReg) {
+                const r = await rm.roleOf(window.DAppState.account);
+                const supplierHash = ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER"));
+                const coreHash = ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE"));
+                const funderHash = ethers.keccak256(ethers.toUtf8Bytes("FUNDER"));
+                const auditorHash = ethers.keccak256(ethers.toUtf8Bytes("AUDITOR"));
+
+                if (r === "0x0000000000000000000000000000000000000000000000000000000000000000") {
+                    window.DAppState.role = "ADMIN";
+                } else if (r === supplierHash) {
+                    window.DAppState.role = "SUPPLIER";
+                } else if (r === coreHash) {
+                    window.DAppState.role = "CORE_ENTERPRISE";
+                } else if (r === funderHash) {
+                    window.DAppState.role = "FINANCIER";
+                } else if (r === auditorHash) {
+                    window.DAppState.role = "AUDITOR";
+                }
+            }
+        }
+    } catch (_) {}
+
+    // Fallback to backend API
+    if (window.DAppState.role === "NONE") {
+        try {
+            const me = await window.DAppState.apiClient.getMe(window.DAppState.account);
+            window.DAppState.role = me.role || "NONE";
+            window.DAppState.enterpriseName = me.enterprise_name || "";
+        } catch (_) {
+            window.DAppState.role = "NONE";
+        }
     }
 
     updateUI();

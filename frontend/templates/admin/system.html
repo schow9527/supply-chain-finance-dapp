@@ -66,17 +66,18 @@
 let isCurrentlyPaused = false;
 
 const ROLE_HASHES = {
-    SUPPLIER: ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER_ROLE")),
-    CORE_ENTERPRISE: ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE_ROLE")),
-    FINANCIER: ethers.keccak256(ethers.toUtf8Bytes("FINANCIER_ROLE")),
-    AUDITOR: ethers.keccak256(ethers.toUtf8Bytes("AUDITOR_ROLE"))
+    SUPPLIER: ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER")),
+    CORE_ENTERPRISE: ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE")),
+    FINANCIER: ethers.keccak256(ethers.toUtf8Bytes("FUNDER")),
+    FUNDER: ethers.keccak256(ethers.toUtf8Bytes("FUNDER")),
+    AUDITOR: ethers.keccak256(ethers.toUtf8Bytes("AUDITOR"))
 };
 
 async function checkSystemPauseState() {
     if (!window.DAppState.contractClient || !window.DAppState.contractClient.contracts.RoleManager) return;
 
     try {
-        isCurrentlyPaused = await window.DAppState.contractClient.contracts.RoleManager.isPaused();
+        isCurrentlyPaused = await window.DAppState.contractClient.contracts.RoleManager.paused();
         const textEl = document.getElementById("pause-status-text");
         const btnEl = document.getElementById("toggle-pause-btn");
 

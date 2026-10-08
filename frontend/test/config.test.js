@@ -5,11 +5,13 @@ const AppConfig = require("../static/js/config.js");
 test("AppConfig - Constants", () => {
     assert.strictEqual(AppConfig.SEPOLIA_CHAIN_ID_DEC, 11155111);
     assert.strictEqual(AppConfig.SEPOLIA_CHAIN_ID_HEX, "0xaa36a7");
+    assert.strictEqual(AppConfig.TOKEN_DECIMALS, 6);
     assert.strictEqual(AppConfig.ROLES.SUPPLIER, "SUPPLIER");
     assert.strictEqual(AppConfig.ROLES.CORE_ENTERPRISE, "CORE_ENTERPRISE");
-    assert.strictEqual(AppConfig.ROLES.FINANCIER, "FINANCIER");
+    assert.strictEqual(AppConfig.ROLES.FUNDER, "FUNDER");
     assert.strictEqual(AppConfig.ROLES.AUDITOR, "AUDITOR");
     assert.strictEqual(AppConfig.ROLES.ADMIN, "ADMIN");
+    assert.strictEqual(AppConfig.DEFAULT_ADDRESSES.RoleManager, "0x441c4300B1c6F900050A298D6960A5C0A7e43942");
 });
 
 test("AppConfig - calculateFundedAmount formula", () => {
@@ -35,16 +37,16 @@ test("AppConfig - formatBps", () => {
     assert.strictEqual(AppConfig.formatBps(10), "0.10%");
 });
 
-test("AppConfig - parseTokens and formatTokens", () => {
-    const wei = AppConfig.parseTokens("1000");
-    assert.strictEqual(wei, "1000000000000000000000");
+test("AppConfig - parseTokens and formatTokens (6 decimals)", () => {
+    const units = AppConfig.parseTokens("1000");
+    assert.strictEqual(units, "1000000000"); // 1000 * 10^6
 
-    const formatted = AppConfig.formatTokens(wei);
+    const formatted = AppConfig.formatTokens(units);
     assert.strictEqual(formatted, "1,000.00");
 
-    const weiFraction = AppConfig.parseTokens("2500.5");
-    assert.strictEqual(weiFraction, "2500500000000000000000");
-    assert.strictEqual(AppConfig.formatTokens(weiFraction), "2,500.50");
+    const unitsFraction = AppConfig.parseTokens("2500.5");
+    assert.strictEqual(unitsFraction, "2500500000");
+    assert.strictEqual(AppConfig.formatTokens(unitsFraction), "2,500.50");
 });
 
 test("AppConfig - shortAddress", () => {

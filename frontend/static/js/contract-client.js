@@ -1,5 +1,6 @@
 /**
- * ContractClient: High-level wrapper for 5 smart contracts and 17 on-chain transactions.
+ * ContractClient: High-level wrapper for 5 smart contracts and 20 on-chain transactions.
+ * Aligned with Member 1's deployed Sepolia contracts (Foundry).
  * Automatically wraps calls with the 4-stage UI lifecycle modal (F-26).
  */
 (function (root, factory) {
@@ -110,12 +111,21 @@
             return this.executeWithLifecycle("RoleManager", "unpause", [], "系统已成功解除暂停，恢复正常！");
         }
 
+        async isRegistered(account) {
+            return this.contracts.RoleManager.isRegistered(account);
+        }
+
+        async roleOf(account) {
+            return this.contracts.RoleManager.roleOf(account);
+        }
+
         // ==================== 2. InvoiceRegistry Functions ====================
-        async submitInvoice(buyer, amountWei, dueDateTs, fileHashBytes32, invoiceNo) {
+        // Note signature: (invoiceNo, buyer, amount, dueDate, fileHash)
+        async submitInvoice(invoiceNo, buyer, amountUnits, dueDateTs, fileHashBytes32) {
             return this.executeWithLifecycle(
                 "InvoiceRegistry",
                 "submitInvoice",
-                [buyer, amountWei, dueDateTs, fileHashBytes32, invoiceNo],
+                [invoiceNo, buyer, amountUnits, dueDateTs, fileHashBytes32],
                 "发票已成功提交上链登记！"
             );
         }
@@ -137,21 +147,21 @@
             return this.executeWithLifecycle("ReceivableToken", "freeze", [id, reason], "凭证已被审计员链上冻结！");
         }
 
-        async unfreezeReceivable(id) {
-            return this.executeWithLifecycle("ReceivableToken", "unfreeze", [id], "凭证已成功解除冻结！");
-        }
-
-        async setApprovalForAllReceivables(operator, approved = true) {
-            return this.executeWithLifecycle("ReceivableToken", "setApprovalForAll", [operator, approved], "凭证划转授权成功！");
+        async unfreezeReceivable(id, reason = "经审查核实无误解除冻结") {
+            return this.executeWithLifecycle("ReceivableToken", "unfreeze", [id, reason], "凭证已成功解除冻结！");
         }
 
         // ==================== 4. FinancingPool Functions ====================
         async requestFinancing(receivableId, amount) {
-            return this.executeWithLifecycle("FinancingPool", "requestFinancing", [receivableId, amount], "融资申请已成功提交至资金池！");
+            return this.executeWithLifecycle("FinancingPool", "requestFinancing", [receivableId, amount], "融资申请已成功提交，凭证已托管至资金池！");
         }
 
-        async submitQuote(requestId, discountRateBps) {
-            return this.executeWithLifecycle("FinancingPool", "submitQuote", [requestId, discountRateBps], "报价已提交！");
+        async submitQuote(requestId, discountBps) {
+            return this.executeWithLifecycle("FinancingPool", "submitQuote", [requestId, discountBps], "报价已成功提交并锁定放款资金！");
+        }
+
+        async withdrawQuote(quoteId) {
+            return this.executeWithLifecycle("FinancingPool", "withdrawQuote", [quoteId], "报价已撤回，锁定资金已退回钱包！");
         }
 
         async acceptQuote(requestId, quoteId) {
@@ -159,7 +169,7 @@
         }
 
         async cancelFinancingRequest(requestId) {
-            return this.executeWithLifecycle("FinancingPool", "cancelRequest", [requestId], "融资申请已取消，凭证已退回。");
+            return this.executeWithLifecycle("FinancingPool", "cancelRequest", [requestId], "融资申请已取消，托管凭证已退回。");
         }
 
         async repayInvoice(receivableId) {
@@ -176,7 +186,7 @@
 
         // ==================== 5. MockStablecoin Functions ====================
         async claimFaucet() {
-            return this.executeWithLifecycle("MockStablecoin", "faucet", [], "已成功领取 10,000 mUSDT 测试代币！");
+            return this.executeWithLifecycle("MockStablecoin", "faucet", [], "已成功领取 100,000 mUSD 测试代币！");
         }
 
         async approveStablecoin(spender, amount) {

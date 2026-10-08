@@ -1,6 +1,7 @@
 /**
  * UI Feedback & 4-Stage Transaction Lifecycle Manager
  * Handles: Toast notifications, Confirmation dialogs, and 4-Stage Tx Lifecycle Modal (F-26).
+ * Aligned with Custom Errors from Member 1's contracts.
  */
 (function (root, factory) {
     if (typeof module === "object" && module.exports) {
@@ -18,37 +19,72 @@
         FAILED: "FAILED"               // 4. 交易失败
     };
 
+    const CUSTOM_ERROR_MESSAGES = {
+        "SystemPaused": "系统当前处于紧急暂停状态，写操作已被熔断。",
+        "EnforcedPause": "系统当前处于紧急暂停状态，写操作已被熔断。",
+        "Unauthorized": "当前账户没有执行该操作的权限。",
+        "AccessControlUnauthorizedAccount": "权限不足：当前账户未被授予该合约角色。",
+        "AccountAlreadyHasRole": "该账户已经拥有链上角色，不能重复授予。",
+        "InvoiceAlreadyExists": "防重拦截：该发票号与承兑买方组合已在链上登记，禁止重复提交！",
+        "InvoiceNotFound": "未找到指定编号的发票记录。",
+        "InvoiceNotPending": "发票当前状态不允许执行此操作。",
+        "NotInvoiceBuyer": "权限校验失败：该发票开具的承兑买方并非当前账户。",
+        "InvalidBuyer": "采购方必须是已在平台注册的核心企业。",
+        "InvalidAmount": "金额必须大于 0。",
+        "InvalidDueDate": "发票到期日必须晚于当前时间。",
+        "InvalidFileHash": "文件哈希值无效。",
+        "InvalidInvoiceNo": "发票编号不能为空。",
+        "InvalidRecipient": "转让接收方必须是已注册的供应商账户。",
+        "ReceivableIsFrozen": "该应收凭证已被审计员链上冻结，禁止流转、贴现或兑付。",
+        "ReceivableMatured": "该凭证已超过到期日。",
+        "ReceivableNotActive": "凭证当前状态不可用。",
+        "ReceivableNotFinanceable": "该凭证当前状态不可申请融资。",
+        "NotOverdueYet": "发票尚未超过到期日，无法标记逾期。",
+        "QuoteNotActive": "该报价已失效或已被撤销。",
+        "QuoteNotFound": "未找到该报价记录。",
+        "RequestNotFound": "未找到该融资申请单。",
+        "RequestNotOpen": "该融资申请已被取消或已完成放款。",
+        "NotRequestOwner": "只有发起融资的供应商才能操作该申请单。",
+        "NotQuoteOwner": "只有报价的资金方才能撤回该报价。",
+        "NotReceivableBuyer": "只有核心企业买方才能为该凭证清偿付款。",
+        "NotRepayable": "该凭证当前不可还款或已完成清偿。",
+        "NotRedeemable": "核心企业尚未付款结清，资金池暂不可兑付。",
+        "NothingToRedeem": "当前账户未持有可兑付的凭证余额。",
+        "ERC1155InsufficientBalance": "应收凭证持有份额不足。",
+        "ERC20InsufficientBalance": "mUSD 稳定币余额不足。",
+        "ERC20InsufficientAllowance": "mUSD 稳定币授权额度不足，请先执行授权。",
+        "ReasonRequired": "请填写必填的原因说明。"
+    };
+
     /**
-     * Translates revert reason or RPC error into friendly message
+     * Translates revert reason, custom error, or RPC error into friendly message
      */
     function parseBlockchainError(err) {
         if (!err) return "未知错误";
         const message = err.message || String(err);
         
+        // Check user rejection
         if (err.code === "ACTION_REJECTED" || message.includes("user rejected") || message.includes("User denied")) {
             return "用户已在 MetaMask 中取消了交易签名。";
         }
-        if (message.includes("Invoice already registered")) {
-            return "防重拦截：该发票号、买家与金额组合已被登记，无法重复上链！";
+
+        // Check custom error from ethers v6 (error.revert?.name)
+        const customName = err.revert?.name || (err.info?.error?.data?.name);
+        if (customName && CUSTOM_ERROR_MESSAGES[customName]) {
+            return CUSTOM_ERROR_MESSAGES[customName];
         }
-        if (message.includes("System is paused")) {
-            return "系统当前处于紧急暂停状态，暂停所有写操作。";
+
+        // Check matching error name in message string
+        for (const [key, text] of Object.entries(CUSTOM_ERROR_MESSAGES)) {
+            if (message.includes(key)) {
+                return text;
+            }
         }
-        if (message.includes("Receivable is frozen")) {
-            return "该应收账款凭证已被审计员冻结，暂不可流转、融资或兑付。";
+
+        if (message.includes("insufficient funds for gas") || message.includes("insufficient funds")) {
+            return "钱包内 Sepolia 测试 ETH 不足，无法支付 Gas 费用。";
         }
-        if (message.includes("Insufficient balance") || message.includes("insufficient funds")) {
-            return "钱包余额不足或凭证持有份额不足。";
-        }
-        if (message.includes("Only core enterprise can repay") || message.includes("Only buyer can confirm")) {
-            return "权限校验失败：当前账户非该发票对应的核心企业买方。";
-        }
-        if (message.includes("Discount rate must be < 100%")) {
-            return "贴现率必须小于 100% (10000 基点)。";
-        }
-        if (message.includes("Due date must be in future")) {
-            return "发票到期日必须晚于当前时间。";
-        }
+
         return message.length > 120 ? message.slice(0, 120) + "..." : message;
     }
 
@@ -196,6 +232,7 @@
 
     return {
         TX_STAGES,
+        CUSTOM_ERROR_MESSAGES,
         parseBlockchainError,
         txModal,
         showToast

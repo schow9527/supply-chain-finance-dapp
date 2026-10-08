@@ -123,11 +123,11 @@ async function handleInvoiceSubmit(e) {
     // 2. Submit to InvoiceRegistry Smart Contract with 4-stage lifecycle modal
     try {
         await window.DAppState.contractClient.submitInvoice(
+            invoiceNo,
             buyer,
             amountWei,
             dueDateTs,
-            computedFileHash,
-            invoiceNo
+            computedFileHash
         );
         UIFeedback.showToast("发票登记成功！已提交核心企业审核。", "success");
         setTimeout(() => {

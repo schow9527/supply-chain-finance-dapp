@@ -1,6 +1,7 @@
 /**
  * Global Configuration & Utility Constants for Supply Chain Finance DApp
- * Compatible with Browser and Node.js testing environments.
+ * Aligned with Member 1's deployed Sepolia contracts (Foundry).
+ * Currency: mUSD (6 decimals, 1e6 = 1 mUSD).
  */
 (function (root, factory) {
     if (typeof module === "object" && module.exports) {
@@ -11,12 +12,14 @@
 }(typeof self !== "undefined" ? self : this, function () {
     const SEPOLIA_CHAIN_ID_DEC = 11155111;
     const SEPOLIA_CHAIN_ID_HEX = "0xaa36a7";
+    const TOKEN_DECIMALS = 6;
 
     const ROLES = {
         ADMIN: "ADMIN",
         SUPPLIER: "SUPPLIER",
         CORE_ENTERPRISE: "CORE_ENTERPRISE",
-        FINANCIER: "FINANCIER",
+        FUNDER: "FUNDER",
+        FINANCIER: "FUNDER", // alias
         AUDITOR: "AUDITOR",
         NONE: "NONE"
     };
@@ -25,22 +28,23 @@
         ADMIN: "平台管理员",
         SUPPLIER: "供应商",
         CORE_ENTERPRISE: "核心企业",
+        FUNDER: "资金方 / 银行",
         FINANCIER: "资金方 / 银行",
         AUDITOR: "审计员",
         NONE: "未入驻企业"
     };
 
-    // Default addresses (updated after deployment)
+    // Deployed addresses on Sepolia (11155111) by Member 1
     const DEFAULT_ADDRESSES = {
-        RoleManager: "0x0000000000000000000000000000000000000000",
-        ReceivableToken: "0x0000000000000000000000000000000000000000",
-        InvoiceRegistry: "0x0000000000000000000000000000000000000000",
-        FinancingPool: "0x0000000000000000000000000000000000000000",
-        MockStablecoin: "0x0000000000000000000000000000000000000000"
+        RoleManager: "0x441c4300B1c6F900050A298D6960A5C0A7e43942",
+        ReceivableToken: "0x3aeD657136595F6A88635a61DC78f65865Fe2Bd7",
+        MockStablecoin: "0xd404f89dFC7d623ad43Eb068CB14Abf4aaC89b1D",
+        InvoiceRegistry: "0x8813F8dEb1FE0e3a0cAbE348D07b44C933644C96",
+        FinancingPool: "0xa978E8eB77BFa67c5638A874EDe258260810c678"
     };
 
     /**
-     * Utility: Calculate actual funded amount based on discount rate in basis points (1 bps = 0.01%)
+     * Utility: Calculate actual funded payout amount
      * formula: fundedAmount = amount * (10000 - discountRateBps) / 10000
      */
     function calculateFundedAmount(amount, discountRateBps) {
@@ -61,7 +65,7 @@
     }
 
     /**
-     * Utility: Convert human-readable token amount (e.g. "1000") to 18-decimal wei string
+     * Utility: Convert human-readable token amount (e.g. "1000") to 6-decimal units
      */
     function parseTokens(amountStr) {
         if (!amountStr || isNaN(Number(amountStr))) {
@@ -70,23 +74,24 @@
         const parts = String(amountStr).split(".");
         let whole = parts[0];
         let fraction = parts[1] || "";
-        if (fraction.length > 18) {
-            fraction = fraction.substring(0, 18);
+        if (fraction.length > TOKEN_DECIMALS) {
+            fraction = fraction.substring(0, TOKEN_DECIMALS);
         } else {
-            fraction = fraction.padEnd(18, "0");
+            fraction = fraction.padEnd(TOKEN_DECIMALS, "0");
         }
-        return (BigInt(whole) * 10n ** 18n + BigInt(fraction)).toString();
+        return (BigInt(whole) * 10n ** BigInt(TOKEN_DECIMALS) + BigInt(fraction)).toString();
     }
 
     /**
-     * Utility: Convert 18-decimal wei string to human-readable number string with commas
+     * Utility: Convert 6-decimal token units to human-readable string with commas
      */
-    function formatTokens(weiStr, decimals = 2) {
-        if (!weiStr) return "0.00";
-        const bi = BigInt(weiStr);
-        const whole = bi / (10n ** 18n);
-        const fraction = bi % (10n ** 18n);
-        const fracStr = fraction.toString().padStart(18, "0").slice(0, decimals);
+    function formatTokens(unitsStr, decimals = 2) {
+        if (!unitsStr) return "0.00";
+        const bi = BigInt(unitsStr);
+        const factor = 10n ** BigInt(TOKEN_DECIMALS);
+        const whole = bi / factor;
+        const fraction = bi % factor;
+        const fracStr = fraction.toString().padStart(TOKEN_DECIMALS, "0").slice(0, decimals);
         return `${Number(whole).toLocaleString()}.${fracStr}`;
     }
 
@@ -110,6 +115,7 @@
     return {
         SEPOLIA_CHAIN_ID_DEC,
         SEPOLIA_CHAIN_ID_HEX,
+        TOKEN_DECIMALS,
         ROLES,
         ROLE_LABELS,
         DEFAULT_ADDRESSES,

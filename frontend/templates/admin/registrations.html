@@ -43,13 +43,13 @@
 <script>
 let appList = [];
 
-// Role hashes corresponding to RoleManager.sol
 const ROLE_HASHES = {
-    ADMIN: ethers.keccak256(ethers.toUtf8Bytes("ADMIN_ROLE")),
-    SUPPLIER: ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER_ROLE")),
-    CORE_ENTERPRISE: ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE_ROLE")),
-    FINANCIER: ethers.keccak256(ethers.toUtf8Bytes("FINANCIER_ROLE")),
-    AUDITOR: ethers.keccak256(ethers.toUtf8Bytes("AUDITOR_ROLE"))
+    ADMIN: "0x0000000000000000000000000000000000000000000000000000000000000000",
+    SUPPLIER: ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER")),
+    CORE_ENTERPRISE: ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE")),
+    FINANCIER: ethers.keccak256(ethers.toUtf8Bytes("FUNDER")),
+    FUNDER: ethers.keccak256(ethers.toUtf8Bytes("FUNDER")),
+    AUDITOR: ethers.keccak256(ethers.toUtf8Bytes("AUDITOR"))
 };
 
 async function loadApplications() {
