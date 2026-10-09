@@ -1,6 +1,10 @@
 /**
  * Web3 Provider & State Manager for Supply Chain Finance DApp
- * Handles: MetaMask connection, Network guard (Sepolia), Account routing, and Demo role simulation.
+ * Handles: MetaMask connection, Network guard (Sepolia), Account routing.
+ *
+ * 核心设计：本项目是多页面应用（MPA），每次页面跳转都会重新加载此脚本。
+ * 因此必须在每次 DOMContentLoaded 时静默地重新检测 MetaMask 已授权账户，
+ * 而不是要求用户再次手动点击"连接"。
  */
 
 window.DAppState = {
@@ -8,17 +12,18 @@ window.DAppState = {
     signer: null,
     account: null,
     role: "NONE",
+    sessionAuthenticated: false,
     contractClient: null,
     apiClient: null,
-    contractAddresses: null,
-    contractAbis: null,
-    isReady: false
+    isReady: false,
+    _addresses: null,
+    _abis: null
 };
 
 async function initWeb3() {
     window.DAppState.apiClient = new window.ApiClient();
 
-    // Load addresses if available
+    // Load deployed addresses
     let addresses = window.AppConfig.DEFAULT_ADDRESSES;
     try {
         const resp = await fetch("/static/js/deployed_addresses.json");
@@ -27,6 +32,7 @@ async function initWeb3() {
             if (data.contracts) addresses = data.contracts;
         }
     } catch (_) {}
+    window.DAppState._addresses = addresses;
 
     // Load ABIs
     const abis = {};
@@ -37,31 +43,35 @@ async function initWeb3() {
             if (r.ok) abis[name] = await r.json();
         } catch (_) {}
     }
-    window.DAppState.contractAddresses = addresses;
-    window.DAppState.contractAbis = abis;
+    window.DAppState._abis = abis;
 
     if (window.ethereum) {
         window.DAppState.provider = new ethers.BrowserProvider(window.ethereum);
-        
-        // Check if already authorized
-        const accounts = await window.DAppState.provider.send("eth_accounts", []).catch(() => []);
-        if (accounts.length > 0) {
-            await handleAccountsChanged(accounts);
+
+        // 先用 eth_accounts 静默查询（不弹窗）
+        let accounts = await window.DAppState.provider.send("eth_accounts", []).catch(() => []);
+
+        // 如果 eth_accounts 返回空，尝试直接通过 ethereum.request 再查一次
+        // 某些 MetaMask 版本对 ethers BrowserProvider 包装后的 send 行为不一致
+        if (accounts.length === 0 && window.ethereum.selectedAddress) {
+            accounts = [window.ethereum.selectedAddress];
         }
 
-        // Init contract client
-        if (window.DAppState.signer) {
+        if (accounts.length > 0) {
+            // 初始化 contractClient（需要在 handleAccountsChanged 之前，
+            // 因为里面要用 contractClient 查链上角色）
+            window.DAppState.signer = await window.DAppState.provider.getSigner();
             window.DAppState.contractClient = new window.ContractClient(
                 window.DAppState.provider,
                 window.DAppState.signer,
                 addresses,
                 abis
             );
-            await restoreSessionForAccount();
+            await handleAccountsChanged(accounts);
         }
     }
 
-    renderDemoSwitcher();
+    window.DAppState.isReady = true;
     updateUI();
 }
 
@@ -73,7 +83,22 @@ async function connectWallet() {
     }
 
     try {
+        if (!window.DAppState.provider) {
+            window.DAppState.provider = new ethers.BrowserProvider(window.ethereum);
+        }
         const accounts = await window.DAppState.provider.send("eth_requestAccounts", []);
+
+        // 确保 signer 和 contractClient 在角色检测前就位
+        window.DAppState.signer = await window.DAppState.provider.getSigner();
+        if (!window.DAppState.contractClient && window.DAppState._addresses && window.DAppState._abis) {
+            window.DAppState.contractClient = new window.ContractClient(
+                window.DAppState.provider,
+                window.DAppState.signer,
+                window.DAppState._addresses,
+                window.DAppState._abis
+            );
+        }
+
         await handleAccountsChanged(accounts);
         await ensureSepoliaNetwork();
         await authenticateWallet();
@@ -91,22 +116,44 @@ async function handleAccountsChanged(accounts) {
         window.DAppState.account = null;
         window.DAppState.signer = null;
         window.DAppState.role = "NONE";
+        window.DAppState.sessionAuthenticated = false;
         updateUI();
         return;
     }
 
     window.DAppState.account = accounts[0];
     window.DAppState.signer = await window.DAppState.provider.getSigner();
-    window.DAppState.role = "NONE";
-    if (window.DAppState.contractAddresses && window.DAppState.contractAbis) {
-        window.DAppState.contractClient = new window.ContractClient(
-            window.DAppState.provider,
-            window.DAppState.signer,
-            window.DAppState.contractAddresses,
-            window.DAppState.contractAbis
-        );
-    }
-    updateUI();
+
+    // Query on-chain role via RoleManager (per Member 1 interface spec)
+    try {
+        if (window.DAppState.contractClient && window.DAppState.contractClient.contracts.RoleManager) {
+            const rm = window.DAppState.contractClient.contracts.RoleManager;
+            const isReg = await rm.isRegistered(window.DAppState.account);
+            if (isReg) {
+                const r = await rm.roleOf(window.DAppState.account);
+                const supplierHash = ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER"));
+                const coreHash = ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE"));
+                const funderHash = ethers.keccak256(ethers.toUtf8Bytes("FUNDER"));
+                const auditorHash = ethers.keccak256(ethers.toUtf8Bytes("AUDITOR"));
+
+                if (r === "0x0000000000000000000000000000000000000000000000000000000000000000") {
+                    window.DAppState.role = "ADMIN";
+                } else if (r === supplierHash) {
+                    window.DAppState.role = "SUPPLIER";
+                } else if (r === coreHash) {
+                    window.DAppState.role = "CORE_ENTERPRISE";
+                } else if (r === funderHash) {
+                    window.DAppState.role = "FINANCIER";
+                } else if (r === auditorHash) {
+                    window.DAppState.role = "AUDITOR";
+                }
+            }
+        }
+    } catch (_) {}
+
+    // Restore the HttpOnly backend session used by protected APIs. If there is
+    // no matching session, keep the wallet connected but fail closed for API UI.
+    await restoreSessionForAccount();
 }
 
 async function restoreSessionForAccount() {
@@ -115,14 +162,19 @@ async function restoreSessionForAccount() {
         const me = await window.DAppState.apiClient.getMe();
         if (me.wallet_address.toLowerCase() !== window.DAppState.account.toLowerCase()) {
             await window.DAppState.apiClient.logout();
+            window.DAppState.sessionAuthenticated = false;
+            updateUI();
             return;
         }
+        window.DAppState.sessionAuthenticated = true;
         window.DAppState.role = me.role === "FUNDER" ? "FINANCIER" : (me.role || "NONE");
         window.DAppState.enterpriseName = me.enterprise_name || "";
-        updateUI();
     } catch (_) {
-        window.DAppState.role = "NONE";
+        // Keep the read-only on-chain role for display. Protected APIs still
+        // fail closed because no HttpOnly session was authenticated.
+        window.DAppState.sessionAuthenticated = false;
     }
+    updateUI();
 }
 
 async function authenticateWallet() {
@@ -135,7 +187,7 @@ async function authenticateWallet() {
         await restoreSessionForAccount();
     } catch (err) {
         err.isWalletAuthError = true;
-        window.DAppState.role = "NONE";
+        window.DAppState.sessionAuthenticated = false;
         if (err && (err.code === 4001 || err.code === "ACTION_REJECTED")) {
             UIFeedback.showToast("已取消钱包登录签名；这不是链上交易，不会产生 Gas。", "warning");
         } else {
@@ -230,59 +282,6 @@ function updateUI() {
     // Broadcast account changed to all listening views
     if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("walletAccountChanged", { detail: { account: acc, role: role } }));
-    }
-}
-
-/**
- * Demo Switcher widget to help Member 6 test and record demo video across 5 roles
- */
-function renderDemoSwitcher() {
-    if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) return;
-    if (document.getElementById("demo-switcher-widget")) return;
-    const div = document.createElement("div");
-    div.id = "demo-switcher-widget";
-    div.className = "demo-switcher";
-    div.innerHTML = `
-        <div class="demo-switcher-header" onclick="this.parentElement.classList.toggle('collapsed')">
-            <span>🛠️ 演示角色模拟器 (视频录制助手)</span>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div class="demo-switcher-body">
-            <small>点击模拟不同角色界面 (无需反复换私钥)：</small>
-            <div class="role-pills">
-                <button class="pill-btn" onclick="simulateRole('SUPPLIER')">供应商</button>
-                <button class="pill-btn" onclick="simulateRole('CORE_ENTERPRISE')">核心企业</button>
-                <button class="pill-btn" onclick="simulateRole('FINANCIER')">资金方</button>
-                <button class="pill-btn" onclick="simulateRole('AUDITOR')">审计员</button>
-                <button class="pill-btn" onclick="simulateRole('ADMIN')">管理员</button>
-                <button class="pill-btn pill-reset" onclick="simulateRole('NONE')">重置</button>
-            </div>
-            <div style="margin-top:8px;">
-                <button class="btn btn-sm btn-outline" style="width:100%;" onclick="claimTestTokens()">💧 领取 10,000 测试稳定币</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(div);
-}
-
-function simulateRole(role) {
-    window.DAppState.role = role;
-    if (!window.DAppState.account) {
-        window.DAppState.account = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-    }
-    updateUI();
-    UIFeedback.showToast(`已切换至【${window.AppConfig.ROLE_LABELS[role] || role}】模拟视图`, "info");
-    
-    // Auto route if on landing or specific console
-    const routeMap = {
-        SUPPLIER: "/supplier/dashboard",
-        CORE_ENTERPRISE: "/core_enterprise/dashboard",
-        FINANCIER: "/financier/dashboard",
-        AUDITOR: "/auditor/overview",
-        ADMIN: "/admin/registrations"
-    };
-    if (routeMap[role] && window.location.pathname === "/") {
-        window.location.href = routeMap[role];
     }
 }
 

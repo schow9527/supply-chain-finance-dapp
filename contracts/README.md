@@ -20,20 +20,21 @@
 
 接口细节（函数、事件、错误、前端需要的 approve）见 [docs/interface.md](docs/interface.md)。
 
-## Sepolia 部署信息（2026-10-08）
+## Sepolia 部署信息（2026-10-08，Gas 优化版）
 
 | 合约 | 地址 |
 |---|---|
-| RoleManager | [`0x441c4300B1c6F900050A298D6960A5C0A7e43942`](https://sepolia.etherscan.io/address/0x441c4300B1c6F900050A298D6960A5C0A7e43942) |
-| ReceivableToken | [`0x3aeD657136595F6A88635a61DC78f65865Fe2Bd7`](https://sepolia.etherscan.io/address/0x3aeD657136595F6A88635a61DC78f65865Fe2Bd7) |
-| MockStablecoin | [`0xd404f89dFC7d623ad43Eb068CB14Abf4aaC89b1D`](https://sepolia.etherscan.io/address/0xd404f89dFC7d623ad43Eb068CB14Abf4aaC89b1D) |
-| InvoiceRegistry | [`0x8813F8dEb1FE0e3a0cAbE348D07b44C933644C96`](https://sepolia.etherscan.io/address/0x8813F8dEb1FE0e3a0cAbE348D07b44C933644C96) |
-| FinancingPool | [`0xa978E8eB77BFa67c5638A874EDe258260810c678`](https://sepolia.etherscan.io/address/0xa978E8eB77BFa67c5638A874EDe258260810c678) |
+| RoleManager | [`0x82f86a2B31C424b4833b5BAb82464eB7f69B6a2E`](https://sepolia.etherscan.io/address/0x82f86a2B31C424b4833b5BAb82464eB7f69B6a2E) |
+| ReceivableToken | [`0x3c9EcDdf7e788F7B8e04D4177d04B3c291E0368f`](https://sepolia.etherscan.io/address/0x3c9EcDdf7e788F7B8e04D4177d04B3c291E0368f) |
+| MockStablecoin | [`0xE3C713Db876c97600141Ba34C7Cb68898CF1E04F`](https://sepolia.etherscan.io/address/0xE3C713Db876c97600141Ba34C7Cb68898CF1E04F) |
+| InvoiceRegistry | [`0x39605C1D4FCE3D85DC14f7f283899b984dd1eD7a`](https://sepolia.etherscan.io/address/0x39605C1D4FCE3D85DC14f7f283899b984dd1eD7a) |
+| FinancingPool | [`0x2bb0A6e688C331248fe8575121F799B5286985c6`](https://sepolia.etherscan.io/address/0x2bb0A6e688C331248fe8575121F799B5286985c6) |
 
 - 管理员：`0x0ced068d2f30d72ca4c8d41d9619a2183d06834f`
-- 起始区块（后端事件同步从这里开始）：`11868898`
+- 起始区块（后端事件同步从这里开始）：`11869257`
 - 机器可读版本：[deployments/11155111.json](deployments/11155111.json)
 - 部署方式：Remix + MetaMask，solc 0.8.24 / cancun / optimizer 200
+- 首次部署（优化前版本，已弃用）的 RoleManager 为 `0x441c4300B1c6F900050A298D6960A5C0A7e43942`，起始区块 11868898
 
 ## 常用命令
 
@@ -42,8 +43,8 @@
 npm install                 # 安装 OpenZeppelin 与 forge-std
 forge build
 forge test                  # 运行全部测试
-forge coverage --report summary
-forge test --gas-report     # Gas 报告
+npm run coverage            # 覆盖率（排除脚本与测试文件）
+npm run gas                 # Gas 基准，结果写入 snapshots/GasBenchmark.json
 ./script/export-abi.sh      # 导出 ABI 到 abi/
 ```
 
@@ -76,4 +77,4 @@ forge script script/Deploy.s.sol --rpc-url sepolia --account <keystore名> --bro
 - `abi/*.json` — 纯 ABI，web3.py / ethers.js 直接加载
 - `deployments/<chainId>.json` — 合约地址、管理员地址、起始区块
 - `docs/interface.md` — 函数、事件、错误码说明
-- `docs/gas-report-baseline.txt`、`docs/gas-snapshot-baseline` — 优化前的 Gas 基线
+- `docs/gas-optimization.md` — Gas 优化前后对比与分析（原始数据在 `docs/gas/`）

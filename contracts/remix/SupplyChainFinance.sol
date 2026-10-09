@@ -307,6 +307,18 @@ library Panic {
     }
 }
 
+// contracts/utils/Roles.sol
+
+/// @notice Role identifiers shared by RoleManager and the business contracts. Using compile-time
+///         constants avoids an external call to RoleManager just to read a role id.
+library Roles {
+    bytes32 internal constant ADMIN = 0x00; // == AccessControl.DEFAULT_ADMIN_ROLE
+    bytes32 internal constant SUPPLIER = keccak256("SUPPLIER");
+    bytes32 internal constant CORE_ENTERPRISE = keccak256("CORE_ENTERPRISE");
+    bytes32 internal constant FUNDER = keccak256("FUNDER");
+    bytes32 internal constant AUDITOR = keccak256("AUDITOR");
+}
+
 // node_modules/@openzeppelin/contracts/utils/math/SafeCast.sol
 
 // OpenZeppelin Contracts (last updated v5.6.0) (utils/math/SafeCast.sol)
@@ -5061,10 +5073,10 @@ library Arrays {
 /// @notice Single source of truth for user roles and the global emergency pause.
 ///         Each address may hold at most one role. Admin = DEFAULT_ADMIN_ROLE.
 contract RoleManager is AccessControl, Pausable {
-    bytes32 public constant SUPPLIER = keccak256("SUPPLIER");
-    bytes32 public constant CORE_ENTERPRISE = keccak256("CORE_ENTERPRISE");
-    bytes32 public constant FUNDER = keccak256("FUNDER");
-    bytes32 public constant AUDITOR = keccak256("AUDITOR");
+    bytes32 public constant SUPPLIER = Roles.SUPPLIER;
+    bytes32 public constant CORE_ENTERPRISE = Roles.CORE_ENTERPRISE;
+    bytes32 public constant FUNDER = Roles.FUNDER;
+    bytes32 public constant AUDITOR = Roles.AUDITOR;
 
     /// @dev Tracks whether an address already holds a role (DEFAULT_ADMIN_ROLE is bytes32(0),
     ///      so a separate flag is needed).
@@ -5576,13 +5588,16 @@ contract ReceivableToken is ERC1155, RoleGuarded {
         Overdue // past due and unpaid, flagged by a funder
     }
 
+    /// @dev Packed into 2 storage slots (uint96 covers 7.9e22 mUSD at 6 decimals).
     struct Receivable {
+        // slot 0
         address buyer; // core enterprise that owes the money
-        address originalSupplier;
         uint64 dueDate;
         Status status;
         bool frozen;
-        uint256 faceValue;
+        // slot 1
+        address originalSupplier;
+        uint96 faceValue;
     }
 
     mapping(uint256 => Receivable) private _receivables;
@@ -5639,7 +5654,7 @@ contract ReceivableToken is ERC1155, RoleGuarded {
 
     function setSystemContracts(address invoiceRegistry_, address financingPool_)
         external
-        onlyRoleOf(roleManager.DEFAULT_ADMIN_ROLE())
+        onlyRoleOf(Roles.ADMIN)
     {
         if (invoiceRegistry != address(0)) revert SystemContractsAlreadySet();
         if (invoiceRegistry_ == address(0) || financingPool_ == address(0)) revert ZeroAddress();
@@ -5667,16 +5682,14 @@ contract ReceivableToken is ERC1155, RoleGuarded {
     // ---------------------------------------------------------------------
 
     /// @notice Split-transfer part of a voucher to another registered supplier.
-    function transferReceivable(address to, uint256 id, uint256 amount)
-        external
-        onlyRoleOf(roleManager.SUPPLIER())
-    {
+    /// @dev The sender's SUPPLIER role is enforced in _update.
+    function transferReceivable(address to, uint256 id, uint256 amount) external {
         if (amount == 0) revert ZeroAmount();
         safeTransferFrom(msg.sender, to, id, amount, "");
         emit ReceivableTransferred(id, msg.sender, to, amount);
     }
 
-    function freeze(uint256 id, string calldata reason) external onlyRoleOf(roleManager.AUDITOR()) {
+    function freeze(uint256 id, string calldata reason) external onlyRoleOf(Roles.AUDITOR) {
         Receivable storage r = _existing(id);
         if (r.frozen) revert ReceivableIsFrozen(id);
         if (bytes(reason).length == 0) revert ReasonRequired();
@@ -5684,7 +5697,7 @@ contract ReceivableToken is ERC1155, RoleGuarded {
         emit ReceivableFrozen(id, msg.sender, reason);
     }
 
-    function unfreeze(uint256 id, string calldata reason) external onlyRoleOf(roleManager.AUDITOR()) {
+    function unfreeze(uint256 id, string calldata reason) external onlyRoleOf(Roles.AUDITOR) {
         Receivable storage r = _existing(id);
         if (!r.frozen) revert ReceivableNotFrozen(id);
         if (bytes(reason).length == 0) revert ReasonRequired();
@@ -5704,11 +5717,11 @@ contract ReceivableToken is ERC1155, RoleGuarded {
         if (faceValue == 0) revert ZeroAmount();
         _receivables[id] = Receivable({
             buyer: buyer,
-            originalSupplier: supplier,
             dueDate: dueDate,
             status: Status.Active,
             frozen: false,
-            faceValue: faceValue
+            originalSupplier: supplier,
+            faceValue: SafeCast.toUint96(faceValue)
         });
         _mint(supplier, id, faceValue, "");
         emit ReceivableMinted(id, supplier, buyer, faceValue, dueDate);
@@ -5736,13 +5749,13 @@ contract ReceivableToken is ERC1155, RoleGuarded {
             _checkNotPaused();
             bool byPool = msg.sender == financingPool;
             if (byPool) {
-                if (
-                    to != financingPool && !roleManager.hasRole(roleManager.SUPPLIER(), to)
-                        && !roleManager.hasRole(roleManager.FUNDER(), to)
-                ) revert InvalidRecipient(to);
+                if (to != financingPool) {
+                    bytes32 toRole = roleManager.roleOf(to);
+                    if (toRole != Roles.SUPPLIER && toRole != Roles.FUNDER) revert InvalidRecipient(to);
+                }
             } else {
-                _checkRole(roleManager.SUPPLIER(), from);
-                if (!roleManager.hasRole(roleManager.SUPPLIER(), to)) revert InvalidRecipient(to);
+                if (roleManager.roleOf(from) != Roles.SUPPLIER) revert Unauthorized(from, Roles.SUPPLIER);
+                if (roleManager.roleOf(to) != Roles.SUPPLIER) revert InvalidRecipient(to);
             }
             for (uint256 i; i < ids.length; ++i) {
                 Receivable storage r = _receivables[ids[i]];
@@ -5775,15 +5788,20 @@ contract InvoiceRegistry is RoleGuarded {
         Rejected
     }
 
+    /// @dev Packed into 4 storage slots. The invoice number itself is only emitted in
+    ///      InvoiceSubmitted (the backend indexes it); on-chain we keep its dedup key.
     struct Invoice {
+        // slot 0
         address supplier;
         uint64 dueDate;
         InvoiceStatus status;
+        // slot 1
         address buyer;
-        uint256 amount;
+        uint96 amount;
+        // slot 2
         bytes32 fileHash; // hash of the off-chain PDF
+        // slot 3
         bytes32 dedupKey; // keccak256(invoiceNo, supplier, buyer, amount)
-        string invoiceNo;
     }
 
     ReceivableToken public immutable receivableToken;
@@ -5839,9 +5857,9 @@ contract InvoiceRegistry is RoleGuarded {
         uint256 amount,
         uint64 dueDate,
         bytes32 fileHash
-    ) external whenActive onlyRoleOf(roleManager.SUPPLIER()) returns (uint256 invoiceId) {
+    ) external whenActive onlyRoleOf(Roles.SUPPLIER) returns (uint256 invoiceId) {
         if (bytes(invoiceNo).length == 0) revert InvalidInvoiceNo();
-        if (!roleManager.hasRole(roleManager.CORE_ENTERPRISE(), buyer)) revert InvalidBuyer(buyer);
+        if (!roleManager.hasRole(Roles.CORE_ENTERPRISE, buyer)) revert InvalidBuyer(buyer);
         if (amount == 0) revert InvalidAmount();
         if (dueDate <= block.timestamp) revert InvalidDueDate(dueDate);
         if (fileHash == bytes32(0)) revert InvalidFileHash();
@@ -5857,19 +5875,18 @@ contract InvoiceRegistry is RoleGuarded {
             dueDate: dueDate,
             status: InvoiceStatus.Pending,
             buyer: buyer,
-            amount: amount,
+            amount: SafeCast.toUint96(amount),
             fileHash: fileHash,
-            dedupKey: key,
-            invoiceNo: invoiceNo
+            dedupKey: key
         });
 
         emit InvoiceSubmitted(invoiceId, msg.sender, buyer, invoiceNo, amount, dueDate, fileHash);
     }
 
-    function confirmInvoice(uint256 invoiceId) external whenActive onlyRoleOf(roleManager.CORE_ENTERPRISE()) {
+    function confirmInvoice(uint256 invoiceId) external whenActive onlyRoleOf(Roles.CORE_ENTERPRISE) {
         Invoice storage inv = _pendingInvoiceOfCaller(invoiceId);
         if (inv.dueDate <= block.timestamp) revert InvalidDueDate(inv.dueDate);
-        if (!roleManager.hasRole(roleManager.SUPPLIER(), inv.supplier)) {
+        if (!roleManager.hasRole(Roles.SUPPLIER, inv.supplier)) {
             revert SupplierNoLongerRegistered(inv.supplier);
         }
 
@@ -5883,7 +5900,7 @@ contract InvoiceRegistry is RoleGuarded {
     function rejectInvoice(uint256 invoiceId, string calldata reason)
         external
         whenActive
-        onlyRoleOf(roleManager.CORE_ENTERPRISE())
+        onlyRoleOf(Roles.CORE_ENTERPRISE)
     {
         if (bytes(reason).length == 0) revert ReasonRequired();
         Invoice storage inv = _pendingInvoiceOfCaller(invoiceId);
@@ -5929,20 +5946,26 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         Withdrawn
     }
 
+    /// @dev Packed into 2 storage slots.
     struct Request {
-        uint256 receivableId;
+        // slot 0
         address supplier;
         RequestStatus status;
-        uint256 amount; // voucher amount (face value units) escrowed
-        uint256 acceptedQuoteId;
+        uint64 receivableId;
+        // slot 1
+        uint96 amount; // voucher amount (face value units) escrowed
+        uint64 acceptedQuoteId;
     }
 
+    /// @dev Packed into 2 storage slots.
     struct Quote {
-        uint256 requestId;
+        // slot 0
         address funder;
         uint16 discountBps;
         QuoteStatus status;
-        uint256 payout; // stablecoin escrowed; what the supplier receives
+        uint64 requestId;
+        // slot 1
+        uint96 payout; // stablecoin escrowed; what the supplier receives
     }
 
     IERC20 public immutable stablecoin;
@@ -6027,7 +6050,7 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         external
         whenActive
         nonReentrant
-        onlyRoleOf(roleManager.SUPPLIER())
+        onlyRoleOf(Roles.SUPPLIER)
         returns (uint256 requestId)
     {
         if (amount == 0) revert ZeroAmount();
@@ -6035,10 +6058,10 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
 
         requestId = ++requestCount;
         _requests[requestId] = Request({
-            receivableId: receivableId,
             supplier: msg.sender,
             status: RequestStatus.Open,
-            amount: amount,
+            receivableId: SafeCast.toUint64(receivableId),
+            amount: SafeCast.toUint96(amount),
             acceptedQuoteId: 0
         });
         emit FinancingRequested(requestId, receivableId, msg.sender, amount);
@@ -6054,7 +6077,7 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         external
         whenActive
         nonReentrant
-        onlyRoleOf(roleManager.FUNDER())
+        onlyRoleOf(Roles.FUNDER)
         returns (uint256 quoteId)
     {
         if (discountBps >= BPS) revert InvalidDiscount(discountBps);
@@ -6064,11 +6087,11 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         uint256 payout = previewPayout(req.amount, discountBps);
         quoteId = ++quoteCount;
         _quotes[quoteId] = Quote({
-            requestId: requestId,
             funder: msg.sender,
             discountBps: discountBps,
             status: QuoteStatus.Active,
-            payout: payout
+            requestId: uint64(requestId), // fits: requestId is an existing request counter value
+            payout: uint96(payout) // fits: payout <= req.amount, which is uint96
         });
         emit QuoteSubmitted(quoteId, requestId, msg.sender, discountBps, payout);
 
@@ -6095,7 +6118,7 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         _requireFinanceable(req.receivableId);
 
         req.status = RequestStatus.Funded;
-        req.acceptedQuoteId = quoteId;
+        req.acceptedQuoteId = uint64(quoteId); // fits: existing quote counter value
         q.status = QuoteStatus.Accepted;
         emit FinancingFunded(requestId, quoteId, req.receivableId, msg.sender, q.funder, req.amount, q.payout);
 
@@ -6153,7 +6176,7 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         external
         whenActive
         nonReentrant
-        onlyRoleOf(roleManager.FUNDER())
+        onlyRoleOf(Roles.FUNDER)
     {
         ReceivableToken.Receivable memory r = receivableToken.getReceivable(receivableId);
         if (receivableToken.balanceOf(msg.sender, receivableId) == 0) {

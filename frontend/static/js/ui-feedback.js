@@ -20,12 +20,13 @@
     };
 
     const CUSTOM_ERROR_MESSAGES = {
+        "SafeCastOverflowedUintDowncast": "输入金额过大，超出了系统所允许的最大限度。",
         "SystemPaused": "系统当前处于紧急暂停状态，写操作已被熔断。",
         "EnforcedPause": "系统当前处于紧急暂停状态，写操作已被熔断。",
         "Unauthorized": "当前账户没有执行该操作的权限。",
         "AccessControlUnauthorizedAccount": "权限不足：当前账户未被授予该合约角色。",
         "AccountAlreadyHasRole": "该账户已经拥有链上角色，不能重复授予。",
-        "InvoiceAlreadyExists": "防重拦截：该发票号与承兑买方组合已在链上登记，禁止重复提交！",
+        "InvoiceAlreadyExists": "防重拦截：该发票号与承兑买方组合已在链上登记，禁止重复提交。",
         "InvoiceNotFound": "未找到指定编号的发票记录。",
         "InvoiceNotPending": "发票当前状态不允许执行此操作。",
         "NotInvoiceBuyer": "权限校验失败：该发票开具的承兑买方并非当前账户。",
@@ -159,6 +160,9 @@
             });
 
             if (stage === TX_STAGES.ESTIMATING) {
+                // 重置 spinner（上一次交易可能把它替换成了图标）
+                const spinnerWrapper = document.querySelector(".spinner-wrapper");
+                if (spinnerWrapper) spinnerWrapper.innerHTML = '<div class="spinner"></div>';
                 document.getElementById("step-1")?.classList.add("active");
                 titleEl.innerText = "第一阶段：Gas 费用预估 (F-26)";
                 descEl.innerText = "正在向 Sepolia 测试网预估本笔交易的 Gas Limit 与费用...";
@@ -188,11 +192,15 @@
             } else if (stage === TX_STAGES.SUCCESS) {
                 [1, 2, 3, 4].forEach(i => document.getElementById(`step-${i}`)?.classList.add("done"));
                 titleEl.innerText = "第四阶段：交易执行成功！🎉";
+                const spinnerWrapper = document.querySelector(".spinner-wrapper");
+                if (spinnerWrapper) spinnerWrapper.innerHTML = '<div style="font-size:3rem;text-align:center;">✅</div>';
                 descEl.innerHTML = `<span style="color:#10b981;font-weight:600;">${payload.message || "链上交易已顺利确认！"}</span>`;
                 actionBtn.classList.remove("hidden");
                 actionBtn.innerText = "完成并关闭";
             } else if (stage === TX_STAGES.FAILED) {
                 titleEl.innerText = "交易未完成 / 失败 ⚠️";
+                const spinnerWrapper = document.querySelector(".spinner-wrapper");
+                if (spinnerWrapper) spinnerWrapper.innerHTML = '<div style="font-size:3rem;text-align:center;">❌</div>';
                 const errMsg = parseBlockchainError(payload.error);
                 descEl.innerHTML = `<span style="color:#ef4444;font-weight:600;">${errMsg}</span>`;
                 actionBtn.classList.remove("hidden");

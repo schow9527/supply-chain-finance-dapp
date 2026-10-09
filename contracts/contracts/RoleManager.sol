@@ -3,15 +3,16 @@ pragma solidity ^0.8.24;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {Roles} from "./utils/Roles.sol";
 
 /// @title RoleManager
 /// @notice Single source of truth for user roles and the global emergency pause.
 ///         Each address may hold at most one role. Admin = DEFAULT_ADMIN_ROLE.
 contract RoleManager is AccessControl, Pausable {
-    bytes32 public constant SUPPLIER = keccak256("SUPPLIER");
-    bytes32 public constant CORE_ENTERPRISE = keccak256("CORE_ENTERPRISE");
-    bytes32 public constant FUNDER = keccak256("FUNDER");
-    bytes32 public constant AUDITOR = keccak256("AUDITOR");
+    bytes32 public constant SUPPLIER = Roles.SUPPLIER;
+    bytes32 public constant CORE_ENTERPRISE = Roles.CORE_ENTERPRISE;
+    bytes32 public constant FUNDER = Roles.FUNDER;
+    bytes32 public constant AUDITOR = Roles.AUDITOR;
 
     /// @dev Tracks whether an address already holds a role (DEFAULT_ADMIN_ROLE is bytes32(0),
     ///      so a separate flag is needed).

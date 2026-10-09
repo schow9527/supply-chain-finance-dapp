@@ -5,9 +5,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {RoleManager} from "./RoleManager.sol";
 import {ReceivableToken} from "./ReceivableToken.sol";
 import {RoleGuarded} from "./utils/RoleGuarded.sol";
+import {Roles} from "./utils/Roles.sol";
 
 /// @title FinancingPool
 /// @notice Discount financing of receivable vouchers, maturity repayment and redemption.
@@ -35,20 +37,26 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         Withdrawn
     }
 
+    /// @dev Packed into 2 storage slots.
     struct Request {
-        uint256 receivableId;
+        // slot 0
         address supplier;
         RequestStatus status;
-        uint256 amount; // voucher amount (face value units) escrowed
-        uint256 acceptedQuoteId;
+        uint64 receivableId;
+        // slot 1
+        uint96 amount; // voucher amount (face value units) escrowed
+        uint64 acceptedQuoteId;
     }
 
+    /// @dev Packed into 2 storage slots.
     struct Quote {
-        uint256 requestId;
+        // slot 0
         address funder;
         uint16 discountBps;
         QuoteStatus status;
-        uint256 payout; // stablecoin escrowed; what the supplier receives
+        uint64 requestId;
+        // slot 1
+        uint96 payout; // stablecoin escrowed; what the supplier receives
     }
 
     IERC20 public immutable stablecoin;
@@ -133,7 +141,7 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         external
         whenActive
         nonReentrant
-        onlyRoleOf(roleManager.SUPPLIER())
+        onlyRoleOf(Roles.SUPPLIER)
         returns (uint256 requestId)
     {
         if (amount == 0) revert ZeroAmount();
@@ -141,10 +149,10 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
 
         requestId = ++requestCount;
         _requests[requestId] = Request({
-            receivableId: receivableId,
             supplier: msg.sender,
             status: RequestStatus.Open,
-            amount: amount,
+            receivableId: SafeCast.toUint64(receivableId),
+            amount: SafeCast.toUint96(amount),
             acceptedQuoteId: 0
         });
         emit FinancingRequested(requestId, receivableId, msg.sender, amount);
@@ -160,7 +168,7 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         external
         whenActive
         nonReentrant
-        onlyRoleOf(roleManager.FUNDER())
+        onlyRoleOf(Roles.FUNDER)
         returns (uint256 quoteId)
     {
         if (discountBps >= BPS) revert InvalidDiscount(discountBps);
@@ -170,11 +178,11 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         uint256 payout = previewPayout(req.amount, discountBps);
         quoteId = ++quoteCount;
         _quotes[quoteId] = Quote({
-            requestId: requestId,
             funder: msg.sender,
             discountBps: discountBps,
             status: QuoteStatus.Active,
-            payout: payout
+            requestId: uint64(requestId), // fits: requestId is an existing request counter value
+            payout: uint96(payout) // fits: payout <= req.amount, which is uint96
         });
         emit QuoteSubmitted(quoteId, requestId, msg.sender, discountBps, payout);
 
@@ -201,7 +209,7 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         _requireFinanceable(req.receivableId);
 
         req.status = RequestStatus.Funded;
-        req.acceptedQuoteId = quoteId;
+        req.acceptedQuoteId = uint64(quoteId); // fits: existing quote counter value
         q.status = QuoteStatus.Accepted;
         emit FinancingFunded(requestId, quoteId, req.receivableId, msg.sender, q.funder, req.amount, q.payout);
 
@@ -259,7 +267,7 @@ contract FinancingPool is RoleGuarded, ERC1155Holder, ReentrancyGuard {
         external
         whenActive
         nonReentrant
-        onlyRoleOf(roleManager.FUNDER())
+        onlyRoleOf(Roles.FUNDER)
     {
         ReceivableToken.Receivable memory r = receivableToken.getReceivable(receivableId);
         if (receivableToken.balanceOf(msg.sender, receivableId) == 0) {
