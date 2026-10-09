@@ -102,7 +102,9 @@ async function loadPendingInvoices() {
                 </td>
             </tr>
         `).join("");
-    } catch (_) {
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "待确认发票查询失败", "error");
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无待核验发票数据</td></tr>`;
     }
 }

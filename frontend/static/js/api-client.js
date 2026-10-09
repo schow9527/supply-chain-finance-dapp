@@ -81,7 +81,8 @@
         // F-03: Admin list enterprise applications
         async getEnterprises(status = "") {
             const query = status ? `?status=${encodeURIComponent(status)}` : "";
-            return this._request(`/api/enterprises${query}`);
+            const data = await this._request(`/api/enterprises${query}`);
+            return data.items || data;
         }
 
         // F-03: Admin review enterprise application
@@ -103,7 +104,8 @@
         // F-10: Get invoices list with optional address and status
         async getInvoices(params = {}) {
             const qs = new URLSearchParams(params).toString();
-            return this._request(`/api/invoices${qs ? "?" + qs : ""}`);
+            const data = await this._request(`/api/invoices${qs ? "?" + qs : ""}`);
+            return data.items || data;
         }
 
         // F-10: Get single invoice details
@@ -113,18 +115,21 @@
 
         // F-11: Get holding receivables for address
         async getReceivables(holder) {
-            return this._request(`/api/receivables?holder=${encodeURIComponent(holder)}`);
+            const data = await this._request(`/api/receivables?holder=${encodeURIComponent(holder)}`);
+            return data.items || data;
         }
 
         // F-14: Get receivable lifecycle history
         async getReceivableHistory(id) {
-            return this._request(`/api/receivables/${id}/history`);
+            const data = await this._request(`/api/receivables/${id}/history`);
+            return data.items || data;
         }
 
         // F-16: Get financing requests
         async getFinancingRequests(status = "") {
             const query = status ? `?status=${encodeURIComponent(status)}` : "";
-            return this._request(`/api/financing${query}`);
+            const data = await this._request(`/api/financing${query}`);
+            return data.items || data;
         }
 
         // F-16, F-17: Get financing request detail with all quotes
@@ -139,13 +144,15 @@
 
         // F-24: Get transaction history for address
         async getTransactions(address) {
-            return this._request(`/api/transactions?address=${encodeURIComponent(address)}`);
+            const data = await this._request(`/api/transactions?address=${encodeURIComponent(address)}`);
+            return data.items || data;
         }
 
         // F-25: Get contract event logs with filters
         async getEvents(params = {}) {
             const qs = new URLSearchParams(params).toString();
-            return this._request(`/api/events${qs ? "?" + qs : ""}`);
+            const data = await this._request(`/api/events${qs ? "?" + qs : ""}`);
+            return data.items || data;
         }
     }
 

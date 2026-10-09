@@ -14,6 +14,7 @@ from backend.config import ZERO_ADDRESS
 from backend.extensions import db
 from backend.models import ChainEvent, SyncState, utcnow
 from backend.sync.registry import ContractRegistry, hex_value
+from backend.sync.projections import project_event
 
 logger = logging.getLogger(__name__)
 CURSOR_NAME = "__all_contracts__"
@@ -60,12 +61,15 @@ class EventSynchronizer:
         addresses = app.config["CONTRACT_ADDRESSES"]
         self.registry = ContractRegistry(addresses)
         self.provider = provider or app.config.get("SYNC_PROVIDER")
-        self.projector = projector or (lambda _event: None)
+        if self.provider is not None:
+            self.registry.codec = getattr(self.provider, "codec", None)
+        self.projector = projector or project_event
         self.sleep = sleep
 
     def _provider(self):
         if self.provider is None:
             self.provider = create_web3_provider(self.app.config.get("WEB3_PROVIDER_URI", ""))
+            self.registry.codec = getattr(self.provider, "codec", None)
         return self.provider
 
     def validate_startup(self):
@@ -180,6 +184,11 @@ class EventSynchronizer:
                     contract_name=decoded["contract_name"],
                     event_name=decoded["event_name"],
                     event_args=decoded["event_args"],
+                    participants=sorted({
+                        value.lower() for value in decoded["event_args"].values()
+                        if isinstance(value, str) and len(value) == 42
+                        and value.startswith("0x") and is_address(value)
+                    }),
                     block_timestamp=timestamp,
                     processed_at=utcnow(),
                 )
@@ -220,7 +229,10 @@ class EventSynchronizer:
                 stop_event.wait(float(self.app.config["SYNC_POLL_INTERVAL"]))
             except ChainReorgDetected:
                 raise
-            except Exception:
-                logger.exception("event_sync_failed chain_id=%s", self.app.config["CHAIN_ID"])
+            except Exception as exc:
+                logger.error(
+                    "event_sync_failed chain_id=%s error_type=%s",
+                    self.app.config["CHAIN_ID"], type(exc).__name__,
+                )
                 self.sleep(delay)
                 delay = min(delay * 2, 60)

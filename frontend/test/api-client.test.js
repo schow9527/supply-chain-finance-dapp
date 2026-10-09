@@ -62,3 +62,15 @@ test("ApiClient - Request generation and error handling", async () => {
         return true;
     });
 });
+
+test("ApiClient - centrally unwraps paginated list responses", async () => {
+    const client = new ApiClient();
+    client.customFetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: [{ id: 7 }], page: 1, page_size: 50, total: 1 })
+    });
+    assert.deepStrictEqual(await client.getInvoices(), [{ id: 7 }]);
+    assert.deepStrictEqual(await client.getFinancingRequests(), [{ id: 7 }]);
+    assert.deepStrictEqual(await client.getEvents(), [{ id: 7 }]);
+});

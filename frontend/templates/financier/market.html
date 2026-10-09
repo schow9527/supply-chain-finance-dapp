@@ -102,7 +102,9 @@ async function loadMarketRequests() {
                 </td>
             </tr>
         `).join("");
-    } catch (_) {
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "融资市场查询失败", "error");
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无市场数据</td></tr>`;
     }
 }

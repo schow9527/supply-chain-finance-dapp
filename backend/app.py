@@ -14,6 +14,7 @@ from backend.routes.health import health_bp
 from backend.routes.auth import auth_bp
 from backend.routes.enterprises import enterprises_bp
 from backend.routes.invoices import invoices_bp
+from backend.routes.queries import queries_bp
 from backend.routes.pages import pages_bp
 from backend.sync.cli import register_sync_commands
 
@@ -40,6 +41,7 @@ def create_app(config_object=None) -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(enterprises_bp)
     app.register_blueprint(invoices_bp)
+    app.register_blueprint(queries_bp)
     register_error_handlers(app)
     register_sync_commands(app)
     return app

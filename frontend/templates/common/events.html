@@ -82,7 +82,9 @@ async function loadEvents() {
                 <td>${ev.timestamp || "-"}</td>
             </tr>
         `).join("");
-    } catch (_) {
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "事件查询失败", "error");
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无事件数据</td></tr>`;
     }
 }

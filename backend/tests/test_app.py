@@ -29,6 +29,8 @@ def test_readiness_with_database(client):
     payload = response.get_json()
     assert payload["checks"]["database"]["status"] == "ok"
     assert payload["checks"]["contracts"]["status"] == "ok"
+    assert payload["checks"]["event_sync"]["status"] == "degraded"
+    assert payload["checks"]["last_synced_block"] is None
     assert "uri" not in str(payload).lower()
 
 
@@ -40,6 +42,6 @@ def test_unified_not_found(client):
     }
 
 
-def test_mock_dashboard_is_not_exposed_and_me_requires_auth(client):
+def test_me_and_real_dashboard_require_auth(client):
     assert client.get("/api/me").status_code == 401
-    assert client.get("/api/dashboard").status_code == 404
+    assert client.get("/api/dashboard").status_code == 401

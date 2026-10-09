@@ -54,6 +54,7 @@ class EventDefinition:
 
 class ContractRegistry:
     def __init__(self, addresses: dict[str, str], abi_dir: Path = ABI_DIR):
+        self.codec = None
         self.contracts = {}
         self.events_by_topic = {}
         for name in CONTRACT_NAMES:
@@ -81,6 +82,20 @@ class ContractRegistry:
         definition = self.events_by_topic.get((address, hex_value(topics[0])))
         if definition is None:
             return None
+        if self.codec is not None:
+            # Production path: use the codec owned by the connected Web3 instance.
+            from web3._utils.events import get_event_data
+
+            decoded = get_event_data(self.codec, definition.abi, log)
+            input_types = {item["name"]: item["type"] for item in definition.abi["inputs"]}
+            return {
+                "contract_name": definition.contract_name,
+                "event_name": definition.name,
+                "event_args": {
+                    name: json_value(value, input_types.get(name))
+                    for name, value in decoded["args"].items()
+                },
+            }
         indexed = [item for item in definition.abi["inputs"] if item.get("indexed")]
         plain = [item for item in definition.abi["inputs"] if not item.get("indexed")]
         args = {}

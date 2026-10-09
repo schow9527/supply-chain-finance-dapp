@@ -62,7 +62,10 @@ async function loadAuditorOverview() {
         let totalAmt = 0n;
         invs.forEach(i => { if (i.status === 'CONFIRMED') totalAmt += BigInt(i.amount); });
         document.getElementById("kpi-total-receivables").innerHTML = `${window.AppConfig.formatTokens(totalAmt.toString())} <span style="font-size:1rem;">mUSDT</span>`;
-    } catch (_) {}
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "审计统计查询失败", "error");
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {

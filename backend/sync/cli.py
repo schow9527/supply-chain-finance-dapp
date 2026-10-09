@@ -6,6 +6,7 @@ from flask import current_app
 from backend.extensions import db
 from backend.models import SyncState
 from backend.sync.engine import EventSynchronizer
+from backend.sync.projections import rebuild_projections as rebuild_all
 
 
 def register_sync_commands(app):
@@ -30,3 +31,13 @@ def register_sync_commands(app):
             f"status={cursor.status} last_synced_block={cursor.last_synced_block} "
             f"latest_chain_block={cursor.latest_chain_block}"
         )
+
+    @app.cli.command("rebuild-projections")
+    @click.option("--confirm", is_flag=True, help="Confirm destructive projection rebuild.")
+    def rebuild_projections(confirm):
+        if not confirm:
+            raise click.ClickException("Pass --confirm to rebuild chain-derived projections")
+        if current_app.config.get("ENV_NAME") == "production":
+            raise click.ClickException("Projection rebuild is disabled in Production")
+        rebuild_all()
+        click.echo("projections_rebuilt=true")

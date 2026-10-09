@@ -75,7 +75,9 @@ async function loadFinancingRequests() {
                 </div>
             </div>
         `).join("");
-    } catch (_) {
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "融资查询失败", "error");
         container.innerHTML = `<div style="background:#fff; padding:2rem; text-align:center; border:1px solid var(--border); border-radius:8px; color:var(--text-muted);">暂无融资数据</div>`;
     }
 }

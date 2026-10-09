@@ -65,7 +65,9 @@ async function loadTransactions() {
                 </td>
             </tr>
         `).join("");
-    } catch (_) {
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "交易历史查询失败", "error");
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无交易记录</td></tr>`;
     }
 }

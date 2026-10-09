@@ -25,6 +25,7 @@ def test_migration_upgrade_downgrade_upgrade(tmp_path):
     assert table_names >= {
         "enterprises", "invoices", "holdings", "financing_requests", "quotes",
         "chain_events", "sync_state", "auth_nonces",
+        "receivables",
     }
     down = runner.invoke(args=["db", "downgrade", "base"])
     assert down.exit_code == 0, down.output

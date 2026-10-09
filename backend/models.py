@@ -70,6 +70,8 @@ class Enterprise(TimestampMixin, db.Model):
     approval_tx_hash = db.Column(db.String(66))
     reviewed_by = db.Column(db.String(42))
     reviewed_at = db.Column(db.DateTime(timezone=True))
+    chain_role = db.Column(db.String(32))
+    revoked_at = db.Column(db.DateTime(timezone=True))
 
     @validates("wallet_address", "reviewed_by")
     def normalize_wallets(self, _key, value):
@@ -88,6 +90,8 @@ class Enterprise(TimestampMixin, db.Model):
             "tx_hash": self.approval_tx_hash,
             "reviewed_by": self.reviewed_by,
             "reviewed_at": _iso(self.reviewed_at),
+            "chain_role": self.chain_role,
+            "revoked_at": _iso(self.revoked_at),
             "created_at": _iso(self.created_at),
             "updated_at": _iso(self.updated_at),
         }
@@ -116,6 +120,11 @@ class Invoice(TimestampMixin, db.Model):
     original_filename = db.Column(db.String(255))
     status = db.Column(db.String(20), nullable=False, default="FILE_UPLOADED")
     reject_reason = db.Column(db.Text)
+    submit_tx_hash = db.Column(db.String(66))
+    submit_block_number = db.Column(db.BigInteger)
+    confirmed_tx_hash = db.Column(db.String(66))
+    confirmed_at = db.Column(db.DateTime(timezone=True))
+    rejected_tx_hash = db.Column(db.String(66))
 
     @validates("supplier_address", "buyer_address")
     def normalize_wallets(self, _key, value):
@@ -136,6 +145,9 @@ class Invoice(TimestampMixin, db.Model):
             "original_filename": self.original_filename,
             "status": self.status,
             "reject_reason": self.reject_reason,
+            "tx_hash": self.submit_tx_hash,
+            "submit_block_number": self.submit_block_number,
+            "confirmed_tx_hash": self.confirmed_tx_hash,
             "created_at": _iso(self.created_at),
             "updated_at": _iso(self.updated_at),
         }
@@ -164,6 +176,35 @@ class Holding(db.Model):
         return normalize_address(value)
 
 
+class Receivable(db.Model):
+    __tablename__ = "receivables"
+    id = db.Column(db.Integer, primary_key=True)
+    chain_id = db.Column(db.BigInteger, nullable=False)
+    receivable_id = db.Column(UInt256(), nullable=False)
+    supplier_address = db.Column(db.String(42), nullable=False, index=True)
+    buyer_address = db.Column(db.String(42), nullable=False, index=True)
+    face_value = db.Column(UInt256(), nullable=False)
+    due_date = db.Column(db.BigInteger, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="ACTIVE")
+    frozen = db.Column(db.Boolean, nullable=False, default=False)
+    freeze_reason = db.Column(db.Text)
+    frozen_by = db.Column(db.String(42))
+    minted_tx_hash = db.Column(db.String(66))
+    repayment_amount = db.Column(UInt256())
+    repayment_tx_hash = db.Column(db.String(66))
+    repaid_at = db.Column(db.DateTime(timezone=True))
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+    __table_args__ = (
+        db.UniqueConstraint("chain_id", "receivable_id", name="uq_receivables_chain_id"),
+    )
+
+    @validates("supplier_address", "buyer_address", "frozen_by")
+    def normalize_wallets(self, _key, value):
+        return normalize_address(value)
+
+
 class FinancingRequest(TimestampMixin, db.Model):
     __tablename__ = "financing_requests"
     __table_args__ = (
@@ -178,6 +219,10 @@ class FinancingRequest(TimestampMixin, db.Model):
     amount = db.Column(UInt256(), nullable=False)
     status = db.Column(db.String(32), nullable=False, default="PENDING_QUOTE")
     accepted_quote_id = db.Column(UInt256())
+    request_tx_hash = db.Column(db.String(66))
+    funded_tx_hash = db.Column(db.String(66))
+    funder_address = db.Column(db.String(42))
+    payout = db.Column(UInt256())
 
     @validates("supplier_address")
     def normalize_wallet(self, _key, value):
@@ -196,6 +241,7 @@ class Quote(TimestampMixin, db.Model):
     discount_rate_bps = db.Column(db.Integer, nullable=False)
     payout = db.Column(UInt256(), nullable=False)
     status = db.Column(db.String(32), nullable=False, default="SUBMITTED")
+    submit_tx_hash = db.Column(db.String(66))
 
     @validates("financier_address")
     def normalize_wallet(self, _key, value):
@@ -220,6 +266,7 @@ class ChainEvent(db.Model):
     contract_name = db.Column(db.String(100), nullable=False, index=True)
     event_name = db.Column(db.String(100), nullable=False, index=True)
     event_args = db.Column(db.JSON, nullable=False)
+    participants = db.Column(db.JSON, nullable=False, default=list)
     block_timestamp = db.Column(db.DateTime(timezone=True), nullable=False)
     processed_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

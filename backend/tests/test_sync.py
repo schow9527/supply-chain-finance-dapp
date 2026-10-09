@@ -45,7 +45,7 @@ def _sync(app, provider=None, projector=None, sleep=None):
         SYNC_BATCH_SIZE=500,
         BLOCK_CONFIRMATIONS=0,
     )
-    kwargs = {"projector": projector}
+    kwargs = {"projector": projector or (lambda _event: None)}
     if sleep is not None:
         kwargs["sleep"] = sleep
     return EventSynchronizer(app, provider or FakeProvider(), **kwargs)

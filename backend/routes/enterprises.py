@@ -82,7 +82,14 @@ def list_enterprises():
     if role:
         role = "FUNDER" if role.upper() == "FINANCIER" else role.upper()
         query = query.filter_by(role_applied=role)
-    return jsonify([item.to_dict() for item in query.order_by(Enterprise.created_at.desc())])
+    page = max(1, request.args.get("page", 1, type=int))
+    page_size = min(100, max(1, request.args.get("page_size", 50, type=int)))
+    total = query.count()
+    items = query.order_by(Enterprise.created_at.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+    return jsonify({"items": [item.to_dict() for item in items], "page": page,
+                    "page_size": page_size, "total": total})
 
 
 @enterprises_bp.patch("/<int:enterprise_id>")
