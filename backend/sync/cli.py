@@ -7,19 +7,28 @@ from backend.extensions import db
 from backend.models import SyncState
 from backend.sync.engine import EventSynchronizer
 from backend.sync.projections import rebuild_projections as rebuild_all
-from backend.preflight import collect_preflight, preflight_succeeded
+from backend.preflight import collect_post_deploy, collect_preflight, preflight_succeeded
+
+
+def _print_checks(checks):
+    for check in checks:
+        suffix = f" detail={check.detail}" if check.detail else ""
+        click.echo(f"{check.name}={check.status}{suffix}")
+    if not preflight_succeeded(checks):
+        raise click.exceptions.Exit(1)
 
 
 def register_sync_commands(app):
     @app.cli.command("production-preflight")
-    def production_preflight():
+    @click.option("--role", type=click.Choice(["web", "worker"]), default=None)
+    def production_preflight(role):
         """Run read-only deployment checks without printing secret values."""
-        checks = collect_preflight(current_app)
-        for check in checks:
-            suffix = f" detail={check.detail}" if check.detail else ""
-            click.echo(f"{check.name}={check.status}{suffix}")
-        if not preflight_succeeded(checks):
-            raise click.exceptions.Exit(1)
+        _print_checks(collect_preflight(current_app, role=role))
+
+    @app.cli.command("post-deploy-verify")
+    def post_deploy_verify():
+        """Run combined read-only verification after an authorized deployment."""
+        _print_checks(collect_post_deploy(current_app))
 
     @app.cli.command("sync-events")
     @click.option("--once", is_flag=True, required=True, help="Run one synchronization cycle.")

@@ -38,7 +38,8 @@ def ready():
     }
     unavailable = (checks["database"]["status"] != "ok"
                    or checks["migrations"]["status"] != "ok"
-                   or checks["configuration"]["status"] != "ok")
+                   or checks["configuration"]["status"] != "ok"
+                   or checks["storage"]["status"] != "ok")
     if unavailable:
         return error_response(
             503,
@@ -100,8 +101,13 @@ def _configuration_check():
 
 def _storage_check():
     try:
-        return {"status": "ok" if get_storage().health_check() else "unavailable",
-                "backend": current_app.config.get("STORAGE_BACKEND")}
+        storage = get_storage()
+        result = {"backend": current_app.config.get("STORAGE_BACKEND")}
+        if hasattr(storage, "health_details"):
+            result.update(storage.health_details())
+        else:
+            result["status"] = "ok" if storage.health_check() else "unavailable"
+        return result
     except Exception:
         return {"status": "unavailable", "backend": current_app.config.get("STORAGE_BACKEND")}
 

@@ -104,6 +104,52 @@ def test_production_rejects_local_storage(monkeypatch):
         create_app(ProductionConfig)
 
 
+def test_production_allows_render_disk_without_s3_credentials(monkeypatch, tmp_path):
+    _valid_production_env(monkeypatch)
+    monkeypatch.setenv("STORAGE_BACKEND", "render_disk")
+    monkeypatch.setenv("RENDER_DISK_MOUNT_PATH", str(tmp_path))
+    monkeypatch.setenv("UPLOAD_FOLDER", str(tmp_path))
+    monkeypatch.delenv("S3_BUCKET")
+    monkeypatch.delenv("S3_ACCESS_KEY_ID")
+    monkeypatch.delenv("S3_SECRET_ACCESS_KEY")
+    app = create_app(ProductionConfig)
+    assert app.config["STORAGE_BACKEND"] == "render_disk"
+
+
+def test_production_render_disk_rejects_relative_and_outside_paths(monkeypatch, tmp_path):
+    _valid_production_env(monkeypatch)
+    monkeypatch.setenv("STORAGE_BACKEND", "render_disk")
+    monkeypatch.setenv("RENDER_DISK_MOUNT_PATH", "relative")
+    monkeypatch.setenv("UPLOAD_FOLDER", "relative")
+    with pytest.raises(RuntimeError, match="absolute"):
+        create_app(ProductionConfig)
+    monkeypatch.setenv("RENDER_DISK_MOUNT_PATH", str(tmp_path / "mount"))
+    monkeypatch.setenv("UPLOAD_FOLDER", str(tmp_path / "outside"))
+    with pytest.raises(RuntimeError, match="inside"):
+        create_app(ProductionConfig)
+
+
+def test_production_render_disk_requires_one_web_instance(monkeypatch, tmp_path):
+    _valid_production_env(monkeypatch)
+    monkeypatch.setenv("STORAGE_BACKEND", "render_disk")
+    monkeypatch.setenv("RENDER_DISK_MOUNT_PATH", str(tmp_path))
+    monkeypatch.setenv("UPLOAD_FOLDER", str(tmp_path))
+    monkeypatch.setenv("WEB_INSTANCE_COUNT", "2")
+    with pytest.raises(RuntimeError, match="exactly one"):
+        create_app(ProductionConfig)
+
+
+def test_production_worker_does_not_require_pdf_storage(monkeypatch):
+    _valid_production_env(monkeypatch)
+    monkeypatch.setenv("PROCESS_ROLE", "worker")
+    monkeypatch.setenv("EVENT_SYNC_ENABLED", "true")
+    monkeypatch.setenv("STORAGE_BACKEND", "disabled")
+    monkeypatch.delenv("RENDER_DISK_MOUNT_PATH", raising=False)
+    monkeypatch.delenv("UPLOAD_FOLDER", raising=False)
+    app = create_app(ProductionConfig)
+    assert app.config["PROCESS_ROLE"] == "worker"
+
+
 def test_production_rejects_missing_rpc(monkeypatch):
     _valid_production_env(monkeypatch)
     monkeypatch.delenv("WEB3_PROVIDER_URI")

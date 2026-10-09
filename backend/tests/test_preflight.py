@@ -4,6 +4,7 @@ from sqlalchemy import text
 from backend.app import create_app
 from backend.extensions import db
 from backend.preflight import Check, _chain_checks, _migration_check, collect_preflight
+from backend.storage import RenderDiskStorage
 
 
 def test_preflight_all_pass_returns_zero(app, monkeypatch):
@@ -12,7 +13,7 @@ def test_preflight_all_pass_returns_zero(app, monkeypatch):
         "CONTRACTS", "CONTRACT_LINKS", "STORAGE", "SECRETS_REDACTED",
     )]
     checks.append(Check("EVENT_SYNC", "NOT_STARTED", critical=False))
-    monkeypatch.setattr("backend.sync.cli.collect_preflight", lambda _app: checks)
+    monkeypatch.setattr("backend.sync.cli.collect_preflight", lambda _app, role=None: checks)
     result = app.test_cli_runner().invoke(args=["production-preflight"])
     assert result.exit_code == 0
     assert "SECRETS_REDACTED=PASS" in result.output
@@ -23,7 +24,7 @@ def test_preflight_all_pass_returns_zero(app, monkeypatch):
 ])
 def test_preflight_critical_failure_returns_nonzero(app, monkeypatch, failed):
     checks = [Check(failed, "FAIL", "safe failure")]
-    monkeypatch.setattr("backend.sync.cli.collect_preflight", lambda _app: checks)
+    monkeypatch.setattr("backend.sync.cli.collect_preflight", lambda _app, role=None: checks)
     result = app.test_cli_runner().invoke(args=["production-preflight"])
     assert result.exit_code != 0
     assert f"{failed}=FAIL" in result.output
@@ -33,7 +34,7 @@ def test_real_preflight_redacts_configured_values(app):
     secret = "must-not-appear"
     app.config["WEB3_PROVIDER_URI"] = ""
     app.config["S3_SECRET_ACCESS_KEY"] = secret
-    result = app.test_cli_runner().invoke(args=["production-preflight"])
+    result = app.test_cli_runner().invoke(args=["production-preflight", "--role", "worker"])
     assert result.exit_code != 0
     assert secret not in result.output
     assert "REAL_SEPOLIA_RPC_NOT_CONFIGURED" in result.output
@@ -126,3 +127,39 @@ def test_collect_preflight_reports_storage_failure_without_secrets(app):
     checks = {check.name: check for check in collect_preflight(app)}
     assert checks["STORAGE"].status == "FAIL"
     assert checks["SECRETS_REDACTED"].status == "PASS"
+
+
+def test_role_preflight_separates_web_storage_from_worker_chain(app):
+    app.config["WEB3_PROVIDER_URI"] = ""
+    app.config.update(STORAGE_BACKEND="render_disk",
+                      RENDER_DISK_MOUNT_PATH="missing",
+                      UPLOAD_FOLDER="missing")
+    web = {check.name for check in collect_preflight(app, role="web")}
+    worker = {check.name for check in collect_preflight(app, role="worker")}
+    assert "STORAGE" in web and "CHAIN_ID" not in web and "SYNC_STATE" not in web
+    assert "STORAGE" not in worker and "CHAIN_ID" in worker and "SYNC_STATE" in worker
+
+
+def test_web_preflight_checks_render_disk_without_exposing_mount(app, tmp_path):
+    app.config.update(
+        STORAGE_BACKEND="render_disk",
+        STORAGE_SERVICE=RenderDiskStorage(tmp_path, tmp_path, min_free_bytes=1),
+    )
+    checks = {check.name: check for check in collect_preflight(app, role="web")}
+    assert checks["STORAGE"].status == "PASS"
+    assert "free_space=" in checks["STORAGE"].detail
+    assert str(tmp_path) not in checks["STORAGE"].detail
+
+
+def test_post_deploy_verify_is_read_only_and_redacted(app, monkeypatch):
+    checks = [Check("DATABASE", "PASS"), Check("MIGRATIONS", "PASS"),
+              Check("STORAGE", "PASS"), Check("CHAIN_ID", "PASS"),
+              Check("CONTRACTS", "PASS"), Check("CONTRACT_LINKS", "PASS"),
+              Check("SYNC_STATE", "NOT_STARTED", critical=False),
+              Check("SYNC_LAG", "WARN", critical=False),
+              Check("SECRETS_REDACTED", "PASS")]
+    monkeypatch.setattr("backend.sync.cli.collect_post_deploy", lambda _app: checks)
+    result = app.test_cli_runner().invoke(args=["post-deploy-verify"])
+    assert result.exit_code == 0
+    assert "SYNC_LAG=WARN" in result.output
+    assert "SECRETS_REDACTED=PASS" in result.output

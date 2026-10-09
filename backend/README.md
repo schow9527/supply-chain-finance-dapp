@@ -2,12 +2,14 @@
 
 ## Production preparation (2026-10)
 
-The backend includes fail-closed production configuration, `LocalStorage` for development/tests, private `S3Storage` for the production Web process, a redacted read-only preflight, and separate Render Web/Worker processes.
+The backend includes fail-closed production configuration, `LocalStorage` for development/tests, `RenderDiskStorage` for a single-instance course deployment, private `S3Storage` for horizontally scalable long-term production, role-specific preflight, and separate Render Web/Worker processes.
 
 ```text
 flask --app app:app db upgrade
 flask --app app:app db check
-flask --app app:app production-preflight
+flask --app app:app production-preflight --role web
+flask --app app:app production-preflight --role worker
+flask --app app:app post-deploy-verify
 flask --app app:app sync-events --once
 flask --app app:app sync-status
 python -m backend.worker
@@ -15,7 +17,7 @@ pytest -m postgres
 pytest -m s3
 ```
 
-Production rejects SQLite, default/missing secrets, missing RPC, non-Sepolia chain, zero contract addresses, local Web storage, missing S3 credentials, debug/testing, role simulation, and event sync in the Web process. See `docs/deployment.md` for PostgreSQL `_test` safety, private S3 permissions, Sepolia checks, Render topology, and rollback. A skipped external integration test is a blocker, not a pass.
+Production rejects SQLite, default/missing secrets, missing RPC, non-Sepolia chain, zero contract addresses, ordinary local Web storage, invalid Render Disk paths, missing S3 credentials in S3 mode, debug/testing, role simulation, and event sync in the Web process. Worker mode does not initialize or require PDF storage. See `docs/deployment.md` for Disk limitations, PostgreSQL `_test` safety, Sepolia checks, Render topology, S3 migration, backup, and rollback. A skipped external integration test is a blocker, not a pass.
 
 当前阶段提供可测试、可迁移和可部署的 Flask 后端。已实现应用工厂、19 个页面路由、统一错误响应、健康检查、9 张数据表、钱包签名 Session 认证、企业与 PDF API、独立 Sepolia 事件 Worker、业务投影和查询 API。
 

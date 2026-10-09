@@ -3,12 +3,12 @@
 ## Production health and private files
 
 - `GET /api/health/live` reports Web-process liveness only.
-- `GET /api/health/ready` is non-200 for database, migration, or invalid production-configuration failure. Temporary RPC, sync-lag/not-started, and storage-health failures return `200` with `status: degraded`.
+- `GET /api/health/ready` is non-200 for database, migration, invalid production configuration, or storage failure. Temporary RPC and sync-lag/not-started conditions return `200` with `status: degraded`.
 - Health output excludes database/RPC URLs, storage endpoint queries, secrets, and session data.
 
 `POST /api/invoices/file` validates and hashes a PDF, stores a generated private object, then commits metadata. Storage failure is `STORAGE_UNAVAILABLE`; database failure triggers best-effort object cleanup. `GET /api/invoices/<id>/file` authorizes the supplier, buyer, ADMIN, or AUDITOR and proxies the private attachment.
 
-Keys are `invoices/<chain_id>/<supplier_lower>/<uuid>.pdf`. The sanitized original filename is metadata only; it never controls the object key. Buckets are not public and object URLs are neither persisted nor exposed.
+Keys are `invoices/<chain_id>/<supplier_lower>/<uuid>.pdf`. The sanitized original filename is metadata only; it never controls the object key. `render_disk` paths and file listings are never returned. In S3 mode, buckets are not public and object URLs are neither persisted nor exposed.
 
 所有金额均为 mUSD 的 6 位最小单位，并以十进制字符串返回。Unix 链上时间使用秒；API 日期时间使用 UTC ISO 8601。链上写操作由浏览器 MetaMask 完成，后端不持有私钥。
 

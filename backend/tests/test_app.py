@@ -1,6 +1,7 @@
 from backend.app import create_app
 from backend.config import TestingConfig
 from backend.routes.pages import PAGE_ROUTES
+from backend.storage import RenderDiskStorage
 
 
 def test_create_app_with_testing_config():
@@ -34,7 +35,7 @@ def test_readiness_with_database(client):
     assert "uri" not in str(payload).lower()
 
 
-def test_readiness_temporary_rpc_and_storage_failure_is_degraded(client, app):
+def test_readiness_storage_failure_is_critical_even_when_rpc_is_temporary(client, app):
     class UnhealthyStorage:
         def health_check(self):
             return False
@@ -46,11 +47,26 @@ def test_readiness_temporary_rpc_and_storage_failure_is_degraded(client, app):
         RPC_HEALTHCHECK_TIMEOUT=0.01,
     )
     response = client.get("/api/health/ready")
-    assert response.status_code == 200
+    assert response.status_code == 503
     payload = response.get_json()
-    assert payload["status"] == "degraded"
-    assert payload["checks"]["storage"]["status"] == "unavailable"
-    assert payload["checks"]["rpc"]["status"] == "unavailable"
+    assert payload["error"]["details"]["status"] == "unavailable"
+    checks = payload["error"]["details"]["checks"]
+    assert checks["storage"]["status"] == "unavailable"
+    assert checks["rpc"]["status"] == "unavailable"
+
+
+def test_readiness_render_disk_is_healthy_without_exposing_path(client, app, tmp_path):
+    app.config.update(
+        STORAGE_BACKEND="render_disk",
+        STORAGE_SERVICE=RenderDiskStorage(tmp_path, tmp_path, min_free_bytes=1),
+    )
+    response = client.get("/api/health/ready")
+    assert response.status_code == 200
+    storage = response.get_json()["checks"]["storage"]
+    assert storage["backend"] == "render_disk"
+    assert storage["status"] == "ok"
+    assert storage["free_space"] in {"adequate", "healthy"}
+    assert str(tmp_path) not in response.get_data(as_text=True)
 
 
 def test_unified_not_found(client):
