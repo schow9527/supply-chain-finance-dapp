@@ -40,6 +40,6 @@ def test_unified_not_found(client):
     }
 
 
-def test_mock_apis_are_not_exposed(client):
-    assert client.get("/api/me").status_code == 404
+def test_mock_dashboard_is_not_exposed_and_me_requires_auth(client):
+    assert client.get("/api/me").status_code == 401
     assert client.get("/api/dashboard").status_code == 404

@@ -11,6 +11,9 @@ from backend.config import configure_app
 from backend.errors import register_error_handlers
 from backend.extensions import cors, db, migrate
 from backend.routes.health import health_bp
+from backend.routes.auth import auth_bp
+from backend.routes.enterprises import enterprises_bp
+from backend.routes.invoices import invoices_bp
 from backend.routes.pages import pages_bp
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -33,6 +36,9 @@ def create_app(config_object=None) -> Flask:
     cors.init_app(app)
     app.register_blueprint(pages_bp)
     app.register_blueprint(health_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(enterprises_bp)
+    app.register_blueprint(invoices_bp)
     register_error_handlers(app)
     return app
 

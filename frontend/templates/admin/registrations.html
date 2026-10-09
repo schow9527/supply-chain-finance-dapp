@@ -102,17 +102,16 @@ async function handleApproveApplication(id, roleKey, walletAddress) {
 
     try {
         const receipt = await window.DAppState.contractClient.grantRole(roleBytes32, walletAddress);
-        // Sync to backend
-        try {
-            await window.DAppState.apiClient.reviewEnterprise(id, {
-                status: "APPROVED",
-                tx_hash: receipt.hash
-            });
-        } catch (_) {}
+        // Backend independently verifies the Sepolia receipt and RoleGranted event.
+        await window.DAppState.apiClient.reviewEnterprise(id, {
+            status: "APPROVED",
+            tx_hash: receipt.hash
+        });
         UIFeedback.showToast("已成功在链上授予企业角色！", "success");
         await loadApplications();
     } catch (e) {
         console.error(e);
+        UIFeedback.showToast(e.message || "链上授权回执验证失败", "error");
     }
 }
 

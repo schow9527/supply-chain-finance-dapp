@@ -7,6 +7,22 @@ from sqlalchemy.engine import make_url
 from backend.app import create_app
 from backend.config import TestingConfig
 from backend.extensions import db
+from backend.services.blockchain import RoleGrantMismatchError, TxNotFoundError
+
+
+class FakeRoleService:
+    def __init__(self):
+        self.roles = {}
+        self.verification_error = None
+        self.verified = []
+
+    def get_role(self, wallet):
+        return self.roles.get(wallet.lower(), "NONE")
+
+    def verify_role_grant(self, tx_hash, account, role):
+        self.verified.append((tx_hash, account, role))
+        if self.verification_error:
+            raise self.verification_error
 
 
 def assert_safe_test_database_uri(uri: str) -> None:
@@ -27,8 +43,15 @@ def assert_safe_test_database_uri(uri: str) -> None:
 
 
 @pytest.fixture()
-def app():
-    application = create_app(TestingConfig)
+def app(tmp_path):
+    application = create_app({
+        "TESTING": True,
+        "ENV_NAME": "testing",
+        "SQLALCHEMY_DATABASE_URI": "sqlite+pysqlite:///:memory:",
+        "UPLOAD_FOLDER": str(tmp_path / "uploads"),
+        "ROLE_SERVICE": FakeRoleService(),
+        "MAX_CONTENT_LENGTH": 1024 * 1024,
+    })
     if application.config.get("TESTING") is not True:
         raise RuntimeError("Test fixture requires TESTING=True")
     assert_safe_test_database_uri(application.config["SQLALCHEMY_DATABASE_URI"])

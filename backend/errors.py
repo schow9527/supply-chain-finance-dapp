@@ -7,7 +7,7 @@ from backend.extensions import db
 
 ERROR_CODES = {
     400: "BAD_REQUEST", 401: "UNAUTHORIZED", 403: "FORBIDDEN",
-    404: "NOT_FOUND", 409: "CONFLICT", 413: "PAYLOAD_TOO_LARGE",
+    404: "NOT_FOUND", 409: "CONFLICT", 413: "FILE_TOO_LARGE",
     422: "UNPROCESSABLE_ENTITY", 500: "INTERNAL_SERVER_ERROR",
     503: "SERVICE_UNAVAILABLE",
 }
@@ -16,6 +16,12 @@ ERROR_CODES = {
 def error_response(status: int, message: str, details=None):
     return jsonify({"error": {"code": ERROR_CODES.get(status, "HTTP_ERROR"),
                                "message": message, "details": details or {}}}), status
+
+
+def api_error(code: str, message: str, status: int, details=None):
+    """Return a stable business error while preserving the common envelope."""
+    return jsonify({"error": {"code": code, "message": message,
+                               "details": details or {}}}), status
 
 
 def register_error_handlers(app) -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +58,12 @@ class Config:
     CORS_RESOURCES = {r"/api/*": {"origins": "*"}}
     RPC_HEALTHCHECK_ENABLED = False
     RPC_HEALTHCHECK_TIMEOUT = 2
+    NONCE_TTL_SECONDS = 300
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    BLOCK_CONFIRMATIONS = 1
 
     @classmethod
     def init_app(cls, app) -> None:
@@ -71,6 +78,7 @@ class Config:
             WEB3_PROVIDER_URI=os.getenv("WEB3_PROVIDER_URI", ""),
             CHAIN_ID=int(os.getenv("CHAIN_ID", deployment.get("chainId", 11155111))),
             START_BLOCK=int(os.getenv("START_BLOCK", deployment.get("startBlock", 0))),
+            BLOCK_CONFIRMATIONS=int(os.getenv("BLOCK_CONFIRMATIONS", 1)),
         )
         addresses = {}
         for name in CONTRACT_NAMES:
@@ -105,6 +113,7 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     ENV_NAME = "production"
     RPC_HEALTHCHECK_ENABLED = True
+    SESSION_COOKIE_SECURE = True
 
     @classmethod
     def init_app(cls, app) -> None:

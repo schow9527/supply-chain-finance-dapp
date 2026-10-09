@@ -29,6 +29,7 @@
 
             const response = await fetchFn(url, {
                 ...options,
+                credentials: "include",
                 headers
             });
 
@@ -47,8 +48,26 @@
         }
 
         // F-01: Get user profile and on-chain role
-        async getMe(address) {
-            return this._request(`/api/me?address=${encodeURIComponent(address)}`);
+        async requestNonce(walletAddress) {
+            return this._request("/api/auth/nonce", {
+                method: "POST",
+                body: JSON.stringify({ wallet_address: walletAddress })
+            });
+        }
+
+        async verifySignature(walletAddress, signature) {
+            return this._request("/api/auth/verify", {
+                method: "POST",
+                body: JSON.stringify({ wallet_address: walletAddress, signature })
+            });
+        }
+
+        async logout() {
+            return this._request("/api/auth/logout", { method: "POST" });
+        }
+
+        async getMe() {
+            return this._request("/api/me");
         }
 
         // F-02: Submit enterprise registration

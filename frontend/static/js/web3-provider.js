@@ -10,6 +10,8 @@ window.DAppState = {
     role: "NONE",
     contractClient: null,
     apiClient: null,
+    contractAddresses: null,
+    contractAbis: null,
     isReady: false
 };
 
@@ -35,6 +37,8 @@ async function initWeb3() {
             if (r.ok) abis[name] = await r.json();
         } catch (_) {}
     }
+    window.DAppState.contractAddresses = addresses;
+    window.DAppState.contractAbis = abis;
 
     if (window.ethereum) {
         window.DAppState.provider = new ethers.BrowserProvider(window.ethereum);
@@ -53,6 +57,7 @@ async function initWeb3() {
                 addresses,
                 abis
             );
+            await restoreSessionForAccount();
         }
     }
 
@@ -71,10 +76,13 @@ async function connectWallet() {
         const accounts = await window.DAppState.provider.send("eth_requestAccounts", []);
         await handleAccountsChanged(accounts);
         await ensureSepoliaNetwork();
+        await authenticateWallet();
         UIFeedback.showToast("钱包连接成功！", "success");
     } catch (err) {
         console.error("User rejected or failed:", err);
-        UIFeedback.showToast(UIFeedback.parseBlockchainError(err), "error");
+        if (!err.isWalletAuthError) {
+            UIFeedback.showToast(UIFeedback.parseBlockchainError(err), "error");
+        }
     }
 }
 
@@ -89,46 +97,52 @@ async function handleAccountsChanged(accounts) {
 
     window.DAppState.account = accounts[0];
     window.DAppState.signer = await window.DAppState.provider.getSigner();
-
-    // Query on-chain role via RoleManager (per Member 1 interface spec)
-    try {
-        if (window.DAppState.contractClient && window.DAppState.contractClient.contracts.RoleManager) {
-            const rm = window.DAppState.contractClient.contracts.RoleManager;
-            const isReg = await rm.isRegistered(window.DAppState.account);
-            if (isReg) {
-                const r = await rm.roleOf(window.DAppState.account);
-                const supplierHash = ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER"));
-                const coreHash = ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE"));
-                const funderHash = ethers.keccak256(ethers.toUtf8Bytes("FUNDER"));
-                const auditorHash = ethers.keccak256(ethers.toUtf8Bytes("AUDITOR"));
-
-                if (r === "0x0000000000000000000000000000000000000000000000000000000000000000") {
-                    window.DAppState.role = "ADMIN";
-                } else if (r === supplierHash) {
-                    window.DAppState.role = "SUPPLIER";
-                } else if (r === coreHash) {
-                    window.DAppState.role = "CORE_ENTERPRISE";
-                } else if (r === funderHash) {
-                    window.DAppState.role = "FINANCIER";
-                } else if (r === auditorHash) {
-                    window.DAppState.role = "AUDITOR";
-                }
-            }
-        }
-    } catch (_) {}
-
-    // Fallback to backend API
-    if (window.DAppState.role === "NONE") {
-        try {
-            const me = await window.DAppState.apiClient.getMe(window.DAppState.account);
-            window.DAppState.role = me.role || "NONE";
-            window.DAppState.enterpriseName = me.enterprise_name || "";
-        } catch (_) {
-            window.DAppState.role = "NONE";
-        }
+    window.DAppState.role = "NONE";
+    if (window.DAppState.contractAddresses && window.DAppState.contractAbis) {
+        window.DAppState.contractClient = new window.ContractClient(
+            window.DAppState.provider,
+            window.DAppState.signer,
+            window.DAppState.contractAddresses,
+            window.DAppState.contractAbis
+        );
     }
-
     updateUI();
+}
+
+async function restoreSessionForAccount() {
+    if (!window.DAppState.account) return;
+    try {
+        const me = await window.DAppState.apiClient.getMe();
+        if (me.wallet_address.toLowerCase() !== window.DAppState.account.toLowerCase()) {
+            await window.DAppState.apiClient.logout();
+            return;
+        }
+        window.DAppState.role = me.role === "FUNDER" ? "FINANCIER" : (me.role || "NONE");
+        window.DAppState.enterpriseName = me.enterprise_name || "";
+        updateUI();
+    } catch (_) {
+        window.DAppState.role = "NONE";
+    }
+}
+
+async function authenticateWallet() {
+    const account = window.DAppState.account;
+    if (!account || !window.DAppState.signer) return;
+    try {
+        const challenge = await window.DAppState.apiClient.requestNonce(account);
+        const signature = await window.DAppState.signer.signMessage(challenge.message);
+        await window.DAppState.apiClient.verifySignature(account, signature);
+        await restoreSessionForAccount();
+    } catch (err) {
+        err.isWalletAuthError = true;
+        window.DAppState.role = "NONE";
+        if (err && (err.code === 4001 || err.code === "ACTION_REJECTED")) {
+            UIFeedback.showToast("已取消钱包登录签名；这不是链上交易，不会产生 Gas。", "warning");
+        } else {
+            UIFeedback.showToast(err.message || "钱包身份验证失败", "error");
+        }
+        throw err;
+    }
 }
 
 async function ensureSepoliaNetwork() {
@@ -223,6 +237,7 @@ function updateUI() {
  * Demo Switcher widget to help Member 6 test and record demo video across 5 roles
  */
 function renderDemoSwitcher() {
+    if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) return;
     if (document.getElementById("demo-switcher-widget")) return;
     const div = document.createElement("div");
     div.id = "demo-switcher-widget";
@@ -273,7 +288,10 @@ function simulateRole(role) {
 
 // Event listeners for wallet
 if (typeof window !== "undefined" && window.ethereum) {
-    window.ethereum.on("accountsChanged", (accs) => handleAccountsChanged(accs));
+    window.ethereum.on("accountsChanged", async (accs) => {
+        try { await window.DAppState.apiClient.logout(); } catch (_) {}
+        await handleAccountsChanged(accs);
+    });
     window.ethereum.on("chainChanged", () => location.reload());
 }
 

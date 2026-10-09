@@ -19,8 +19,13 @@ test("ApiClient - Request generation and error handling", async () => {
     };
 
     // Test getMe
-    await client.getMe("0x1234567890123456789012345678901234567890");
-    assert.strictEqual(lastUrl, "http://127.0.0.1:5000/api/me?address=0x1234567890123456789012345678901234567890");
+    await client.getMe();
+    assert.strictEqual(lastUrl, "http://127.0.0.1:5000/api/me");
+    assert.strictEqual(lastOptions.credentials, "include");
+
+    await client.requestNonce("0x1234567890123456789012345678901234567890");
+    assert.strictEqual(lastUrl, "http://127.0.0.1:5000/api/auth/nonce");
+    assert.strictEqual(lastOptions.credentials, "include");
 
     // Test registerEnterprise
     await client.registerEnterprise({ name: "NTU Corp", role: "SUPPLIER" });

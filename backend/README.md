@@ -1,8 +1,6 @@
 # 后端基础模块
 
-当前阶段提供可测试、可迁移和可部署的 Flask 应用基础。已实现应用工厂、19 个页面路由、统一错误响应、健康检查、8 张业务/认证数据表及初始 Alembic 迁移。
-
-钱包认证、企业 API、发票上传、事件同步、凭证/融资查询和仪表盘 API 属于后续阶段；除健康检查外，当前 README 不声明尚未实现的业务 API。
+当前阶段提供可测试、可迁移和可部署的 Flask 后端。已实现应用工厂、19 个页面路由、统一错误响应、健康检查、8 张数据表、钱包签名 Session 认证、企业申请/审核，以及发票 PDF 安全上传和授权下载。
 
 ## 目录结构
 
@@ -16,7 +14,13 @@ backend/
 ├── migrations/            # 唯一初始迁移
 ├── routes/
 │   ├── health.py          # /api/health/live 与 /api/health/ready
+│   ├── auth.py            # nonce、签名验证、Session、/api/me
+│   ├── enterprises.py     # 企业申请、列表和审核
+│   ├── invoices.py        # PDF 上传与授权下载
 │   └── pages.py           # 19 个服务端页面路由
+├── services/
+│   ├── blockchain.py      # RoleManager 读取与 RoleGranted 回执验证
+│   └── validation.py      # 地址和文本校验
 └── tests/                 # pytest 自动化测试
 ```
 
@@ -53,6 +57,18 @@ python -m pip check
 
 `TestingConfig` 无条件使用独立内存 SQLite。需要文件数据库的迁移测试必须通过 `create_app({...})` 显式传入临时测试 URI。测试 fixture 在执行 `drop_all()` 前还会校验数据库 URI；不得将生产数据库 URI 作为测试 override。
 
+## 当前 API
+
+- `POST /api/auth/nonce`、`POST /api/auth/verify`、`POST /api/auth/logout`
+- `GET /api/me`
+- `POST /api/enterprises`
+- `GET /api/enterprises`、`PATCH /api/enterprises/<id>`（链上 ADMIN）
+- `POST /api/invoices/file`
+- `GET /api/invoices/<id>/file`
+- `GET /api/health/live`、`GET /api/health/ready`
+
+链上写交易始终由浏览器 MetaMask 发起。后端只读取 RoleManager 状态，并在批准企业申请前验证交易目标、确认数和 `RoleGranted` 事件；后端不保存私钥或助记词。
+
 ## 数据库迁移
 
 设置开发数据库环境后，在仓库根目录执行：
@@ -69,8 +85,5 @@ python -m flask --app app:app db check
 
 ## 下一阶段
 
-- 基于钱包签名的 Session 认证
-- 企业申请与管理员审核 API
-- 发票 PDF 上传和授权下载
 - Web3 事件同步 Worker
 - 凭证、融资、审计和仪表盘查询 API

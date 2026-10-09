@@ -106,35 +106,42 @@ async function handleInvoiceSubmit(e) {
 
     const amountWei = window.AppConfig.parseTokens(amountVal);
 
-    // 1. Upload file to backend for storage
-    if (fileInput.files.length > 0) {
-        const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
-        formData.append("invoice_no", invoiceNo);
-        formData.append("supplier", window.DAppState.account);
-        formData.append("buyer", buyer);
-        try {
-            await window.DAppState.apiClient.uploadInvoiceFile(formData);
-        } catch (_) {
-            console.warn("Backend offline or upload failed, continuing with on-chain submit");
-        }
+    if (fileInput.files.length === 0) {
+        UIFeedback.showToast("请选择 PDF 发票文件！", "warning");
+        return;
     }
 
-    // 2. Submit to InvoiceRegistry Smart Contract with 4-stage lifecycle modal
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    formData.append("invoice_no", invoiceNo);
+    formData.append("supplier", window.DAppState.account);
+    formData.append("buyer", buyer);
+    formData.append("amount", amountWei.toString());
+    formData.append("due_date", dueDateTs.toString());
+
+    // Upload must succeed and both SHA-256 values must agree before MetaMask is invoked.
     try {
-        await window.DAppState.contractClient.submitInvoice(
+        await window.InvoiceUploadFlow.uploadAndSubmit({
+            apiClient: window.DAppState.apiClient,
+            contractClient: window.DAppState.contractClient,
+            formData,
+            expectedHash: computedFileHash,
             invoiceNo,
             buyer,
-            amountWei,
-            dueDateTs,
-            computedFileHash
-        );
+            amount: amountWei,
+            dueDate: dueDateTs
+        });
         UIFeedback.showToast("发票登记成功！已提交核心企业审核。", "success");
         setTimeout(() => {
             window.location.href = "/supplier/invoices";
         }, 1500);
     } catch (err) {
         console.error(err);
+        if (err.code === "FILE_HASH_MISMATCH") {
+            UIFeedback.showToast("FILE_HASH_MISMATCH：浏览器与后端文件哈希不一致，已停止上链。", "error");
+        } else if (!err.message || !err.message.includes("transaction")) {
+            UIFeedback.showToast(err.message || "PDF 上传失败，未发起链上交易。", "error");
+        }
     }
 }
 

@@ -74,3 +74,11 @@ def test_production_rejects_wrong_chain(monkeypatch):
     monkeypatch.setenv("CHAIN_ID", "1")
     with pytest.raises(RuntimeError, match="CHAIN_ID"):
         create_app(ProductionConfig)
+
+
+def test_production_session_cookie_is_secure(monkeypatch):
+    _valid_production_env(monkeypatch)
+    app = create_app(ProductionConfig)
+    assert app.config["SESSION_COOKIE_HTTPONLY"] is True
+    assert app.config["SESSION_COOKIE_SECURE"] is True
+    assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"

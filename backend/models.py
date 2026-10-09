@@ -85,6 +85,7 @@ class Enterprise(TimestampMixin, db.Model):
             "status": self.status,
             "reject_reason": self.reject_reason,
             "approval_tx_hash": self.approval_tx_hash,
+            "tx_hash": self.approval_tx_hash,
             "reviewed_by": self.reviewed_by,
             "reviewed_at": _iso(self.reviewed_at),
             "created_at": _iso(self.created_at),
