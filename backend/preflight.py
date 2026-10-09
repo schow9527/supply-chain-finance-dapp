@@ -40,7 +40,11 @@ class Check:
 def _safe_database_label(uri: str) -> str:
     try:
         url = make_url(uri)
-        return f"{url.drivername}://{url.host or 'local'}/***"
+        host = url.host or "local"
+        masked_host = (
+            host[:2] + "***" + host[-2:] if len(host) > 4 else "***"
+        )
+        return f"{url.drivername}://{masked_host}/***"
     except Exception:
         return "invalid://***/***"
 

@@ -4,7 +4,13 @@ from web3 import Web3
 
 from backend.app import create_app
 from backend.extensions import db
-from backend.preflight import Check, _chain_checks, _migration_check, collect_preflight
+from backend.preflight import (
+    Check,
+    _chain_checks,
+    _migration_check,
+    _safe_database_label,
+    collect_preflight,
+)
 from backend.storage import RenderDiskStorage
 
 
@@ -39,6 +45,16 @@ def test_real_preflight_redacts_configured_values(app):
     assert result.exit_code != 0
     assert secret not in result.output
     assert "REAL_SEPOLIA_RPC_NOT_CONFIGURED" in result.output
+
+
+def test_database_label_masks_host_database_and_credentials():
+    secret_uri = "postgresql+psycopg://sensitive-user:sensitive-password@private-db.example.com/production"
+    label = _safe_database_label(secret_uri)
+
+    assert label == "postgresql+psycopg://pr***om/***"
+    assert "sensitive" not in label
+    assert "private-db.example.com" not in label
+    assert "production" not in label
 
 
 class FakeCall:
