@@ -77,7 +77,7 @@ class FakeFunctions:
 class FakeChainEth:
     def __init__(self, app):
         self.chain_id = 11155111
-        self.block_number = 11868898
+        self.block_number = app.config["START_BLOCK"] + 10
         self.missing_code = None
         self.code_addresses = []
         self.names = {value.lower(): name for name, value in app.config["CONTRACT_ADDRESSES"].items()}
