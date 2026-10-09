@@ -6,7 +6,9 @@ import json
 from pathlib import Path
 
 from flask import current_app
-from eth_utils import keccak, to_checksum_address
+from eth_utils import keccak
+
+from backend.services.addresses import canonical_address, rpc_checksum_address
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 ROLE_ABI_FILE = BASE_DIR / "contracts" / "abi" / "RoleManager.json"
@@ -60,7 +62,8 @@ class RoleManagerService:
             if not web3.is_connected():
                 raise RpcUnavailable("Sepolia RPC is unavailable")
             contract = web3.eth.contract(
-                address=Web3.to_checksum_address(self.contract_address), abi=self._abi
+                address=rpc_checksum_address(self.contract_address, "RoleManager"),
+                abi=self._abi,
             )
             return web3, contract
         except RpcUnavailable:
@@ -71,7 +74,7 @@ class RoleManagerService:
     def get_role(self, wallet_address: str) -> str:
         web3, contract = self._client_and_contract()
         try:
-            account = to_checksum_address(wallet_address)
+            account = rpc_checksum_address(wallet_address, "Wallet")
             if not contract.functions.isRegistered(account).call():
                 return "NONE"
             value = _hex(contract.functions.roleOf(account).call()).lower()
@@ -103,7 +106,14 @@ class RoleManagerService:
                 if exc.__class__.__name__ == "TransactionNotFound":
                     raise TxNotFoundError("Role grant transaction was not found") from exc
                 raise RpcUnavailable("Unable to read the transaction") from exc
-        if not target or target.lower() != self.contract_address.lower():
+        try:
+            target_matches = (
+                canonical_address(target, "TransactionTarget")
+                == canonical_address(self.contract_address, "RoleManager")
+            )
+        except ValueError:
+            target_matches = False
+        if not target_matches:
             raise RoleGrantMismatchError("Transaction target is not RoleManager")
 
         try:

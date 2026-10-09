@@ -11,6 +11,8 @@ from typing import Any
 from dotenv import load_dotenv
 from sqlalchemy.engine import make_url
 
+from backend.services.addresses import ContractAddressError, canonical_address
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEPLOYMENT_FILE = BASE_DIR / "contracts" / "deployments" / "11155111.json"
 DEFAULT_SECRET_KEY = "dev-secret-key-sc6113-dapp"
@@ -238,13 +240,20 @@ def validate_production_config(config) -> None:
         errors.extend(_render_disk_config_errors(config))
         if config.get("WEB_INSTANCE_COUNT") != 1:
             errors.append("render_disk requires exactly one Web instance")
-    invalid_contracts = [
-        name
-        for name, address in config.get("CONTRACT_ADDRESSES", {}).items()
-        if not address or address.lower() == ZERO_ADDRESS
-    ]
+    invalid_contracts = []
+    normalized_contracts = {}
+    for name in CONTRACT_NAMES:
+        address = config.get("CONTRACT_ADDRESSES", {}).get(name, "")
+        try:
+            normalized_contracts[name] = canonical_address(address, name)
+        except ContractAddressError:
+            invalid_contracts.append(name)
     if invalid_contracts:
-        errors.append("contract addresses must be non-zero: " + ", ".join(invalid_contracts))
+        errors.append("contract addresses must be valid and non-zero: " + ", ".join(invalid_contracts))
+    else:
+        config["CONTRACT_ADDRESSES"] = normalized_contracts
+        for name, address in normalized_contracts.items():
+            config[_contract_env_name(name)] = address
     if errors:
         raise RuntimeError("Invalid production configuration: " + "; ".join(errors))
 

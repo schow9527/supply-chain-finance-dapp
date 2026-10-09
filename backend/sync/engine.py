@@ -13,6 +13,7 @@ from flask import current_app
 from backend.config import ZERO_ADDRESS
 from backend.extensions import db
 from backend.models import ChainEvent, SyncState, utcnow
+from backend.services.addresses import ContractAddressError, rpc_checksum_address
 from backend.sync.registry import ContractRegistry, hex_value
 from backend.sync.projections import project_event
 
@@ -76,12 +77,14 @@ class EventSynchronizer:
         provider = self._provider()
         if int(provider.eth.chain_id) != int(self.app.config["CHAIN_ID"]):
             raise SyncStartupError("CHAIN_ID_MISMATCH")
-        for address in self.registry.addresses:
-            if not is_address(address):
-                raise SyncStartupError("INVALID_CONTRACT_ADDRESS")
+        for name, raw_address in self.app.config["CONTRACT_ADDRESSES"].items():
+            try:
+                address = rpc_checksum_address(raw_address, name)
+            except ContractAddressError as exc:
+                raise SyncStartupError(str(exc)) from exc
             code = provider.eth.get_code(address)
             if not code or hex_value(code) in {"0x", "0x0", "0x00"}:
-                raise SyncStartupError("CONTRACT_CODE_MISSING")
+                raise SyncStartupError(f"{name}: CONTRACT_CODE_MISSING")
         return True
 
     def _cursor(self):
@@ -212,11 +215,15 @@ class EventSynchronizer:
 
     def _get_logs(self, provider, from_block: int, to_block: int):
         """Fetch every block, shrinking ranges when a provider caps result sizes."""
+        addresses = [
+            rpc_checksum_address(address, name)
+            for name, address in self.app.config["CONTRACT_ADDRESSES"].items()
+        ]
         try:
             return provider.eth.get_logs({
                 "fromBlock": from_block,
                 "toBlock": to_block,
-                "address": self.registry.addresses,
+                "address": addresses,
             })
         except Exception as exc:
             message = str(exc).lower()

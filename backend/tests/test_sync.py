@@ -22,7 +22,8 @@ class FakeEth:
         self.hash_overrides = {}
 
     def get_code(self, address):
-        return b"" if address == self.missing_code else b"\x60\x00"
+        missing = self.missing_code and address.lower() == self.missing_code.lower()
+        return b"" if missing else b"\x60\x00"
 
     def get_logs(self, params):
         self.calls.append((params["fromBlock"], params["toBlock"]))

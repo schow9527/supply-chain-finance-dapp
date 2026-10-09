@@ -18,6 +18,9 @@ from backend.config import (
 )
 from backend.extensions import db
 from backend.models import SyncState
+from backend.services.addresses import (
+    ContractAddressError, canonical_address, masked_address, rpc_checksum_address,
+)
 from backend.storage import get_storage
 from backend.sync.registry import ABI_DIR
 
@@ -82,33 +85,70 @@ def _chain_checks(app) -> list[Check]:
             Check("CONTRACTS", "FAIL", "RPC not configured"),
             Check("CONTRACT_LINKS", "FAIL", "RPC not configured"),
         ]
+    from web3 import Web3
+    web3 = app.config.get("PREFLIGHT_WEB3") or Web3(
+        Web3.HTTPProvider(uri, request_kwargs={"timeout": 10})
+    )
     try:
-        from web3 import Web3
-        web3 = app.config.get("PREFLIGHT_WEB3") or Web3(
-            Web3.HTTPProvider(uri, request_kwargs={"timeout": 10})
-        )
         chain_id = int(web3.eth.chain_id)
         latest = int(web3.eth.block_number)
-        if chain_id != 11155111:
-            return [Check("CHAIN_ID", "FAIL", f"chain_id={chain_id}"),
-                    Check("CONTRACTS", "FAIL", "wrong chain"),
-                    Check("CONTRACT_LINKS", "FAIL", "wrong chain")]
+    except Exception as exc:
+        return [Check("CHAIN_ID", "FAIL", f"RPC unavailable ({type(exc).__name__})"),
+                Check("CONTRACTS", "FAIL", "not checked because RPC is unavailable"),
+                Check("CONTRACT_LINKS", "FAIL", "not checked because RPC is unavailable")]
+    if chain_id != 11155111:
+        return [Check("CHAIN_ID", "FAIL", f"chain_id={chain_id}"),
+                Check("CONTRACTS", "FAIL", "not checked on wrong chain"),
+                Check("CONTRACT_LINKS", "FAIL", "not checked on wrong chain")]
+
+    chain_check = Check("CHAIN_ID", "PASS", f"chain_id={chain_id} latest={latest}")
+    try:
         deployment = json.loads(DEPLOYMENT_FILE.read_text(encoding="utf-8"))
-        if latest < int(deployment["startBlock"]):
-            return [Check("CHAIN_ID", "FAIL", "latest block precedes start block"),
-                    Check("CONTRACTS", "FAIL", "invalid block range"),
-                    Check("CONTRACT_LINKS", "FAIL", "invalid block range")]
-        contracts = {}
-        for name in CONTRACT_NAMES:
-            address = app.config["CONTRACT_ADDRESSES"][name]
+    except Exception:
+        return [chain_check, Check("CONTRACTS", "FAIL", "deployment manifest unavailable"),
+                Check("CONTRACT_LINKS", "FAIL", "deployment manifest unavailable")]
+    if latest < int(deployment["startBlock"]):
+        return [chain_check, Check("CONTRACTS", "FAIL", "latest block precedes deployment"),
+                Check("CONTRACT_LINKS", "FAIL", "deployment block unavailable")]
+
+    contracts = {}
+    details = []
+    contracts_ok = True
+    for name in CONTRACT_NAMES:
+        raw_address = app.config.get("CONTRACT_ADDRESSES", {}).get(name, "")
+        try:
+            address = rpc_checksum_address(raw_address, name)
+            masked = masked_address(address)
+            expected = canonical_address(deployment.get(name, ""), name)
+            if canonical_address(raw_address, name) != expected:
+                contracts_ok = False
+                details.append(f"{name}={masked}:MANIFEST_MISMATCH")
+                continue
+        except ContractAddressError as exc:
+            contracts_ok = False
+            details.append(str(exc))
+            continue
+        try:
             code = web3.eth.get_code(address)
             if not code or code.hex() in {"", "0x", "00", "0x00"}:
-                return [Check("CHAIN_ID", "PASS", f"chain_id={chain_id} latest={latest}"),
-                        Check("CONTRACTS", "FAIL", f"bytecode missing for {name}"),
-                        Check("CONTRACT_LINKS", "FAIL", "contract check failed")]
+                contracts_ok = False
+                details.append(f"{name}={masked}:BYTECODE_MISSING")
+                continue
             abi = json.loads((ABI_DIR / f"{name}.json").read_text(encoding="utf-8"))
             contracts[name] = web3.eth.contract(address=address, abi=abi)
-        admin = deployment["admin"]
+            details.append(f"{name}={masked}:BYTECODE_PRESENT")
+        except Exception as exc:
+            contracts_ok = False
+            details.append(f"{name}={masked}:RPC_ERROR_{type(exc).__name__}")
+
+    if not contracts_ok:
+        return [chain_check, Check("CONTRACTS", "FAIL", "; ".join(details)),
+                Check("CONTRACT_LINKS", "FAIL", "not checked due contract failures")]
+
+    name = "contract"
+    function = "view"
+    try:
+        admin = rpc_checksum_address(deployment["admin"], "DeploymentAdmin")
         view_calls = {
             "RoleManager": [("paused", ()), ("isRegistered", (admin,)), ("roleOf", (admin,))],
             "InvoiceRegistry": [("invoiceCount", ())],
@@ -120,6 +160,16 @@ def _chain_checks(app) -> list[Check]:
         for name, calls in view_calls.items():
             for function, args in calls:
                 getattr(contracts[name].functions, function)(*args).call()
+    except Exception as exc:
+        return [chain_check,
+                Check("CONTRACTS", "FAIL",
+                      f"{name}.{function}:VIEW_ERROR_{type(exc).__name__}; " + "; ".join(details)),
+                Check("CONTRACT_LINKS", "FAIL", "not checked due view failure")]
+
+    contracts_check = Check("CONTRACTS", "PASS", "; ".join(details))
+    owner = "contract"
+    function = "link"
+    try:
         links = [
             ("InvoiceRegistry", "receivableToken", "ReceivableToken"),
             ("FinancingPool", "receivableToken", "ReceivableToken"),
@@ -129,17 +179,17 @@ def _chain_checks(app) -> list[Check]:
         ]
         for owner, function, target in links:
             actual = getattr(contracts[owner].functions, function)().call()
-            if str(actual).lower() != app.config["CONTRACT_ADDRESSES"][target].lower():
-                return [Check("CHAIN_ID", "PASS", f"chain_id={chain_id} latest={latest}"),
-                        Check("CONTRACTS", "PASS", "five bytecodes and views"),
+            actual_normalized = canonical_address(str(actual), f"{owner}.{function}")
+            expected = canonical_address(app.config["CONTRACT_ADDRESSES"][target], target)
+            if actual_normalized != expected:
+                return [chain_check, contracts_check,
                         Check("CONTRACT_LINKS", "FAIL", f"{owner}.{function} mismatch")]
-        return [Check("CHAIN_ID", "PASS", f"chain_id={chain_id} latest={latest}"),
-                Check("CONTRACTS", "PASS", "five bytecodes and views"),
+        return [chain_check, contracts_check,
                 Check("CONTRACT_LINKS", "PASS", "five references")]
     except Exception as exc:
-        return [Check("CHAIN_ID", "FAIL", f"read-only RPC check failed ({type(exc).__name__})"),
-                Check("CONTRACTS", "FAIL", "RPC validation incomplete"),
-                Check("CONTRACT_LINKS", "FAIL", "RPC validation incomplete")]
+        return [chain_check, contracts_check,
+                Check("CONTRACT_LINKS", "FAIL",
+                      f"{owner}.{function}:LINK_ERROR_{type(exc).__name__}")]
 
 
 def _storage_check(app) -> Check:

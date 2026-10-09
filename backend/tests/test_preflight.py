@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import text
+from web3 import Web3
 
 from backend.app import create_app
 from backend.extensions import db
@@ -62,6 +63,7 @@ class FakeChainEth:
         self.chain_id = 11155111
         self.block_number = 11868898
         self.missing_code = None
+        self.code_addresses = []
         self.names = {value.lower(): name for name, value in app.config["CONTRACT_ADDRESSES"].items()}
         addresses = app.config["CONTRACT_ADDRESSES"]
         self.values = {
@@ -73,7 +75,9 @@ class FakeChainEth:
         }
 
     def get_code(self, address):
-        return b"" if address == self.missing_code else b"\x60\x00"
+        self.code_addresses.append(address)
+        missing = self.missing_code and address.lower() == self.missing_code.lower()
+        return b"" if missing else b"\x60\x00"
 
     def contract(self, address, abi):
         name = self.names[address.lower()]
@@ -86,10 +90,30 @@ class FakeChain:
 
 
 def test_chain_preflight_validates_views_bytecode_and_links(app):
+    app.config["CONTRACT_ADDRESSES"] = {
+        name: address.lower()
+        for name, address in app.config["CONTRACT_ADDRESSES"].items()
+    }
     fake = FakeChain(app)
     app.config.update(WEB3_PROVIDER_URI="test://readonly", PREFLIGHT_WEB3=fake)
     checks = {check.name: check for check in _chain_checks(app)}
     assert all(check.status == "PASS" for check in checks.values())
+    assert all(Web3.is_checksum_address(address) for address in fake.eth.code_addresses)
+
+
+def test_contract_address_failure_does_not_reclassify_chain_id(app):
+    secret = "rpc-secret-must-not-leak"
+    fake = FakeChain(app)
+    app.config.update(WEB3_PROVIDER_URI=f"test://{secret}", PREFLIGHT_WEB3=fake)
+    app.config["CONTRACT_ADDRESSES"]["InvoiceRegistry"] = "0x1234"
+
+    checks = {check.name: check for check in _chain_checks(app)}
+
+    assert checks["CHAIN_ID"].status == "PASS"
+    assert checks["CONTRACTS"].status == "FAIL"
+    assert "InvoiceRegistry" in checks["CONTRACTS"].detail
+    assert "INVALID_CONTRACT_ADDRESS" in checks["CONTRACTS"].detail
+    assert secret not in " ".join(check.detail for check in checks.values())
 
 
 def test_chain_preflight_rejects_wrong_chain_missing_code_and_bad_link(app):
