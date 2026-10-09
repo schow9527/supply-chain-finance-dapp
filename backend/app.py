@@ -15,6 +15,7 @@ from backend.routes.auth import auth_bp
 from backend.routes.enterprises import enterprises_bp
 from backend.routes.invoices import invoices_bp
 from backend.routes.pages import pages_bp
+from backend.sync.cli import register_sync_commands
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -40,6 +41,7 @@ def create_app(config_object=None) -> Flask:
     app.register_blueprint(enterprises_bp)
     app.register_blueprint(invoices_bp)
     register_error_handlers(app)
+    register_sync_commands(app)
     return app
 
 

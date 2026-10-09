@@ -64,6 +64,10 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
     BLOCK_CONFIRMATIONS = 1
+    SYNC_POLL_INTERVAL = 5
+    SYNC_BATCH_SIZE = 500
+    REORG_LOOKBACK = 12
+    EVENT_SYNC_ENABLED = False
 
     @classmethod
     def init_app(cls, app) -> None:
@@ -79,6 +83,14 @@ class Config:
             CHAIN_ID=int(os.getenv("CHAIN_ID", deployment.get("chainId", 11155111))),
             START_BLOCK=int(os.getenv("START_BLOCK", deployment.get("startBlock", 0))),
             BLOCK_CONFIRMATIONS=int(os.getenv("BLOCK_CONFIRMATIONS", 1)),
+            SYNC_START_BLOCK=int(
+                os.getenv("SYNC_START_BLOCK", deployment.get("startBlock", 0))
+            ),
+            SYNC_POLL_INTERVAL=int(os.getenv("SYNC_POLL_INTERVAL", 5)),
+            SYNC_BATCH_SIZE=int(os.getenv("SYNC_BATCH_SIZE", 500)),
+            REORG_LOOKBACK=int(os.getenv("REORG_LOOKBACK", 12)),
+            EVENT_SYNC_ENABLED=os.getenv("EVENT_SYNC_ENABLED", "false").lower()
+            in {"1", "true", "yes"},
         )
         addresses = {}
         for name in CONTRACT_NAMES:

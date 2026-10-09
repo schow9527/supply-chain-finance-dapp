@@ -242,6 +242,9 @@ class SyncState(db.Model):
     contract_name = db.Column(db.String(100), nullable=False)
     last_synced_block = db.Column(db.BigInteger, nullable=False, default=0)
     last_synced_block_hash = db.Column(db.String(66))
+    latest_chain_block = db.Column(db.BigInteger)
+    status = db.Column(db.String(20), nullable=False, default="healthy")
+    last_error = db.Column(db.String(100))
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
