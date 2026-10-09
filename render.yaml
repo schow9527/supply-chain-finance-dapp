@@ -70,5 +70,7 @@ services:
         value: "11155111"
       - key: EVENT_SYNC_ENABLED
         value: "true"
+      - key: EVENT_SYNC_BATCH_SIZE
+        value: "10"
       - key: STORAGE_BACKEND
         value: disabled

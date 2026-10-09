@@ -101,7 +101,9 @@ def test_real_postgres_migrations_types_transactions_worker_and_projections(tmp_
 
         provider = FakeProvider(latest=10)
         sync = EventSynchronizer(app, provider, projector=lambda _event: (_ for _ in ()).throw(RuntimeError("rollback")))
-        app.config.update(SYNC_START_BLOCK=10, SYNC_BATCH_SIZE=10, BLOCK_CONFIRMATIONS=0)
+        app.config.update(
+            SYNC_START_BLOCK=10, EVENT_SYNC_BATCH_SIZE=10, BLOCK_CONFIRMATIONS=0
+        )
         provider.eth.logs = [_paused(sync)]
         with pytest.raises(RuntimeError, match="rollback"):
             sync.run_once()

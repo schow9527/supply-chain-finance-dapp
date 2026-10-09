@@ -44,6 +44,17 @@ def normalize_database_url(value: str) -> str:
     return value
 
 
+def positive_int_env(name: str, default: int) -> int:
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{name} must be a positive integer") from exc
+    if value <= 0:
+        raise RuntimeError(f"{name} must be a positive integer")
+    return value
+
+
 def _contract_env_name(name: str) -> str:
     chars = []
     for index, char in enumerate(name):
@@ -70,7 +81,7 @@ class Config:
     SESSION_COOKIE_SECURE = False
     BLOCK_CONFIRMATIONS = 1
     SYNC_POLL_INTERVAL = 5
-    SYNC_BATCH_SIZE = 500
+    EVENT_SYNC_BATCH_SIZE = 10
     REORG_LOOKBACK = 12
     EVENT_SYNC_ENABLED = False
     STORAGE_BACKEND = "local"
@@ -96,7 +107,7 @@ class Config:
                 os.getenv("SYNC_START_BLOCK", deployment.get("startBlock", 0))
             ),
             SYNC_POLL_INTERVAL=int(os.getenv("SYNC_POLL_INTERVAL", 5)),
-            SYNC_BATCH_SIZE=int(os.getenv("SYNC_BATCH_SIZE", 500)),
+            EVENT_SYNC_BATCH_SIZE=positive_int_env("EVENT_SYNC_BATCH_SIZE", 10),
             REORG_LOOKBACK=int(os.getenv("REORG_LOOKBACK", 12)),
             EVENT_SYNC_ENABLED=os.getenv("EVENT_SYNC_ENABLED", "false").lower()
             in {"1", "true", "yes"},

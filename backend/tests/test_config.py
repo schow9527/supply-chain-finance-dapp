@@ -23,6 +23,21 @@ def test_render_postgres_url_is_normalized():
     assert normalize_database_url("postgresql+psycopg://u:p@host/db") == "postgresql+psycopg://u:p@host/db"
 
 
+def test_event_sync_batch_defaults_to_ten_and_allows_test_override(monkeypatch):
+    monkeypatch.delenv("EVENT_SYNC_BATCH_SIZE", raising=False)
+    app = create_app(TestingConfig)
+    assert app.config["EVENT_SYNC_BATCH_SIZE"] == 10
+    app.config["EVENT_SYNC_BATCH_SIZE"] = 500
+    assert app.config["EVENT_SYNC_BATCH_SIZE"] == 500
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "not-an-integer"])
+def test_event_sync_batch_must_be_positive_integer(monkeypatch, value):
+    monkeypatch.setenv("EVENT_SYNC_BATCH_SIZE", value)
+    with pytest.raises(RuntimeError, match="EVENT_SYNC_BATCH_SIZE must be a positive integer"):
+        create_app(TestingConfig)
+
+
 def test_testing_config_ignores_database_environment(monkeypatch):
     monkeypatch.setenv(
         "DATABASE_URL", "postgresql://do-not-connect.invalid/production"

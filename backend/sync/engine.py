@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import logging
+import random
 import threading
 import time
 from datetime import datetime, timezone
 
 from eth_utils import is_address
 from flask import current_app
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import Timeout as RequestsTimeout
 
 from backend.config import ZERO_ADDRESS
 from backend.extensions import db
@@ -19,6 +22,10 @@ from backend.sync.projections import project_event
 
 logger = logging.getLogger(__name__)
 CURSOR_NAME = "__all_contracts__"
+RPC_MAX_ATTEMPTS = 4
+RPC_RETRY_BASE_SECONDS = 0.5
+RPC_RETRY_MAX_SECONDS = 4.0
+RPC_RETRY_JITTER_SECONDS = 0.25
 
 
 class SyncError(RuntimeError):
@@ -31,6 +38,94 @@ class SyncStartupError(SyncError):
 
 class ChainReorgDetected(SyncError):
     pass
+
+
+class SyncRpcError(SyncError):
+    def __init__(self, code: str, *, http_status: int | None, category: str,
+                 detail: str = "request_failed"):
+        super().__init__(code)
+        self.code = code
+        self.http_status = http_status
+        self.category = category
+        self.detail = detail
+
+
+class _RpcRangeLimit(Exception):
+    def __init__(self, http_status: int | None):
+        self.http_status = http_status
+
+
+def _http_status(exc: Exception) -> int | None:
+    response = getattr(exc, "response", None)
+    status = getattr(response, "status_code", None)
+    try:
+        return int(status) if status is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _response_text(exc: Exception) -> str:
+    response = getattr(exc, "response", None)
+    body = getattr(response, "text", "") if response is not None else ""
+    return f"{body} {exc}".lower()
+
+
+def _is_range_limit(exc: Exception) -> bool:
+    status = _http_status(exc)
+    if status not in {None, 400}:
+        return False
+    message = _response_text(exc)
+    explicit = (
+        "block range", "block-range", "range too wide", "range is too wide",
+        "max block", "maximum block", "up to a 10 block", "10 block range",
+        "query returned more", "too many results", "response size", "-32005",
+    )
+    return any(token in message for token in explicit)
+
+
+def _retry_category(exc: Exception) -> str | None:
+    status = _http_status(exc)
+    if status == 408 or isinstance(exc, RequestsTimeout):
+        return "timeout"
+    if status == 429:
+        return "rate_limited"
+    if status is not None and 500 <= status <= 599:
+        return "server_error"
+    if isinstance(exc, RequestsConnectionError):
+        return "network_error"
+    return None
+
+
+def safe_sync_error(exc: Exception) -> dict[str, object]:
+    """Return stable fields only; never include exception messages or URLs."""
+    if isinstance(exc, SyncRpcError):
+        return {
+            "code": exc.code,
+            "http_status": exc.http_status if exc.http_status is not None else "none",
+            "category": exc.category,
+            "detail": exc.detail,
+        }
+    if isinstance(exc, SyncStartupError):
+        return {
+            "code": str(exc) if str(exc).isupper() else "SYNC_STARTUP_FAILED",
+            "http_status": "none",
+            "category": "startup",
+            "detail": "startup_validation_failed",
+        }
+    status = _http_status(exc)
+    if status is not None:
+        return {
+            "code": "RPC_HTTP_ERROR",
+            "http_status": status,
+            "category": _retry_category(exc) or "client_error",
+            "detail": "request_failed",
+        }
+    return {
+        "code": "SYNC_FAILED",
+        "http_status": "none",
+        "category": type(exc).__name__,
+        "detail": "operation_failed",
+    }
 
 
 def create_web3_provider(uri: str):
@@ -57,7 +152,8 @@ def _field(value, *names):
 
 
 class EventSynchronizer:
-    def __init__(self, app, provider=None, projector=None, sleep=time.sleep):
+    def __init__(self, app, provider=None, projector=None, sleep=time.sleep,
+                 jitter=None):
         self.app = app
         addresses = app.config["CONTRACT_ADDRESSES"]
         self.registry = ContractRegistry(addresses)
@@ -66,6 +162,9 @@ class EventSynchronizer:
             self.registry.codec = getattr(self.provider, "codec", None)
         self.projector = projector or project_event
         self.sleep = sleep
+        self.jitter = jitter or (
+            lambda: random.uniform(0, RPC_RETRY_JITTER_SECONDS)
+        )
 
     def _provider(self):
         if self.provider is None:
@@ -128,7 +227,9 @@ class EventSynchronizer:
             db.session.commit()
             return 0
         total = 0
-        batch_size = int(self.app.config["SYNC_BATCH_SIZE"])
+        batch_size = int(self.app.config["EVENT_SYNC_BATCH_SIZE"])
+        if batch_size <= 0:
+            raise SyncStartupError("EVENT_SYNC_BATCH_SIZE_INVALID")
         while next_block <= safe_head:
             to_block = min(next_block + batch_size - 1, safe_head)
             total += self._sync_batch(next_block, to_block, latest)
@@ -220,21 +321,45 @@ class EventSynchronizer:
             for name, address in self.app.config["CONTRACT_ADDRESSES"].items()
         ]
         try:
-            return provider.eth.get_logs({
+            return self._request_logs(provider, {
                 "fromBlock": from_block,
                 "toBlock": to_block,
                 "address": addresses,
             })
-        except Exception as exc:
-            message = str(exc).lower()
-            limited = any(token in message for token in (
-                "too many results", "query returned more", "response size", "-32005",
-            ))
-            if not limited or from_block >= to_block:
-                raise
+        except _RpcRangeLimit as exc:
+            if from_block >= to_block:
+                raise SyncRpcError(
+                    "RPC_RANGE_LIMIT", http_status=exc.http_status,
+                    category="range_limit", detail="single_block_rejected",
+                ) from None
             middle = (from_block + to_block) // 2
             return (self._get_logs(provider, from_block, middle)
                     + self._get_logs(provider, middle + 1, to_block))
+
+    def _request_logs(self, provider, params):
+        for attempt in range(RPC_MAX_ATTEMPTS):
+            try:
+                return provider.eth.get_logs(params)
+            except Exception as exc:
+                status = _http_status(exc)
+                if _is_range_limit(exc):
+                    raise _RpcRangeLimit(status) from None
+                category = _retry_category(exc)
+                if category is None:
+                    raise SyncRpcError(
+                        "RPC_HTTP_ERROR" if status is not None else "RPC_REQUEST_FAILED",
+                        http_status=status,
+                        category="client_error" if status is not None else "rpc_error",
+                    ) from None
+                if attempt + 1 >= RPC_MAX_ATTEMPTS:
+                    raise SyncRpcError(
+                        "RPC_RETRY_EXHAUSTED", http_status=status,
+                        category=category, detail="retry_limit_reached",
+                    ) from None
+                delay = min(
+                    RPC_RETRY_BASE_SECONDS * (2 ** attempt), RPC_RETRY_MAX_SECONDS
+                ) + max(0.0, float(self.jitter()))
+                self.sleep(delay)
 
     def run_forever(self, stop_event: threading.Event | None = None, max_cycles=None):
         stop_event = stop_event or threading.Event()
@@ -252,9 +377,12 @@ class EventSynchronizer:
             except ChainReorgDetected:
                 raise
             except Exception as exc:
+                safe = safe_sync_error(exc)
                 logger.error(
-                    "event_sync_failed chain_id=%s error_type=%s",
-                    self.app.config["CHAIN_ID"], type(exc).__name__,
+                    "event_sync_failed chain_id=%s code=%s http_status=%s "
+                    "category=%s detail=%s",
+                    self.app.config["CHAIN_ID"], safe["code"],
+                    safe["http_status"], safe["category"], safe["detail"],
                 )
                 self.sleep(delay)
                 delay = min(delay * 2, 60)

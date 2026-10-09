@@ -17,6 +17,13 @@ pytest -m postgres
 pytest -m s3
 ```
 
+The Worker reads `EVENT_SYNC_BATCH_SIZE` as a positive integer. Its production
+default is `10`, matching the Alchemy Ethereum Free tier `eth_getLogs` block
+range limit. A confirmed range-limit response is split and retried without
+skipping blocks; rate limits, timeouts, and server errors use bounded
+exponential backoff with jitter. Tests may explicitly configure larger batches
+for fake providers.
+
 Production rejects SQLite, default/missing secrets, missing RPC, non-Sepolia chain, zero contract addresses, ordinary local Web storage, invalid Render Disk paths, missing S3 credentials in S3 mode, debug/testing, role simulation, and event sync in the Web process. Worker mode does not initialize or require PDF storage. See `docs/deployment.md` for Disk limitations, PostgreSQL `_test` safety, Sepolia checks, Render topology, S3 migration, backup, and rollback. A skipped external integration test is a blocker, not a pass.
 
 当前阶段提供可测试、可迁移和可部署的 Flask 后端。已实现应用工厂、19 个页面路由、统一错误响应、健康检查、9 张数据表、钱包签名 Session 认证、企业与 PDF API、独立 Sepolia 事件 Worker、业务投影和查询 API。

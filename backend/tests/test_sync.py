@@ -1,12 +1,21 @@
 from types import SimpleNamespace
+import logging
 
 import pytest
 from eth_abi import encode
+from requests import PreparedRequest, Response
+from requests.exceptions import HTTPError
 
 from backend.config import ZERO_ADDRESS
 from backend.extensions import db
-from backend.models import ChainEvent, SyncState
-from backend.sync.engine import ChainReorgDetected, EventSynchronizer, SyncStartupError
+from backend.models import ChainEvent, Holding, Invoice, SyncState
+from backend.sync.engine import (
+    ChainReorgDetected,
+    EventSynchronizer,
+    SyncRpcError,
+    SyncStartupError,
+)
+from backend.sync.projections import project_event
 from backend.sync.registry import hex_value
 
 ACCOUNT = "0x1111111111111111111111111111111111111111"
@@ -20,6 +29,7 @@ class FakeEth:
         self.calls = []
         self.missing_code = None
         self.hash_overrides = {}
+        self.get_logs_hook = None
 
     def get_code(self, address):
         missing = self.missing_code and address.lower() == self.missing_code.lower()
@@ -27,6 +37,8 @@ class FakeEth:
 
     def get_logs(self, params):
         self.calls.append((params["fromBlock"], params["toBlock"]))
+        if self.get_logs_hook is not None:
+            return self.get_logs_hook(params)
         return [log for log in self.logs
                 if params["fromBlock"] <= log["blockNumber"] <= params["toBlock"]]
 
@@ -40,16 +52,28 @@ class FakeProvider:
         self.eth = FakeEth(**kwargs)
 
 
-def _sync(app, provider=None, projector=None, sleep=None):
+def _sync(app, provider=None, projector=None, sleep=None, jitter=None):
     app.config.update(
         SYNC_START_BLOCK=10,
-        SYNC_BATCH_SIZE=500,
+        EVENT_SYNC_BATCH_SIZE=500,
         BLOCK_CONFIRMATIONS=0,
     )
     kwargs = {"projector": projector or (lambda _event: None)}
     if sleep is not None:
         kwargs["sleep"] = sleep
+    if jitter is not None:
+        kwargs["jitter"] = jitter
     return EventSynchronizer(app, provider or FakeProvider(), **kwargs)
+
+
+def _http_error(status, body, *, secret="new-secret-api-key"):
+    response = Response()
+    response.status_code = status
+    response._content = body.encode()
+    request = PreparedRequest()
+    request.prepare_url(f"https://rpc.example.invalid/v2/{secret}", None)
+    response.request = request
+    return HTTPError(f"{status} error for {request.url}", response=response, request=request)
 
 
 def _event_log(sync, contract, event_name, values, *, block=10, tx=0, index=0):
@@ -123,7 +147,7 @@ def test_multi_contract_logs_are_globally_sorted(app):
 def test_block_ranges_are_split_into_batches(app):
     provider = FakeProvider(latest=14)
     sync = _sync(app, provider)
-    app.config["SYNC_BATCH_SIZE"] = 2
+    app.config["EVENT_SYNC_BATCH_SIZE"] = 2
     sync.run_once()
     assert provider.eth.calls == [(10, 11), (12, 13), (14, 14)]
 
@@ -143,6 +167,96 @@ def test_provider_result_limit_shrinks_without_skipping_blocks(app):
     sync.run_once()
     assert provider.eth.calls == [(10, 13), (10, 11), (12, 13)]
     assert SyncState.query.one().last_synced_block == 13
+
+
+def test_ten_block_query_passes_without_splitting(app):
+    provider = FakeProvider(latest=19)
+    sync = _sync(app, provider)
+    app.config["EVENT_SYNC_BATCH_SIZE"] = 10
+
+    assert sync.run_once() == 0
+    assert provider.eth.calls == [(10, 19)]
+
+
+def test_http_400_range_limit_splits_without_gaps_or_duplicates(app):
+    provider = FakeProvider(latest=34)
+    accepted = []
+
+    def limited(params):
+        start, end = params["fromBlock"], params["toBlock"]
+        if end - start + 1 > 10:
+            raise _http_error(400, "eth_getLogs block range is too wide; up to a 10 block range")
+        accepted.append((start, end))
+        return []
+
+    provider.eth.get_logs_hook = limited
+    sync = _sync(app, provider)
+    app.config["EVENT_SYNC_BATCH_SIZE"] = 25
+
+    assert sync.run_once() == 0
+    covered = [block for start, end in accepted for block in range(start, end + 1)]
+    assert covered == list(range(10, 35))
+    assert SyncState.query.one().last_synced_block == 34
+
+
+def test_http_429_uses_bounded_exponential_backoff_then_succeeds(app):
+    provider = FakeProvider(latest=10)
+    sleeps = []
+    attempts = 0
+
+    def limited(_params):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise _http_error(429, "rate limit")
+        return []
+
+    provider.eth.get_logs_hook = limited
+    sync = _sync(app, provider, sleep=sleeps.append, jitter=lambda: 0)
+
+    assert sync.run_once() == 0
+    assert sleeps == [0.5, 1.0]
+    assert attempts == 3
+
+
+def test_retry_exhaustion_rolls_back_cursor(app):
+    provider = FakeProvider(latest=10)
+    provider.eth.get_logs_hook = lambda _params: (_ for _ in ()).throw(
+        _http_error(500, "temporary server failure")
+    )
+    sync = _sync(app, provider, sleep=lambda _seconds: None, jitter=lambda: 0)
+
+    with pytest.raises(SyncRpcError, match="RPC_RETRY_EXHAUSTED"):
+        sync.run_once()
+    assert ChainEvent.query.count() == 0
+    assert SyncState.query.count() == 0
+    assert len(provider.eth.calls) == 4
+
+
+def test_non_retryable_http_400_fails_once_without_cursor_progress(app):
+    provider = FakeProvider(latest=10)
+    provider.eth.get_logs_hook = lambda _params: (_ for _ in ()).throw(
+        _http_error(400, "invalid filter object")
+    )
+    sync = _sync(app, provider, sleep=lambda _seconds: None, jitter=lambda: 0)
+
+    with pytest.raises(SyncRpcError, match="RPC_HTTP_ERROR"):
+        sync.run_once()
+    assert provider.eth.calls == [(10, 10)]
+    assert SyncState.query.count() == 0
+
+
+def test_single_block_range_limit_fails_safely(app):
+    provider = FakeProvider(latest=10)
+    provider.eth.get_logs_hook = lambda _params: (_ for _ in ()).throw(
+        _http_error(400, "eth_getLogs block range is too wide; up to a 10 block range")
+    )
+    sync = _sync(app, provider)
+
+    with pytest.raises(SyncRpcError, match="RPC_RANGE_LIMIT"):
+        sync.run_once()
+    assert provider.eth.calls == [(10, 10)]
+    assert SyncState.query.count() == 0
 
 
 def test_restart_uses_saved_cursor(app):
@@ -166,14 +280,47 @@ def test_duplicate_log_is_not_projected_twice(app):
     assert len(calls) == 1
 
 
+def test_restart_at_same_safe_head_is_idempotent_for_events_and_holdings(app):
+    zero = "0x0000000000000000000000000000000000000000"
+    provider = FakeProvider(latest=10)
+    first = _sync(app, provider, projector=project_event)
+    provider.eth.logs = [_event_log(
+        first, "ReceivableToken", "TransferSingle",
+        {"operator": ACCOUNT, "from": zero, "to": ACCOUNT, "id": 7, "value": 25},
+    )]
+
+    assert first.run_once() == 1
+    before = (ChainEvent.query.count(), int(Holding.query.one().balance))
+    second = _sync(app, provider, projector=project_event)
+    assert second.run_once() == 0
+    after = (ChainEvent.query.count(), int(Holding.query.one().balance))
+
+    assert after == before
+
+
 def test_batch_failure_rolls_back_events_and_cursor(app):
     provider = FakeProvider(latest=10)
-    sync = _sync(app, provider, projector=lambda _event: (_ for _ in ()).throw(RuntimeError("bad projection")))
+    invoice = Invoice(
+        chain_id=11155111, invoice_no="ROLLBACK", supplier_address=ACCOUNT,
+        buyer_address="0x2222222222222222222222222222222222222222",
+        amount=1, due_date=2_000_000_000, file_hash="0x" + "a" * 64,
+        status="FILE_UPLOADED",
+    )
+    db.session.add(invoice)
+    db.session.commit()
+
+    def failing_projection(_event):
+        invoice.status = "PENDING"
+        db.session.flush()
+        raise RuntimeError("bad projection")
+
+    sync = _sync(app, provider, projector=failing_projection)
     provider.eth.logs = [_paused(sync)]
     with pytest.raises(RuntimeError, match="bad projection"):
         sync.run_once()
     assert ChainEvent.query.count() == 0
     assert SyncState.query.count() == 0
+    assert db.session.get(Invoice, invoice.id).status == "FILE_UPLOADED"
 
 
 def test_saved_block_hash_mismatch_stops_sync(app):
@@ -216,6 +363,29 @@ def test_temporary_failure_retries_with_backoff(app, monkeypatch):
     assert sleeps == [1]
 
 
+def test_worker_log_uses_safe_fields_without_rpc_secret(app, monkeypatch, caplog):
+    secret = "worker-log-secret-api-key"
+    sync = _sync(app, sleep=lambda _seconds: None)
+    monkeypatch.setattr(sync, "validate_startup", lambda: True)
+    attempts = iter([_http_error(500, "server failure", secret=secret), None])
+
+    def run_once():
+        result = next(attempts)
+        if result:
+            raise result
+        return 0
+
+    monkeypatch.setattr(sync, "run_once", run_once)
+    sync_logger = logging.getLogger("backend.sync.engine")
+    sync_logger.disabled = False
+    with caplog.at_level(logging.ERROR, logger="backend.sync.engine"):
+        sync.run_forever(max_cycles=1)
+
+    assert "code=RPC_HTTP_ERROR http_status=500 category=server_error" in caplog.text
+    assert secret not in caplog.text
+    assert "https://" not in caplog.text
+
+
 def test_sync_cli_runs_once_and_reports_status(app):
     app.config.update(
         SYNC_PROVIDER=FakeProvider(latest=9),
@@ -229,3 +399,26 @@ def test_sync_cli_runs_once_and_reports_status(app):
     status = runner.invoke(args=["sync-status"])
     assert status.exit_code == 0
     assert "status=healthy" in status.output
+
+
+def test_sync_cli_redacts_http_error_and_never_prints_traceback(app):
+    secret = "cli-secret-api-key"
+    provider = FakeProvider(latest=10)
+    provider.eth.get_logs_hook = lambda _params: (_ for _ in ()).throw(
+        _http_error(400, "invalid filter object", secret=secret)
+    )
+    app.config.update(
+        SYNC_PROVIDER=provider,
+        SYNC_START_BLOCK=10,
+        EVENT_SYNC_BATCH_SIZE=10,
+        BLOCK_CONFIRMATIONS=0,
+        WEB3_PROVIDER_URI=f"https://rpc.example.invalid/v2/{secret}",
+    )
+
+    result = app.test_cli_runner().invoke(args=["sync-events", "--once"])
+
+    assert result.exit_code == 1
+    assert "SYNC_ERROR code=RPC_HTTP_ERROR http_status=400" in result.output
+    assert "Traceback" not in result.output
+    assert secret not in result.output
+    assert "https://" not in result.output

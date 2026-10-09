@@ -5,7 +5,7 @@ from flask import current_app
 
 from backend.extensions import db
 from backend.models import SyncState
-from backend.sync.engine import EventSynchronizer
+from backend.sync.engine import EventSynchronizer, safe_sync_error
 from backend.sync.projections import rebuild_projections as rebuild_all
 from backend.preflight import collect_post_deploy, collect_preflight, preflight_succeeded
 
@@ -33,10 +33,21 @@ def register_sync_commands(app):
     @app.cli.command("sync-events")
     @click.option("--once", is_flag=True, required=True, help="Run one synchronization cycle.")
     def sync_events(once):
-        synchronizer = EventSynchronizer(current_app)
-        synchronizer.validate_startup()
-        count = synchronizer.run_once()
-        click.echo(f"synced_events={count}")
+        try:
+            synchronizer = EventSynchronizer(current_app)
+            synchronizer.validate_startup()
+            count = synchronizer.run_once()
+            click.echo(f"synced_events={count}")
+        except Exception as exc:
+            db.session.rollback()
+            safe = safe_sync_error(exc)
+            click.echo(
+                "SYNC_ERROR "
+                f"code={safe['code']} http_status={safe['http_status']} "
+                f"category={safe['category']} detail={safe['detail']}",
+                err=True,
+            )
+            raise click.exceptions.Exit(1) from None
 
     @app.cli.command("sync-status")
     def sync_status():
