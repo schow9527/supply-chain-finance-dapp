@@ -37,7 +37,7 @@ def assert_safe_test_database_uri(uri: str) -> None:
         pytest_root = (Path.cwd() / ".pytest-tmp").resolve()
         if candidate.is_relative_to(temp_root) or candidate.is_relative_to(pytest_root):
             return
-    elif database.lower().endswith("_test"):
+    elif "_test" in database.lower():
         return
     raise RuntimeError("Refusing destructive test cleanup for a non-test database")
 

@@ -127,6 +127,23 @@ def test_block_ranges_are_split_into_batches(app):
     assert provider.eth.calls == [(10, 11), (12, 13), (14, 14)]
 
 
+def test_provider_result_limit_shrinks_without_skipping_blocks(app):
+    provider = FakeProvider(latest=13)
+    original = provider.eth.get_logs
+
+    def limited(params):
+        if params["toBlock"] - params["fromBlock"] >= 2:
+            provider.eth.calls.append((params["fromBlock"], params["toBlock"]))
+            raise ValueError("query returned more than provider limit")
+        return original(params)
+
+    provider.eth.get_logs = limited
+    sync = _sync(app, provider)
+    sync.run_once()
+    assert provider.eth.calls == [(10, 13), (10, 11), (12, 13)]
+    assert SyncState.query.one().last_synced_block == 13
+
+
 def test_restart_uses_saved_cursor(app):
     provider = FakeProvider(latest=11)
     first = _sync(app, provider)

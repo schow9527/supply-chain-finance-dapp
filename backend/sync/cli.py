@@ -7,9 +7,20 @@ from backend.extensions import db
 from backend.models import SyncState
 from backend.sync.engine import EventSynchronizer
 from backend.sync.projections import rebuild_projections as rebuild_all
+from backend.preflight import collect_preflight, preflight_succeeded
 
 
 def register_sync_commands(app):
+    @app.cli.command("production-preflight")
+    def production_preflight():
+        """Run read-only deployment checks without printing secret values."""
+        checks = collect_preflight(current_app)
+        for check in checks:
+            suffix = f" detail={check.detail}" if check.detail else ""
+            click.echo(f"{check.name}={check.status}{suffix}")
+        if not preflight_succeeded(checks):
+            raise click.exceptions.Exit(1)
+
     @app.cli.command("sync-events")
     @click.option("--once", is_flag=True, required=True, help="Run one synchronization cycle.")
     def sync_events(once):

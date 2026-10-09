@@ -136,11 +136,7 @@ class EventSynchronizer:
         started = time.monotonic()
         provider = self._provider()
         try:
-            logs = provider.eth.get_logs({
-                "fromBlock": from_block,
-                "toBlock": to_block,
-                "address": self.registry.addresses,
-            })
+            logs = self._get_logs(provider, from_block, to_block)
             logs = sorted(logs, key=lambda log: (
                 int(_field(log, "blockNumber", "block_number")),
                 int(_field(log, "transactionIndex", "transaction_index")),
@@ -213,6 +209,25 @@ class EventSynchronizer:
             time.monotonic() - started, to_block,
         )
         return count
+
+    def _get_logs(self, provider, from_block: int, to_block: int):
+        """Fetch every block, shrinking ranges when a provider caps result sizes."""
+        try:
+            return provider.eth.get_logs({
+                "fromBlock": from_block,
+                "toBlock": to_block,
+                "address": self.registry.addresses,
+            })
+        except Exception as exc:
+            message = str(exc).lower()
+            limited = any(token in message for token in (
+                "too many results", "query returned more", "response size", "-32005",
+            ))
+            if not limited or from_block >= to_block:
+                raise
+            middle = (from_block + to_block) // 2
+            return (self._get_logs(provider, from_block, middle)
+                    + self._get_logs(provider, middle + 1, to_block))
 
     def run_forever(self, stop_event: threading.Event | None = None, max_cycles=None):
         stop_event = stop_event or threading.Event()

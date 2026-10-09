@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import hashlib
-import os
+import tempfile
 import time
-import uuid
 from pathlib import Path
 
-from flask import Blueprint, current_app, g, jsonify, request, send_file
+from flask import Blueprint, Response, current_app, g, jsonify, request, stream_with_context
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 
@@ -18,6 +17,7 @@ from backend.extensions import db
 from backend.models import Invoice
 from backend.services.blockchain import RpcUnavailable, get_role_service
 from backend.services.validation import clean_text, normalize_wallet
+from backend.storage import StorageError, get_storage, invoice_object_key
 
 invoices_bp = Blueprint("invoices", __name__, url_prefix="/api/invoices")
 
@@ -86,28 +86,24 @@ def upload_invoice_file():
     if duplicate and duplicate.status != "REJECTED":
         return api_error("INVOICE_ALREADY_UPLOADED", "This invoice is already uploaded.", 409)
 
-    upload_dir = Path(current_app.config["UPLOAD_FOLDER"])
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    storage_key = f"{uuid.uuid4().hex}.pdf"
-    final_path = upload_dir / storage_key
-    temp_path = upload_dir / f".tmp-{uuid.uuid4().hex}"
+    storage = get_storage()
+    storage_key = invoice_object_key(current_app.config["CHAIN_ID"], supplier)
     digest = hashlib.sha256()
     total = 0
     try:
-        with temp_path.open("xb") as target:
+        with tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024) as target:
             while chunk := upload.stream.read(1024 * 1024):
                 total += len(chunk)
                 if total > current_app.config["MAX_CONTENT_LENGTH"]:
                     raise OverflowError
                 digest.update(chunk)
                 target.write(chunk)
-        os.replace(temp_path, final_path)
+            target.seek(0)
+            storage.save(storage_key, target)
     except OverflowError:
-        temp_path.unlink(missing_ok=True)
         return api_error("FILE_TOO_LARGE", "The uploaded file is too large.", 413)
-    except OSError:
-        temp_path.unlink(missing_ok=True)
-        return api_error("FILE_STORAGE_ERROR", "The PDF could not be stored.", 500)
+    except (StorageError, OSError):
+        return api_error("STORAGE_UNAVAILABLE", "The PDF storage service is unavailable.", 503)
 
     item = duplicate or Invoice()
     item.chain_id = current_app.config["CHAIN_ID"]
@@ -127,7 +123,10 @@ def upload_invoice_file():
         db.session.commit()
     except SQLAlchemyError:
         db.session.rollback()
-        final_path.unlink(missing_ok=True)
+        try:
+            storage.delete(storage_key)
+        except StorageError:
+            current_app.logger.error("invoice_storage_cleanup_failed")
         return api_error("DATABASE_ERROR", "Invoice metadata could not be saved.", 500)
     return jsonify(
         {
@@ -152,14 +151,27 @@ def download_invoice_file(invoice_id: int):
             return api_error("RPC_UNAVAILABLE", "On-chain role verification is unavailable.", 503)
         if role not in {"ADMIN", "AUDITOR"}:
             return api_error("ROLE_REQUIRED", "You may not download this invoice.", 403)
-    path = Path(current_app.config["UPLOAD_FOLDER"]) / (item.storage_key or "")
-    if not item.storage_key or not path.is_file():
+    storage = get_storage()
+    if not item.storage_key:
         return api_error("FILE_NOT_FOUND", "Invoice file was not found.", 404)
-    response = send_file(
-        path,
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=item.original_filename or f"invoice-{item.id}.pdf",
+    try:
+        source = storage.open(item.storage_key)
+    except FileNotFoundError:
+        return api_error("FILE_NOT_FOUND", "Invoice file was not found.", 404)
+    except StorageError:
+        return api_error("STORAGE_UNAVAILABLE", "The PDF storage service is unavailable.", 503)
+
+    def chunks():
+        try:
+            while chunk := source.read(1024 * 1024):
+                yield chunk
+        finally:
+            source.close()
+
+    response = Response(stream_with_context(chunks()), mimetype="application/pdf")
+    response.headers.set(
+        "Content-Disposition", "attachment",
+        filename=item.original_filename or f"invoice-{item.id}.pdf",
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response

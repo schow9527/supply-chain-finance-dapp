@@ -3,11 +3,11 @@
 from flask import Blueprint, current_app, jsonify
 from sqlalchemy import text
 
-from backend.config import CONTRACT_NAMES, ZERO_ADDRESS
+from backend.config import BASE_DIR, CONTRACT_NAMES, ZERO_ADDRESS
 from backend.errors import error_response
 from backend.extensions import db
 from backend.models import SyncState
-from backend.config import ZERO_ADDRESS
+from backend.storage import get_storage
 
 health_bp = Blueprint("health", __name__, url_prefix="/api/health")
 
@@ -22,11 +22,14 @@ def ready():
     sync = _sync_check()
     checks = {
         "database": _database_check(),
+        "migrations": _migration_check(),
+        "configuration": _configuration_check(),
         "environment": current_app.config.get("ENV_NAME", "unknown"),
         "chain_id": {"status": "ok" if current_app.config.get("CHAIN_ID") == 11155111 else "invalid",
                      "value": current_app.config.get("CHAIN_ID")},
         "contracts": _contract_check(),
         "rpc": _rpc_check(),
+        "storage": _storage_check(),
         "event_sync": sync,
         "latest_chain_block": sync.get("latest_chain_block"),
         "last_synced_block": sync.get("last_synced_block"),
@@ -34,16 +37,19 @@ def ready():
         "last_sync_at": sync.get("last_sync_at"),
     }
     unavailable = (checks["database"]["status"] != "ok"
-                   or checks["chain_id"]["status"] != "ok"
-                   or checks["contracts"]["status"] != "ok"
-                   or checks["rpc"]["status"] == "unavailable")
+                   or checks["migrations"]["status"] != "ok"
+                   or checks["configuration"]["status"] != "ok")
     if unavailable:
         return error_response(
             503,
             "Service dependencies are unavailable.",
             {"status": "unavailable", "checks": checks},
         )
-    return jsonify({"status": "ready", "checks": checks}), 200
+    degraded = any(
+        checks[name]["status"] not in {"ok", "healthy"}
+        for name in ("rpc", "storage", "event_sync")
+    )
+    return jsonify({"status": "degraded" if degraded else "ready", "checks": checks}), 200
 
 
 def _sync_check():
@@ -69,6 +75,35 @@ def _database_check():
     except Exception:
         db.session.rollback()
         return {"status": "unavailable"}
+
+
+def _migration_check():
+    if current_app.config.get("ENV_NAME") != "production":
+        return {"status": "ok", "check": "production-only"}
+    try:
+        from alembic.config import Config as AlembicConfig
+        from alembic.migration import MigrationContext
+        from alembic.script import ScriptDirectory
+        alembic = AlembicConfig(str(BASE_DIR / "backend" / "migrations" / "alembic.ini"))
+        alembic.set_main_option("script_location", str(BASE_DIR / "backend" / "migrations"))
+        head = ScriptDirectory.from_config(alembic).get_current_head()
+        with db.engine.connect() as connection:
+            current = MigrationContext.configure(connection).get_current_revision()
+        return {"status": "ok" if current == head else "incomplete"}
+    except Exception:
+        return {"status": "unavailable"}
+
+
+def _configuration_check():
+    return {"status": "ok"}
+
+
+def _storage_check():
+    try:
+        return {"status": "ok" if get_storage().health_check() else "unavailable",
+                "backend": current_app.config.get("STORAGE_BACKEND")}
+    except Exception:
+        return {"status": "unavailable", "backend": current_app.config.get("STORAGE_BACKEND")}
 
 
 def _contract_check():

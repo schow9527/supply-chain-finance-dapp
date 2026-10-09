@@ -34,6 +34,25 @@ def test_readiness_with_database(client):
     assert "uri" not in str(payload).lower()
 
 
+def test_readiness_temporary_rpc_and_storage_failure_is_degraded(client, app):
+    class UnhealthyStorage:
+        def health_check(self):
+            return False
+
+    app.config.update(
+        STORAGE_SERVICE=UnhealthyStorage(),
+        RPC_HEALTHCHECK_ENABLED=True,
+        WEB3_PROVIDER_URI="https://unavailable.example.invalid",
+        RPC_HEALTHCHECK_TIMEOUT=0.01,
+    )
+    response = client.get("/api/health/ready")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["status"] == "degraded"
+    assert payload["checks"]["storage"]["status"] == "unavailable"
+    assert payload["checks"]["rpc"]["status"] == "unavailable"
+
+
 def test_unified_not_found(client):
     response = client.get("/does-not-exist")
     assert response.status_code == 404

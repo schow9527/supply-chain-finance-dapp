@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+from sqlalchemy.engine import make_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEPLOYMENT_FILE = BASE_DIR / "contracts" / "deployments" / "11155111.json"
@@ -35,7 +36,9 @@ def _deployment() -> dict[str, Any]:
 
 def normalize_database_url(value: str) -> str:
     if value.startswith("postgres://"):
-        return "postgresql://" + value[len("postgres://") :]
+        return "postgresql+psycopg://" + value[len("postgres://") :]
+    if value.startswith("postgresql://"):
+        return "postgresql+psycopg://" + value[len("postgresql://") :]
     return value
 
 
@@ -68,6 +71,9 @@ class Config:
     SYNC_BATCH_SIZE = 500
     REORG_LOOKBACK = 12
     EVENT_SYNC_ENABLED = False
+    STORAGE_BACKEND = "local"
+    ENABLE_ROLE_SIMULATOR = False
+    PROCESS_TYPE = "web"
 
     @classmethod
     def init_app(cls, app) -> None:
@@ -90,6 +96,16 @@ class Config:
             SYNC_BATCH_SIZE=int(os.getenv("SYNC_BATCH_SIZE", 500)),
             REORG_LOOKBACK=int(os.getenv("REORG_LOOKBACK", 12)),
             EVENT_SYNC_ENABLED=os.getenv("EVENT_SYNC_ENABLED", "false").lower()
+            in {"1", "true", "yes"},
+            STORAGE_BACKEND=os.getenv("STORAGE_BACKEND", "local").lower(),
+            S3_ENDPOINT_URL=os.getenv("S3_ENDPOINT_URL", ""),
+            S3_REGION=os.getenv("S3_REGION", "us-east-1"),
+            S3_BUCKET=os.getenv("S3_BUCKET", ""),
+            S3_ACCESS_KEY_ID=os.getenv("S3_ACCESS_KEY_ID", ""),
+            S3_SECRET_ACCESS_KEY=os.getenv("S3_SECRET_ACCESS_KEY", ""),
+            S3_KEY_PREFIX=os.getenv("S3_KEY_PREFIX", ""),
+            PROCESS_TYPE=os.getenv("PROCESS_TYPE", "web").lower(),
+            ENABLE_ROLE_SIMULATOR=os.getenv("ENABLE_ROLE_SIMULATOR", "false").lower()
             in {"1", "true", "yes"},
         )
         addresses = {}
@@ -176,14 +192,38 @@ def validate_production_config(config) -> None:
     database_url = config.get("SQLALCHEMY_DATABASE_URI", "")
     if not os.getenv("DATABASE_URL"):
         errors.append("DATABASE_URL is required")
-    elif database_url.startswith("sqlite"):
-        errors.append("DATABASE_URL must not use SQLite")
+    else:
+        try:
+            if make_url(database_url).get_backend_name() != "postgresql":
+                errors.append("DATABASE_URL must use PostgreSQL")
+        except Exception:
+            errors.append("DATABASE_URL is invalid")
     if config.get("SECRET_KEY") in {None, "", DEFAULT_SECRET_KEY, EXAMPLE_SECRET_KEY}:
         errors.append("SECRET_KEY must be changed from the default")
     if not config.get("WEB3_PROVIDER_URI"):
         errors.append("WEB3_PROVIDER_URI is required")
     if config.get("CHAIN_ID") != 11155111:
         errors.append("CHAIN_ID must be 11155111")
+    if config.get("DEBUG"):
+        errors.append("DEBUG must be false")
+    if config.get("TESTING"):
+        errors.append("TESTING must be false")
+    if config.get("ENABLE_ROLE_SIMULATOR"):
+        errors.append("role simulator must be disabled")
+    process_type = config.get("PROCESS_TYPE", "web")
+    if process_type not in {"web", "worker"}:
+        errors.append("PROCESS_TYPE must be web or worker")
+    if process_type == "web" and config.get("EVENT_SYNC_ENABLED"):
+        errors.append("web process must not enable the event worker")
+    storage_backend = config.get("STORAGE_BACKEND", "local")
+    if storage_backend == "local":
+        errors.append("Production STORAGE_BACKEND must not be local")
+    if process_type == "web" and storage_backend != "s3":
+        errors.append("Production web STORAGE_BACKEND must be s3")
+    if storage_backend == "s3":
+        for key in ("S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"):
+            if not config.get(key):
+                errors.append(f"{key} is required")
     invalid_contracts = [
         name
         for name, address in config.get("CONTRACT_ADDRESSES", {}).items()

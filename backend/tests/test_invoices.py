@@ -171,7 +171,7 @@ def test_database_failure_removes_new_file(client, app, monkeypatch):
     monkeypatch.setattr(db.session, "commit", fail_commit)
     response = _upload(client)
     assert response.status_code == 500
-    assert list(upload_dir.glob("*.pdf")) == []
+    assert list(upload_dir.rglob("*.pdf")) == []
 
 
 def test_supplier_can_download_pdf(client, app):
