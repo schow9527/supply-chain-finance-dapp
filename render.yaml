@@ -1,11 +1,23 @@
+databases:
+  - name: supply-chain-finance-db
+    plan: free
+
 services:
   - type: web
     name: supply-chain-finance-dapp
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && flask db upgrade
     startCommand: gunicorn app:app
     envVars:
-      - key: FLASK_ENV
+      - key: APP_ENV
         value: production
       - key: DATABASE_URL
-        value: sqlite:///scf_dapp.db
+        fromDatabase:
+          name: supply-chain-finance-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB3_PROVIDER_URI
+        sync: false
+      - key: CHAIN_ID
+        value: "11155111"

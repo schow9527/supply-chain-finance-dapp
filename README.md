@@ -35,10 +35,10 @@ supply-chain-finance-dapp/
 │
 ├── backend/                    # 【成员 2 负责】后端 API 与链上同步服务
 │   ├── routes/                 # Flask RESTful API 路由
-│   ├── services/               # 链上事件同步器 (Web3.py) 与 PDF 哈希存证
-│   ├── models.py               # 数据库模型 (7 张表：企业、发票、凭证、融资等)
+│   ├── migrations/             # Flask-Migrate / Alembic 数据库迁移
+│   ├── tests/                  # 后端自动化测试
+│   ├── models.py               # 8 张数据库表及关键约束
 │   ├── config.py               # 环境变量与配置管理
-│   ├── requirements.txt        # Python 依赖清单
 │   └── README.md               # 后端开发与本地调试指南
 │
 ├── frontend/                   # 【成员 3 负责】前端界面与 Web3 交互
@@ -57,6 +57,7 @@ supply-chain-finance-dapp/
 ├── .env.example                # 环境变量配置模板
 ├── .gitignore                  # Git 忽略规则
 ├── app.py                      # 根目录应用入口 (兼容本地启动与 Render 云部署)
+├── requirements.txt            # 唯一 Python 依赖清单
 ├── Procfile                    # Render Web Service 部署指令
 ├── render.yaml                 # Render 云平台 Blueprint 配置
 └── README.md                   # 仓库总览文档（当前文件）
@@ -104,7 +105,7 @@ cd ..
 cp .env.example .env
 
 # 安装 Python 依赖
-pip install -r backend/requirements.txt
+pip install -r requirements.txt
 
 # 启动本地服务
 python app.py
@@ -116,7 +117,7 @@ python app.py
 ## ☁️ Render 云端一键部署
 
 项目已配置好 `Procfile` 与 `render.yaml`，推送代码至 GitHub 并在 Render 创建 Web Service 即可零配置部署：
-- **Build Command**: `pip install -r backend/requirements.txt`
+- **Build Command**: `pip install -r requirements.txt && flask db upgrade`
 - **Start Command**: `gunicorn app:app`
 
 ---

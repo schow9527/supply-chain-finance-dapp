@@ -7,6 +7,10 @@ __pycache__/
 # Environments
 .env
 .venv
+.pytest-tmp/
+.pytest_cache/
+.coverage
+htmlcov/
 env/
 venv/
 ENV/

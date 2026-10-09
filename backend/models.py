@@ -1,21 +1,79 @@
-import datetime
-from sqlalchemy import Column, Integer, String, BigInteger, DateTime, Text, Numeric, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
+"""Database models for off-chain state and idempotent chain synchronization."""
 
-Base = declarative_base()
+from __future__ import annotations
 
-class Enterprise(Base):
+from datetime import datetime, timezone
+from decimal import Decimal
+
+from sqlalchemy.orm import validates
+from sqlalchemy.types import TypeDecorator
+
+from backend.extensions import db
+
+
+class UInt256(TypeDecorator):
+    """Exact uint256 storage: NUMERIC on PostgreSQL, decimal text on SQLite."""
+
+    impl = db.Numeric(78, 0)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "sqlite":
+            return dialect.type_descriptor(db.String(78))
+        return dialect.type_descriptor(db.Numeric(78, 0))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        integer = int(value)
+        return str(integer) if dialect.name == "sqlite" else Decimal(integer)
+
+    def process_result_value(self, value, dialect):
+        return None if value is None else Decimal(value)
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def normalize_address(value: str | None) -> str | None:
+    return value.lower() if isinstance(value, str) else value
+
+
+class TimestampMixin:
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+
+class Enterprise(TimestampMixin, db.Model):
     __tablename__ = "enterprises"
+    __table_args__ = (
+        db.UniqueConstraint("wallet_address", name="uq_enterprises_wallet_address"),
+        db.CheckConstraint(
+            "role_applied IN ('SUPPLIER', 'CORE_ENTERPRISE', 'FUNDER')",
+            name="role_applied_values",
+        ),
+        db.CheckConstraint(
+            "status IN ('PENDING', 'APPROVED', 'REJECTED')", name="status_values"
+        ),
+    )
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    wallet_address = Column(String(42), unique=True, nullable=False, index=True)
-    enterprise_name = Column(String(200), nullable=False)
-    role_applied = Column(String(50), nullable=False) # SUPPLIER, CORE_ENTERPRISE, FINANCIER
-    contact_person = Column(String(100), nullable=False)
-    status = Column(String(20), default="PENDING", nullable=False) # PENDING, APPROVED, REJECTED
-    reject_reason = Column(Text, nullable=True)
-    tx_hash = Column(String(66), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+    wallet_address = db.Column(db.String(42), nullable=False, index=True)
+    enterprise_name = db.Column(db.String(200), nullable=False)
+    role_applied = db.Column(db.String(32), nullable=False)
+    contact_person = db.Column(db.String(100), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="PENDING")
+    reject_reason = db.Column(db.Text)
+    approval_tx_hash = db.Column(db.String(66))
+    reviewed_by = db.Column(db.String(42))
+    reviewed_at = db.Column(db.DateTime(timezone=True))
+
+    @validates("wallet_address", "reviewed_by")
+    def normalize_wallets(self, _key, value):
+        return normalize_address(value)
 
     def to_dict(self):
         return {
@@ -26,145 +84,203 @@ class Enterprise(Base):
             "contact_person": self.contact_person,
             "status": self.status,
             "reject_reason": self.reject_reason,
-            "tx_hash": self.tx_hash,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "approval_tx_hash": self.approval_tx_hash,
+            "reviewed_by": self.reviewed_by,
+            "reviewed_at": _iso(self.reviewed_at),
+            "created_at": _iso(self.created_at),
+            "updated_at": _iso(self.updated_at),
         }
 
 
-class Invoice(Base):
+class Invoice(TimestampMixin, db.Model):
     __tablename__ = "invoices"
+    __table_args__ = (
+        db.UniqueConstraint("onchain_id", name="uq_invoices_onchain_id"),
+        db.CheckConstraint(
+            "status IN ('FILE_UPLOADED', 'FILE_MISSING', 'PENDING', 'CONFIRMED', 'REJECTED')",
+            name="status_values",
+        ),
+    )
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    onchain_id = Column(Integer, nullable=True, index=True)
-    invoice_no = Column(String(100), nullable=False, index=True)
-    supplier_address = Column(String(42), nullable=False, index=True)
-    buyer_address = Column(String(42), nullable=False, index=True)
-    amount = Column(String(78), nullable=False) # Store large wei numbers as string
-    due_date = Column(BigInteger, nullable=False) # Unix timestamp
-    file_hash = Column(String(66), nullable=False) # SHA-256 hex
-    file_path = Column(String(500), nullable=True)
-    status = Column(String(20), default="PENDING", nullable=False) # PENDING, CONFIRMED, REJECTED
-    reject_reason = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+    chain_id = db.Column(db.BigInteger, nullable=False, default=11155111, index=True)
+    onchain_id = db.Column(UInt256(), index=True)
+    invoice_no = db.Column(db.String(100), nullable=False, index=True)
+    supplier_address = db.Column(db.String(42), nullable=False, index=True)
+    buyer_address = db.Column(db.String(42), nullable=False, index=True)
+    amount = db.Column(UInt256(), nullable=False)
+    due_date = db.Column(db.BigInteger, nullable=False)
+    file_hash = db.Column(db.String(66), nullable=False)
+    storage_key = db.Column(db.String(500))
+    original_filename = db.Column(db.String(255))
+    status = db.Column(db.String(20), nullable=False, default="FILE_UPLOADED")
+    reject_reason = db.Column(db.Text)
+
+    @validates("supplier_address", "buyer_address")
+    def normalize_wallets(self, _key, value):
+        return normalize_address(value)
 
     def to_dict(self):
         return {
             "id": self.id,
-            "onchain_id": self.onchain_id,
+            "chain_id": self.chain_id,
+            "onchain_id": _integer_string(self.onchain_id),
             "invoice_no": self.invoice_no,
             "supplier_address": self.supplier_address,
             "buyer_address": self.buyer_address,
-            "amount": self.amount,
+            "amount": _integer_string(self.amount),
             "due_date": self.due_date,
             "file_hash": self.file_hash,
-            "file_path": self.file_path,
+            "storage_key": self.storage_key,
+            "original_filename": self.original_filename,
             "status": self.status,
             "reject_reason": self.reject_reason,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": _iso(self.created_at),
+            "updated_at": _iso(self.updated_at),
         }
 
 
-class Holding(Base):
+class Holding(db.Model):
     __tablename__ = "holdings"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "chain_id", "receivable_id", "holder_address",
+            name="uq_holdings_holding_identity",
+        ),
+    )
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    receivable_id = Column(Integer, nullable=False, index=True)
-    holder_address = Column(String(42), nullable=False, index=True)
-    balance = Column(String(78), default="0", nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+    chain_id = db.Column(db.BigInteger, nullable=False, default=11155111)
+    receivable_id = db.Column(UInt256(), nullable=False)
+    holder_address = db.Column(db.String(42), nullable=False, index=True)
+    balance = db.Column(UInt256(), nullable=False, default=0)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "receivable_id": self.receivable_id,
-            "holder_address": self.holder_address,
-            "balance": self.balance,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
-        }
+    @validates("holder_address")
+    def normalize_wallet(self, _key, value):
+        return normalize_address(value)
 
 
-class FinancingRequest(Base):
+class FinancingRequest(TimestampMixin, db.Model):
     __tablename__ = "financing_requests"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "onchain_request_id", name="uq_financing_requests_onchain_request_id"
+        ),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    onchain_request_id = db.Column(UInt256(), nullable=False)
+    receivable_id = db.Column(UInt256(), nullable=False, index=True)
+    supplier_address = db.Column(db.String(42), nullable=False, index=True)
+    amount = db.Column(UInt256(), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="PENDING_QUOTE")
+    accepted_quote_id = db.Column(UInt256())
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    onchain_request_id = Column(Integer, nullable=True, index=True)
-    receivable_id = Column(Integer, nullable=False, index=True)
-    supplier_address = Column(String(42), nullable=False, index=True)
-    amount = Column(String(78), nullable=False)
-    status = Column(String(20), default="PENDING_QUOTE", nullable=False) # PENDING_QUOTE, FUNDED, CANCELLED
-    accepted_quote_id = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "onchain_request_id": self.onchain_request_id,
-            "receivable_id": self.receivable_id,
-            "supplier_address": self.supplier_address,
-            "amount": self.amount,
-            "status": self.status,
-            "accepted_quote_id": self.accepted_quote_id,
-            "created_at": self.created_at.isoformat() if self.created_at else None
-        }
+    @validates("supplier_address")
+    def normalize_wallet(self, _key, value):
+        return normalize_address(value)
 
 
-class Quote(Base):
+class Quote(TimestampMixin, db.Model):
     __tablename__ = "quotes"
+    __table_args__ = (
+        db.UniqueConstraint("onchain_quote_id", name="uq_quotes_onchain_quote_id"),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    onchain_quote_id = db.Column(UInt256(), nullable=False)
+    onchain_request_id = db.Column(UInt256(), nullable=False, index=True)
+    financier_address = db.Column(db.String(42), nullable=False, index=True)
+    discount_rate_bps = db.Column(db.Integer, nullable=False)
+    payout = db.Column(UInt256(), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="SUBMITTED")
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    onchain_quote_id = Column(Integer, nullable=True, index=True)
-    request_id = Column(Integer, nullable=False, index=True)
-    financier_address = Column(String(42), nullable=False, index=True)
-    discount_rate_bps = Column(Integer, nullable=False) # e.g. 500 = 5%
-    status = Column(String(20), default="SUBMITTED", nullable=False) # SUBMITTED, ACCEPTED, REJECTED
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "onchain_quote_id": self.onchain_quote_id,
-            "request_id": self.request_id,
-            "financier_address": self.financier_address,
-            "discount_rate_bps": self.discount_rate_bps,
-            "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None
-        }
+    @validates("financier_address")
+    def normalize_wallet(self, _key, value):
+        return normalize_address(value)
 
 
-class ChainEvent(Base):
+class ChainEvent(db.Model):
     __tablename__ = "chain_events"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "chain_id", "tx_hash", "log_index", name="uq_chain_events_chain_log"
+        ),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    chain_id = db.Column(db.BigInteger, nullable=False)
+    block_number = db.Column(db.BigInteger, nullable=False, index=True)
+    block_hash = db.Column(db.String(66), nullable=False)
+    transaction_index = db.Column(db.Integer, nullable=False)
+    tx_hash = db.Column(db.String(66), nullable=False, index=True)
+    log_index = db.Column(db.Integer, nullable=False)
+    contract_address = db.Column(db.String(42), nullable=False)
+    contract_name = db.Column(db.String(100), nullable=False, index=True)
+    event_name = db.Column(db.String(100), nullable=False, index=True)
+    event_args = db.Column(db.JSON, nullable=False)
+    block_timestamp = db.Column(db.DateTime(timezone=True), nullable=False)
+    processed_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    block_number = Column(BigInteger, nullable=False, index=True)
-    tx_hash = Column(String(66), nullable=False, index=True)
-    contract_name = Column(String(100), nullable=False, index=True)
-    event_name = Column(String(100), nullable=False, index=True)
-    event_args_json = Column(Text, nullable=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "block_number": self.block_number,
-            "tx_hash": self.tx_hash,
-            "contract_name": self.contract_name,
-            "event_name": self.event_name,
-            "event_args_json": self.event_args_json,
-            "timestamp": self.timestamp.isoformat() if self.timestamp else None
-        }
+    @validates("contract_address")
+    def normalize_contract(self, _key, value):
+        return normalize_address(value)
 
 
-class SyncState(Base):
+class SyncState(db.Model):
     __tablename__ = "sync_state"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "chain_id", "contract_address", name="uq_sync_state_chain_contract"
+        ),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    chain_id = db.Column(db.BigInteger, nullable=False)
+    contract_address = db.Column(db.String(42), nullable=False)
+    contract_name = db.Column(db.String(100), nullable=False)
+    last_synced_block = db.Column(db.BigInteger, nullable=False, default=0)
+    last_synced_block_hash = db.Column(db.String(66))
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    contract_name = Column(String(100), unique=True, nullable=False)
-    last_synced_block = Column(BigInteger, default=0, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    @validates("contract_address")
+    def normalize_contract(self, _key, value):
+        return normalize_address(value)
 
-    def to_dict(self):
-        return {
-            "contract_name": self.contract_name,
-            "last_synced_block": self.last_synced_block,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
-        }
+
+class AuthNonce(db.Model):
+    __tablename__ = "auth_nonces"
+    __table_args__ = (
+        db.UniqueConstraint("nonce_hash", name="uq_auth_nonces_nonce_hash"),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    wallet_address = db.Column(db.String(42), nullable=False, index=True)
+    nonce_hash = db.Column(db.String(64), nullable=False)
+    issued_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    consumed_at = db.Column(db.DateTime(timezone=True))
+
+    @validates("wallet_address")
+    def normalize_wallet(self, _key, value):
+        return normalize_address(value)
+
+    @property
+    def is_consumed(self) -> bool:
+        return self.consumed_at is not None
+
+    @property
+    def is_expired(self) -> bool:
+        expires = self.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        return expires <= utcnow()
+
+
+def _integer_string(value: Decimal | int | None) -> str | None:
+    return None if value is None else str(int(value))
+
+
+def _iso(value: datetime | None) -> str | None:
+    return value.isoformat() if value else None
