@@ -44,6 +44,18 @@ def create_app(config_object=None) -> Flask:
     app.register_blueprint(queries_bp)
     register_error_handlers(app)
     register_sync_commands(app)
+
+    # Automatically initialize tables for SQLite development/Render deployments
+    if not app.config.get("TESTING"):
+        uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if uri.startswith("sqlite"):
+            with app.app_context():
+                try:
+                    from flask_migrate import upgrade
+                    upgrade(directory=str(BASE_DIR / "backend" / "migrations"))
+                except Exception:
+                    db.create_all()
+
     return app
 
 
