@@ -121,6 +121,9 @@ async function handleInvoiceSubmit(e) {
 
     // Upload must succeed and both SHA-256 values must agree before MetaMask is invoked.
     try {
+        if (typeof ensureAuthenticated === "function") {
+            await ensureAuthenticated();
+        }
         await window.InvoiceUploadFlow.uploadAndSubmit({
             apiClient: window.DAppState.apiClient,
             contractClient: window.DAppState.contractClient,

@@ -111,14 +111,35 @@ async function checkMyRegistration(addressToCheck) {
 
 async function handleRegister(e) {
     e.preventDefault();
-    const walletAddr = document.getElementById("wallet-address-input").value.trim();
+    const walletInput = document.getElementById("wallet-address-input");
+    const walletAddr = walletInput ? walletInput.value.trim() : "";
     if (!walletAddr) {
         UIFeedback.showToast("请填写或点击读取钱包地址！", "warning");
         return;
     }
 
+    if (!window.DAppState.account) {
+        await connectWallet();
+        if (!window.DAppState.account) return;
+    }
+
+    // 后端接口要求通过 MetaMask 签名验证建立 Session (AUTH_REQUIRED 保护)
+    if (!window.DAppState.sessionAuthenticated) {
+        try {
+            await authenticateWallet();
+        } catch (authErr) {
+            return;
+        }
+    }
+
+    if (walletAddr.toLowerCase() !== window.DAppState.account.toLowerCase()) {
+        UIFeedback.showToast("填写的企业钱包地址必须与当前连接的 MetaMask 钱包一致！", "warning");
+        if (walletInput) walletInput.value = window.DAppState.account;
+        return;
+    }
+
     const payload = {
-        wallet_address: walletAddr,
+        wallet_address: window.DAppState.account,
         enterprise_name: document.getElementById("enterprise-name-input").value.trim(),
         contact_person: document.getElementById("contact-person-input").value.trim(),
         role_applied: document.getElementById("role-select").value
@@ -127,7 +148,7 @@ async function handleRegister(e) {
     try {
         await window.DAppState.apiClient.registerEnterprise(payload);
         UIFeedback.showToast("企业入驻申请已成功提交，请等待管理员审核！", "success");
-        await checkMyRegistration(walletAddr);
+        await checkMyRegistration(window.DAppState.account);
     } catch (err) {
         UIFeedback.showToast(err.message || "提交失败", "error");
     }

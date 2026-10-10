@@ -197,6 +197,16 @@ async function authenticateWallet() {
     }
 }
 
+async function ensureAuthenticated() {
+    if (!window.DAppState.account || !window.DAppState.signer) {
+        await connectWallet();
+        return;
+    }
+    if (!window.DAppState.sessionAuthenticated) {
+        await authenticateWallet();
+    }
+}
+
 async function ensureSepoliaNetwork() {
     if (!window.DAppState.provider) return;
     const net = await window.DAppState.provider.getNetwork();
@@ -252,8 +262,13 @@ function updateUI() {
     const connectBtn = document.getElementById("connect-wallet-btn");
     if (connectBtn) {
         if (acc) {
-            connectBtn.innerText = window.AppConfig.shortAddress(acc);
-            connectBtn.className = "btn btn-outline";
+            if (window.DAppState.sessionAuthenticated) {
+                connectBtn.innerText = window.AppConfig.shortAddress(acc);
+                connectBtn.className = "btn btn-outline";
+            } else {
+                connectBtn.innerText = "🔑 签名登录 (" + window.AppConfig.shortAddress(acc) + ")";
+                connectBtn.className = "btn btn-primary";
+            }
         } else {
             connectBtn.innerText = "连接 MetaMask";
             connectBtn.className = "btn btn-primary";
