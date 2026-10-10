@@ -158,8 +158,8 @@ The readiness endpoint verifies the production configuration, PostgreSQL
 connection and migrations, Sepolia RPC and contract configuration, persistent
 PDF storage, and the persisted event-sync cursor. A `200` response with
 `"status": "ready"` confirms that the Web service is ready to receive traffic.
-Continuous chain indexing is provided by the separately deployed Render Worker
-defined in `render.yaml`; the Web process intentionally keeps
+Continuous chain indexing requires the separate Render Worker defined in
+`render.yaml`; the Web process intentionally keeps
 `EVENT_SYNC_ENABLED=false`.
 
 ---
