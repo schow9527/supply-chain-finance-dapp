@@ -99,7 +99,9 @@ class Config:
                 os.getenv("DATABASE_URL", default_db)
             ),
             UPLOAD_FOLDER=os.getenv("UPLOAD_FOLDER", str(BASE_DIR / "uploads")),
-            WEB3_PROVIDER_URI=os.getenv("WEB3_PROVIDER_URI", ""),
+            WEB3_PROVIDER_URI=os.getenv(
+                "WEB3_PROVIDER_URI", "https://ethereum-sepolia-rpc.publicnode.com"
+            ),
             CHAIN_ID=int(os.getenv("CHAIN_ID", deployment.get("chainId", 11155111))),
             START_BLOCK=int(os.getenv("START_BLOCK", deployment.get("startBlock", 0))),
             BLOCK_CONFIRMATIONS=int(os.getenv("BLOCK_CONFIRMATIONS", 1)),

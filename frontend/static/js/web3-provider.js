@@ -224,7 +224,7 @@ async function ensureSepoliaNetwork() {
                         chainId: window.AppConfig.SEPOLIA_CHAIN_ID_HEX,
                         chainName: "Sepolia Testnet",
                         nativeCurrency: { name: "SepoliaETH", symbol: "ETH", decimals: 18 },
-                        rpcUrls: ["https://rpc.sepolia.org"]
+                        rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com", "https://1rpc.io/sepolia"]
                     }]
                 });
             }
