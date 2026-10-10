@@ -25,10 +25,10 @@ services:
         value: production
       - key: PROCESS_ROLE
         value: web
+      # Set this service's Internal Database URL manually in the Render Dashboard.
+      # It must target the isolated supply_chain_finance_v2 logical database.
       - key: DATABASE_URL
-        fromDatabase:
-          name: supply-chain-finance-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: WEB3_PROVIDER_URI
@@ -58,10 +58,10 @@ services:
         value: production
       - key: PROCESS_ROLE
         value: worker
+      # Set this service's Internal Database URL manually in the Render Dashboard.
+      # It must match the Web service and target supply_chain_finance_v2.
       - key: DATABASE_URL
-        fromDatabase:
-          name: supply-chain-finance-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: WEB3_PROVIDER_URI
@@ -72,5 +72,7 @@ services:
         value: "true"
       - key: EVENT_SYNC_BATCH_SIZE
         value: "10"
+      - key: SYNC_START_BLOCK
+        value: "11869257"
       - key: STORAGE_BACKEND
         value: disabled

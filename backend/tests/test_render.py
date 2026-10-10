@@ -28,12 +28,18 @@ def test_render_blueprint_has_safe_web_worker_and_database():
     assert "disk" not in worker and "scaling" not in web
     for service in (web, worker):
         env = {item["key"]: item for item in service["envVars"]}
-        assert env["DATABASE_URL"]["fromDatabase"]["name"] == "supply-chain-finance-db"
+        assert env["DATABASE_URL"] == {"key": "DATABASE_URL", "sync": False}
+        assert "fromDatabase" not in env["DATABASE_URL"]
+        assert "value" not in env["DATABASE_URL"]
         assert env["WEB3_PROVIDER_URI"] == {"key": "WEB3_PROVIDER_URI", "sync": False}
+        assert env["SECRET_KEY"] == {"key": "SECRET_KEY", "generateValue": True}
     web_env = {item["key"]: item.get("value") for item in web["envVars"]}
     worker_env = {item["key"]: item.get("value") for item in worker["envVars"]}
     assert web_env["EVENT_SYNC_ENABLED"] == "false"
     assert worker_env["EVENT_SYNC_ENABLED"] == "true"
+    assert web_env["APP_ENV"] == worker_env["APP_ENV"] == "production"
+    assert worker_env["EVENT_SYNC_BATCH_SIZE"] == "10"
+    assert worker_env["SYNC_START_BLOCK"] == "11869257"
     assert web_env["STORAGE_BACKEND"] == "render_disk"
     assert web_env["PROCESS_ROLE"] == "web"
     assert worker_env["PROCESS_ROLE"] == "worker"
@@ -41,8 +47,9 @@ def test_render_blueprint_has_safe_web_worker_and_database():
     assert web_env["UPLOAD_FOLDER"] == "/opt/render/project/src/uploads"
     assert worker_env["STORAGE_BACKEND"] == "disabled"
     web_items = {item["key"]: item for item in web["envVars"]}
-    for key in ("WEB3_PROVIDER_URI",):
+    for key in ("WEB3_PROVIDER_URI", "DATABASE_URL"):
         assert web_items[key].get("sync") is False
         assert "value" not in web_items[key]
     assert not any(key.startswith("S3_") for key in web_items)
     assert "postgresql://" not in raw and "postgres://" not in raw
+    assert "property: connectionString" not in raw
