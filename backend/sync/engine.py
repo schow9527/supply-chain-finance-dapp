@@ -33,7 +33,11 @@ class SyncError(RuntimeError):
 
 
 class SyncStartupError(SyncError):
-    pass
+    def __init__(self, code: str, *, check_id: str, detail: str):
+        super().__init__(code)
+        self.code = code
+        self.check_id = check_id
+        self.detail = detail
 
 
 class ChainReorgDetected(SyncError):
@@ -107,10 +111,10 @@ def safe_sync_error(exc: Exception) -> dict[str, object]:
         }
     if isinstance(exc, SyncStartupError):
         return {
-            "code": str(exc) if str(exc).isupper() else "SYNC_STARTUP_FAILED",
+            "code": exc.code,
             "http_status": "none",
             "category": "startup",
-            "detail": "startup_validation_failed",
+            "detail": f"check={exc.check_id} reason={exc.detail}",
         }
     status = _http_status(exc)
     if status is not None:
@@ -129,17 +133,56 @@ def safe_sync_error(exc: Exception) -> dict[str, object]:
 
 
 def create_web3_provider(uri: str):
+    if not uri:
+        raise SyncStartupError(
+            "RPC_UNAVAILABLE", check_id="CHAIN_ID", detail="provider_not_configured"
+        )
     try:
         from web3 import Web3
 
-        provider = Web3(Web3.HTTPProvider(uri, request_kwargs={"timeout": 10}))
-        if not provider.is_connected():
-            raise SyncStartupError("RPC_UNAVAILABLE")
-        return provider
+        # Do not call Web3.is_connected(): it probes web3_clientVersion, while
+        # production preflight and the worker only require Ethereum RPC methods.
+        return Web3(Web3.HTTPProvider(uri, request_kwargs={"timeout": 10}))
     except SyncStartupError:
         raise
     except Exception as exc:
-        raise SyncStartupError("RPC_UNAVAILABLE") from exc
+        raise SyncStartupError(
+            "RPC_UNAVAILABLE", check_id="CHAIN_ID", detail="provider_initialization_failed"
+        ) from exc
+
+
+def _startup_error_for_check(check) -> SyncStartupError:
+    check_id = check.name
+    if check_id == "DATABASE":
+        return SyncStartupError(
+            "DATABASE_UNAVAILABLE", check_id=check_id, detail="connection_failed"
+        )
+    if check_id == "MIGRATIONS":
+        return SyncStartupError(
+            "MIGRATION_REQUIRED", check_id=check_id,
+            detail="revision_or_schema_mismatch",
+        )
+    if check_id == "SYNC_STATE":
+        return SyncStartupError(
+            "SYNC_STATE_INVALID", check_id=check_id, detail="invalid_cursor_state"
+        )
+    if check_id in {"CONTRACT_CONFIG", "SYNC_START_BLOCK"}:
+        return SyncStartupError(
+            "CONTRACT_CONFIG_INVALID", check_id=check_id,
+            detail="deployment_configuration_mismatch",
+        )
+    if check_id in {"CHAIN_ID", "CONTRACTS", "CONTRACT_LINKS"}:
+        rpc_failure = any(token in check.detail for token in (
+            "RPC", "unavailable", "VIEW_ERROR", "LINK_ERROR",
+        ))
+        return SyncStartupError(
+            "RPC_UNAVAILABLE" if rpc_failure else "CONTRACT_CONFIG_INVALID",
+            check_id=check_id,
+            detail="rpc_request_failed" if rpc_failure else "contract_validation_failed",
+        )
+    return SyncStartupError(
+        "CONFIG_INVALID", check_id=check_id, detail="worker_configuration_invalid"
+    )
 
 
 def _field(value, *names):
@@ -173,17 +216,70 @@ class EventSynchronizer:
         return self.provider
 
     def validate_startup(self):
+        configured_role = (self.app.config.get("PROCESS_ROLE") or
+                           self.app.config.get("PROCESS_TYPE", "web")).lower()
+        if configured_role != "worker":
+            raise SyncStartupError(
+                "CONFIG_INVALID", check_id="PROCESS_ROLE", detail="worker_role_required"
+            )
+        if self.app.config.get("EVENT_SYNC_ENABLED") is not True:
+            raise SyncStartupError(
+                "CONFIG_INVALID", check_id="EVENT_SYNC_ENABLED", detail="disabled"
+            )
+        try:
+            batch_size = int(self.app.config.get("EVENT_SYNC_BATCH_SIZE", 0))
+        except (TypeError, ValueError):
+            batch_size = 0
+        if batch_size <= 0:
+            raise SyncStartupError(
+                "CONFIG_INVALID", check_id="EVENT_SYNC_BATCH_SIZE",
+                detail="must_be_positive",
+            )
+
         provider = self._provider()
-        if int(provider.eth.chain_id) != int(self.app.config["CHAIN_ID"]):
-            raise SyncStartupError("CHAIN_ID_MISMATCH")
+
+        if self.app.config.get("ENV_NAME") == "production":
+            from backend.preflight import collect_preflight
+
+            checks = collect_preflight(self.app, role="worker", web3=provider)
+            failure = next(
+                (check for check in checks if check.critical and not check.passed), None
+            )
+            if failure is not None:
+                raise _startup_error_for_check(failure)
+            return True
+
+        try:
+            chain_id = int(provider.eth.chain_id)
+        except Exception as exc:
+            raise SyncStartupError(
+                "RPC_UNAVAILABLE", check_id="CHAIN_ID", detail="rpc_request_failed"
+            ) from exc
+        if chain_id != int(self.app.config["CHAIN_ID"]):
+            raise SyncStartupError(
+                "CONTRACT_CONFIG_INVALID", check_id="CHAIN_ID",
+                detail="chain_id_mismatch",
+            )
         for name, raw_address in self.app.config["CONTRACT_ADDRESSES"].items():
             try:
                 address = rpc_checksum_address(raw_address, name)
             except ContractAddressError as exc:
-                raise SyncStartupError(str(exc)) from exc
-            code = provider.eth.get_code(address)
+                raise SyncStartupError(
+                    "CONTRACT_CONFIG_INVALID", check_id=f"CONTRACT_ADDRESS_{name}",
+                    detail="invalid_contract_address",
+                ) from exc
+            try:
+                code = provider.eth.get_code(address)
+            except Exception as exc:
+                raise SyncStartupError(
+                    "RPC_UNAVAILABLE", check_id=f"CONTRACT_CODE_{name}",
+                    detail="rpc_request_failed",
+                ) from exc
             if not code or hex_value(code) in {"0x", "0x0", "0x00"}:
-                raise SyncStartupError(f"{name}: CONTRACT_CODE_MISSING")
+                raise SyncStartupError(
+                    "CONTRACT_CONFIG_INVALID", check_id=f"CONTRACT_CODE_{name}",
+                    detail="bytecode_missing",
+                )
         return True
 
     def _cursor(self):
@@ -229,7 +325,10 @@ class EventSynchronizer:
         total = 0
         batch_size = int(self.app.config["EVENT_SYNC_BATCH_SIZE"])
         if batch_size <= 0:
-            raise SyncStartupError("EVENT_SYNC_BATCH_SIZE_INVALID")
+            raise SyncStartupError(
+                "CONFIG_INVALID", check_id="EVENT_SYNC_BATCH_SIZE",
+                detail="must_be_positive",
+            )
         while next_block <= safe_head:
             to_block = min(next_block + batch_size - 1, safe_head)
             total += self._sync_batch(next_block, to_block, latest)

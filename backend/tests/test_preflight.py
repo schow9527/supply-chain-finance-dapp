@@ -9,6 +9,7 @@ from backend.preflight import (
     _chain_checks,
     _migration_check,
     _safe_database_label,
+    _sync_config_checks,
     collect_preflight,
 )
 from backend.storage import RenderDiskStorage
@@ -178,6 +179,24 @@ def test_role_preflight_separates_web_storage_from_worker_chain(app):
     worker = {check.name for check in collect_preflight(app, role="worker")}
     assert "STORAGE" in web and "CHAIN_ID" not in web and "SYNC_STATE" not in web
     assert "STORAGE" not in worker and "CHAIN_ID" in worker and "SYNC_STATE" in worker
+
+
+def test_worker_preflight_checks_actual_role_enablement_and_manifest_start(app):
+    app.config.update(
+        PROCESS_ROLE="web", EVENT_SYNC_ENABLED=False, SYNC_START_BLOCK=1,
+        EVENT_SYNC_BATCH_SIZE=10,
+    )
+    checks = {check.name: check for check in collect_preflight(app, role="worker")}
+    assert checks["PROCESS_ROLE"].status == "FAIL"
+    assert checks["EVENT_SYNC_ENABLED"].status == "FAIL"
+    assert checks["SYNC_START_BLOCK"].status == "FAIL"
+
+    app.config.update(
+        PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        SYNC_START_BLOCK=app.config["START_BLOCK"],
+    )
+    sync_checks = {check.name: check for check in _sync_config_checks(app)}
+    assert all(check.status == "PASS" for check in sync_checks.values())
 
 
 def test_web_preflight_checks_render_disk_without_exposing_mount(app, tmp_path):

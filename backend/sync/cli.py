@@ -5,7 +5,7 @@ from flask import current_app
 
 from backend.extensions import db
 from backend.models import SyncState
-from backend.sync.engine import EventSynchronizer, safe_sync_error
+from backend.sync.engine import EventSynchronizer, SyncStartupError, safe_sync_error
 from backend.sync.projections import rebuild_projections as rebuild_all
 from backend.preflight import collect_post_deploy, collect_preflight, preflight_succeeded
 
@@ -51,10 +51,24 @@ def register_sync_commands(app):
 
     @app.cli.command("sync-status")
     def sync_status():
-        cursor = SyncState.query.filter_by(
-            chain_id=current_app.config["CHAIN_ID"],
-            contract_address="0x0000000000000000000000000000000000000000",
-        ).first()
+        try:
+            cursor = SyncState.query.filter_by(
+                chain_id=current_app.config["CHAIN_ID"],
+                contract_address="0x0000000000000000000000000000000000000000",
+            ).first()
+        except Exception:
+            db.session.rollback()
+            safe = safe_sync_error(SyncStartupError(
+                "DATABASE_UNAVAILABLE", check_id="DATABASE",
+                detail="connection_failed",
+            ))
+            click.echo(
+                "SYNC_STATUS_ERROR "
+                f"code={safe['code']} category={safe['category']} "
+                f"detail={safe['detail']}",
+                err=True,
+            )
+            raise click.exceptions.Exit(1) from None
         if cursor is None:
             click.echo("status=not_started")
             return

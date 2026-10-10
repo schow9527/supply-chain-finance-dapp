@@ -14,7 +14,10 @@ from backend.sync.engine import (
     EventSynchronizer,
     SyncRpcError,
     SyncStartupError,
+    create_web3_provider,
+    safe_sync_error,
 )
+from backend.preflight import Check
 from backend.sync.projections import project_event
 from backend.sync.registry import hex_value
 
@@ -54,6 +57,8 @@ class FakeProvider:
 
 def _sync(app, provider=None, projector=None, sleep=None, jitter=None):
     app.config.update(
+        PROCESS_ROLE="worker",
+        EVENT_SYNC_ENABLED=True,
         SYNC_START_BLOCK=10,
         EVENT_SYNC_BATCH_SIZE=500,
         BLOCK_CONFIRMATIONS=0,
@@ -108,12 +113,160 @@ def test_worker_startup_validates_chain_and_contract_code(app):
     sync = _sync(app)
     assert sync.validate_startup() is True
     bad_chain = _sync(app, FakeProvider(chain_id=1))
-    with pytest.raises(SyncStartupError, match="CHAIN_ID_MISMATCH"):
+    with pytest.raises(SyncStartupError, match="CONTRACT_CONFIG_INVALID"):
         bad_chain.validate_startup()
     missing = FakeProvider()
     missing.eth.missing_code = sync.registry.addresses[0]
-    with pytest.raises(SyncStartupError, match="CONTRACT_CODE_MISSING"):
+    with pytest.raises(SyncStartupError, match="CONTRACT_CONFIG_INVALID"):
         _sync(app, missing).validate_startup()
+
+
+def test_worker_startup_rejects_disabled_sync_and_wrong_role(app):
+    sync = _sync(app)
+    app.config["EVENT_SYNC_ENABLED"] = False
+    with pytest.raises(SyncStartupError) as disabled:
+        sync.validate_startup()
+    assert disabled.value.code == "CONFIG_INVALID"
+    assert disabled.value.check_id == "EVENT_SYNC_ENABLED"
+
+    app.config.update(EVENT_SYNC_ENABLED=True, PROCESS_ROLE="web")
+    with pytest.raises(SyncStartupError) as wrong_role:
+        sync.validate_startup()
+    assert wrong_role.value.code == "CONFIG_INVALID"
+    assert wrong_role.value.check_id == "PROCESS_ROLE"
+
+
+def test_provider_creation_does_not_probe_web3_client_version(monkeypatch):
+    class Provider:
+        pass
+
+    class Web3WithoutClientVersion:
+        HTTPProvider = staticmethod(lambda *_args, **_kwargs: Provider())
+
+        def __init__(self, provider):
+            self.provider = provider
+
+        def is_connected(self):
+            raise AssertionError("web3_clientVersion must not be probed")
+
+    monkeypatch.setattr("web3.Web3", Web3WithoutClientVersion)
+
+    provider = create_web3_provider("https://rpc.example.invalid/redacted")
+
+    assert isinstance(provider, Web3WithoutClientVersion)
+
+
+def test_production_startup_uses_preflight_result_and_then_fetches_logs(
+        app, monkeypatch):
+    provider = FakeProvider(latest=10)
+    app.config.update(
+        ENV_NAME="production", PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        SYNC_PROVIDER=provider, SYNC_START_BLOCK=10, EVENT_SYNC_BATCH_SIZE=10,
+        BLOCK_CONFIRMATIONS=0,
+    )
+    monkeypatch.setattr(
+        "backend.preflight.collect_preflight",
+        lambda _app, role=None, web3=None: [Check("CHAIN_ID", "PASS")],
+    )
+
+    result = app.test_cli_runner().invoke(args=["sync-events", "--once"])
+
+    assert result.exit_code == 0, result.output
+    assert provider.eth.calls == [(10, 10)]
+    assert SyncState.query.one().last_synced_block == 10
+
+
+def test_production_startup_maps_manifest_failure_without_fetching_logs(
+        app, monkeypatch):
+    provider = FakeProvider(latest=10)
+    app.config.update(
+        ENV_NAME="production", PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        SYNC_PROVIDER=provider, EVENT_SYNC_BATCH_SIZE=10,
+    )
+    monkeypatch.setattr(
+        "backend.preflight.collect_preflight",
+        lambda _app, role=None, web3=None: [
+            Check("SYNC_START_BLOCK", "FAIL", "does not match deployment manifest")
+        ],
+    )
+
+    result = app.test_cli_runner().invoke(args=["sync-events", "--once"])
+
+    assert result.exit_code == 1
+    assert "code=CONTRACT_CONFIG_INVALID" in result.output
+    assert "check=SYNC_START_BLOCK" in result.output
+    assert provider.eth.calls == []
+
+
+@pytest.mark.parametrize(("check_id", "expected_code"), [
+    ("DATABASE", "DATABASE_UNAVAILABLE"),
+    ("MIGRATIONS", "MIGRATION_REQUIRED"),
+    ("SYNC_STATE", "SYNC_STATE_INVALID"),
+    ("CONTRACTS", "CONTRACT_CONFIG_INVALID"),
+])
+def test_production_startup_uses_specific_failure_codes(
+        app, monkeypatch, check_id, expected_code):
+    provider = FakeProvider(latest=10)
+    app.config.update(
+        ENV_NAME="production", PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        EVENT_SYNC_BATCH_SIZE=10,
+    )
+    monkeypatch.setattr(
+        "backend.preflight.collect_preflight",
+        lambda _app, role=None, web3=None: [Check(check_id, "FAIL", "safe failure")],
+    )
+
+    with pytest.raises(SyncStartupError) as failure:
+        EventSynchronizer(app, provider).validate_startup()
+
+    assert failure.value.code == expected_code
+    assert failure.value.check_id == check_id
+    assert provider.eth.calls == []
+
+
+def test_rpc_startup_failure_is_mapped_without_secret(app):
+    secret = "startup-rpc-secret"
+
+    class BrokenEth:
+        @property
+        def chain_id(self):
+            raise _http_error(500, "server failure", secret=secret)
+
+    provider = SimpleNamespace(eth=BrokenEth())
+    sync = _sync(app, provider)
+
+    with pytest.raises(SyncStartupError) as failure:
+        sync.validate_startup()
+    safe = safe_sync_error(failure.value)
+    assert safe["code"] == "RPC_UNAVAILABLE"
+    assert safe["detail"] == "check=CHAIN_ID reason=rpc_request_failed"
+    assert secret not in str(safe)
+    assert "https://" not in str(safe)
+
+
+def test_rpc_startup_cli_has_stable_check_and_no_secret(app):
+    secret = "startup-cli-secret"
+
+    class BrokenEth:
+        @property
+        def chain_id(self):
+            raise _http_error(500, "server failure", secret=secret)
+
+    app.config.update(
+        PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        EVENT_SYNC_BATCH_SIZE=10,
+        SYNC_PROVIDER=SimpleNamespace(eth=BrokenEth()),
+        WEB3_PROVIDER_URI=f"https://rpc.example.invalid/v2/{secret}",
+    )
+
+    result = app.test_cli_runner().invoke(args=["sync-events", "--once"])
+
+    assert result.exit_code == 1
+    assert "code=RPC_UNAVAILABLE" in result.output
+    assert "check=CHAIN_ID" in result.output
+    assert "Traceback" not in result.output
+    assert secret not in result.output
+    assert "https://" not in result.output
 
 
 def test_empty_range_does_not_fetch_logs(app):
@@ -388,6 +541,8 @@ def test_worker_log_uses_safe_fields_without_rpc_secret(app, monkeypatch, caplog
 
 def test_sync_cli_runs_once_and_reports_status(app):
     app.config.update(
+        PROCESS_ROLE="worker",
+        EVENT_SYNC_ENABLED=True,
         SYNC_PROVIDER=FakeProvider(latest=9),
         SYNC_START_BLOCK=10,
         BLOCK_CONFIRMATIONS=0,
@@ -408,6 +563,8 @@ def test_sync_cli_redacts_http_error_and_never_prints_traceback(app):
         _http_error(400, "invalid filter object", secret=secret)
     )
     app.config.update(
+        PROCESS_ROLE="worker",
+        EVENT_SYNC_ENABLED=True,
         SYNC_PROVIDER=provider,
         SYNC_START_BLOCK=10,
         EVENT_SYNC_BATCH_SIZE=10,

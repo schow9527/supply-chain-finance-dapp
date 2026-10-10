@@ -81,7 +81,7 @@ def _database_checks(app) -> list[Check]:
                 Check("MIGRATIONS", "FAIL", "database unavailable")]
 
 
-def _chain_checks(app) -> list[Check]:
+def _chain_checks(app, web3=None) -> list[Check]:
     uri = app.config.get("WEB3_PROVIDER_URI", "")
     if not uri:
         return [
@@ -89,10 +89,11 @@ def _chain_checks(app) -> list[Check]:
             Check("CONTRACTS", "FAIL", "RPC not configured"),
             Check("CONTRACT_LINKS", "FAIL", "RPC not configured"),
         ]
-    from web3 import Web3
-    web3 = app.config.get("PREFLIGHT_WEB3") or Web3(
-        Web3.HTTPProvider(uri, request_kwargs={"timeout": 10})
-    )
+    if web3 is None:
+        from web3 import Web3
+        web3 = app.config.get("PREFLIGHT_WEB3") or Web3(
+            Web3.HTTPProvider(uri, request_kwargs={"timeout": 10})
+        )
     try:
         chain_id = int(web3.eth.chain_id)
         latest = int(web3.eth.block_number)
@@ -218,6 +219,13 @@ def _sync_checks(app) -> list[Check]:
         if cursor is None:
             return [Check("SYNC_STATE", "NOT_STARTED", "no cursor", critical=False),
                     Check("SYNC_LAG", "WARN", "not available", critical=False)]
+        if cursor.status != "healthy":
+            return [Check("SYNC_STATE", "FAIL", f"status={cursor.status}"),
+                    Check("SYNC_LAG", "WARN", "not available", critical=False)]
+        minimum_cursor = int(app.config.get("SYNC_START_BLOCK", 0)) - 1
+        if cursor.last_synced_block < minimum_cursor:
+            return [Check("SYNC_STATE", "FAIL", "cursor precedes deployment"),
+                    Check("SYNC_LAG", "WARN", "not available", critical=False)]
         lag = (max(0, cursor.latest_chain_block - cursor.last_synced_block)
                if cursor.latest_chain_block is not None else None)
         lag_status = "PASS" if lag is not None and lag <= int(
@@ -235,14 +243,43 @@ def _sync_checks(app) -> list[Check]:
                 Check("SYNC_LAG", "WARN", "state unavailable", critical=False)]
 
 
+def _sync_config_checks(app) -> list[Check]:
+    enabled = app.config.get("EVENT_SYNC_ENABLED") is True
+    try:
+        batch_size = int(app.config.get("EVENT_SYNC_BATCH_SIZE", 0))
+        batch_ok = batch_size > 0
+    except (TypeError, ValueError):
+        batch_size = 0
+        batch_ok = False
+    try:
+        deployment = json.loads(DEPLOYMENT_FILE.read_text(encoding="utf-8"))
+        manifest_start = int(deployment["startBlock"])
+        configured_start = int(app.config.get("SYNC_START_BLOCK", -1))
+        start_ok = configured_start == manifest_start
+    except (OSError, ValueError, TypeError, KeyError):
+        manifest_start = None
+        configured_start = None
+        start_ok = False
+    return [
+        Check("EVENT_SYNC_ENABLED", "PASS" if enabled else "FAIL",
+              "enabled" if enabled else "disabled"),
+        Check("EVENT_SYNC_BATCH_SIZE", "PASS" if batch_ok else "FAIL",
+              f"blocks={batch_size}" if batch_ok else "must be a positive integer"),
+        Check("SYNC_START_BLOCK", "PASS" if start_ok else "FAIL",
+              f"block={configured_start}" if start_ok else "does not match deployment manifest"),
+    ]
+
+
 def _common_checks(app, role: str) -> list[Check]:
     secret = app.config.get("SECRET_KEY")
     secret_ok = secret not in {None, "", DEFAULT_SECRET_KEY, EXAMPLE_SECRET_KEY}
+    configured_role = (app.config.get("PROCESS_ROLE") or
+                       app.config.get("PROCESS_TYPE", "web")).lower()
     return [
         Check("CONFIG", "PASS" if app.config.get("ENV_NAME") == "production" else "FAIL",
               f"mode={app.config.get('ENV_NAME', 'unknown')}"),
-        Check("PROCESS_ROLE", "PASS" if role in {"web", "worker"} else "FAIL",
-              f"role={role}"),
+        Check("PROCESS_ROLE", "PASS" if configured_role == role else "FAIL",
+              f"role={configured_role}"),
         Check("DEBUG", "PASS" if not app.config.get("DEBUG") and not app.config.get("TESTING") else "FAIL",
               "disabled" if not app.config.get("DEBUG") else "enabled"),
         Check("SESSION_SECRET", "PASS" if secret_ok else "FAIL",
@@ -252,7 +289,7 @@ def _common_checks(app, role: str) -> list[Check]:
     ]
 
 
-def collect_preflight(app, role: str | None = None) -> list[Check]:
+def collect_preflight(app, role: str | None = None, web3=None) -> list[Check]:
     role = (role or app.config.get("PROCESS_ROLE") or
             app.config.get("PROCESS_TYPE", "web")).lower()
     checks = _common_checks(app, role)
@@ -260,7 +297,8 @@ def collect_preflight(app, role: str | None = None) -> list[Check]:
     if role == "web":
         checks.append(_storage_check(app))
     elif role == "worker":
-        checks.extend(_chain_checks(app))
+        checks.extend(_sync_config_checks(app))
+        checks.extend(_chain_checks(app, web3=web3))
         checks.extend(_sync_checks(app))
     checks.append(Check("SECRETS_REDACTED", "PASS", "sensitive values omitted"))
     return checks
