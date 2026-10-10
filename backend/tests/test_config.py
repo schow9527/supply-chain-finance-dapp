@@ -52,6 +52,33 @@ def test_testing_config_ignores_database_environment(monkeypatch):
     assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite+pysqlite:///:memory:"
 
 
+def test_development_web_starts_without_rpc(monkeypatch, tmp_path):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("PROCESS_ROLE", "web")
+    monkeypatch.setenv("EVENT_SYNC_ENABLED", "false")
+    monkeypatch.setenv("STORAGE_BACKEND", "local")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'development.sqlite3'}")
+    monkeypatch.delenv("WEB3_PROVIDER_URI", raising=False)
+
+    app = create_app("development")
+
+    assert app.config["WEB3_PROVIDER_URI"] == ""
+    assert app.config["PROCESS_ROLE"] == "web"
+    assert app.config["EVENT_SYNC_ENABLED"] is False
+    assert app.test_client().get("/api/health/live").status_code == 200
+
+
+def test_production_worker_without_rpc_remains_fail_closed(monkeypatch):
+    _valid_production_env(monkeypatch)
+    monkeypatch.setenv("PROCESS_ROLE", "worker")
+    monkeypatch.setenv("EVENT_SYNC_ENABLED", "true")
+    monkeypatch.setenv("STORAGE_BACKEND", "disabled")
+    monkeypatch.delenv("WEB3_PROVIDER_URI")
+
+    with pytest.raises(RuntimeError, match="WEB3_PROVIDER_URI"):
+        create_app(ProductionConfig)
+
+
 def test_fixture_guard_rejects_suspicious_postgres_uri():
     with pytest.raises(RuntimeError, match="non-test database"):
         assert_safe_test_database_uri(
