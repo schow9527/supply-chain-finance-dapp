@@ -20,8 +20,6 @@ jobs:
       PROCESS_ROLE: web
       EVENT_SYNC_ENABLED: "false"
       STORAGE_BACKEND: local
-      DATABASE_URL: sqlite+pysqlite:///${{ runner.temp }}/scf-clean-room.sqlite3
-      UPLOAD_FOLDER: ${{ runner.temp }}/uploads
       SECRET_KEY: ci-only-placeholder-not-for-production
       WEB3_PROVIDER_URI: ""
       CHAIN_ID: "11155111"
@@ -33,6 +31,13 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      - name: Configure isolated CI paths
+        shell: bash
+        run: |
+          echo "DATABASE_URL=sqlite+pysqlite:///$RUNNER_TEMP/scf-clean-room.sqlite3" >> "$GITHUB_ENV"
+          echo "UPLOAD_FOLDER=$RUNNER_TEMP/uploads" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/uploads"
 
       - name: Set up Python
         uses: actions/setup-python@v7
