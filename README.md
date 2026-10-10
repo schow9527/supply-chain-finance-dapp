@@ -148,6 +148,20 @@ macOS/Linux 可用 `find static/js -name '*.js' -exec node --check {} \;` 检查
 
 `render.yaml` 定义了 Web、Worker、Web Persistent Disk 和 pre-deploy migration，但不是零配置部署。Blueprint 同步时必须在 Dashboard 中为 Web 和 Worker 分别提供同一个目标 PostgreSQL `DATABASE_URL`、`WEB3_PROVIDER_URI` 和高熵 `SECRET_KEY`；这些值在 Blueprint 中均为 `sync: false`，不得硬编码。Web 使用 `gunicorn app:app`，迁移只由 `preDeployCommand` 执行，Worker 使用 `python -m backend.worker`。部署前按 [`docs/deployment.md`](docs/deployment.md) 执行角色预检。
 
+### Public deployment
+
+- Application: <https://supply-chain-finance-dapp-nkkr.onrender.com/>
+- Readiness: <https://supply-chain-finance-dapp-nkkr.onrender.com/api/health/ready>
+- Network: Sepolia (`CHAIN_ID=11155111`)
+
+The readiness endpoint verifies the production configuration, PostgreSQL
+connection and migrations, Sepolia RPC and contract configuration, persistent
+PDF storage, and the persisted event-sync cursor. A `200` response with
+`"status": "ready"` confirms that the Web service is ready to receive traffic.
+Continuous chain indexing is provided by the separately deployed Render Worker
+defined in `render.yaml`; the Web process intentionally keeps
+`EVENT_SYNC_ENABLED=false`.
+
 ---
 
 ## 📋 核心业务流程速览
