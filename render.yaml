@@ -14,6 +14,61 @@ services:
     numInstances: 1
     buildCommand: pip install -r requirements.txt
     preDeployCommand: flask --app app:app db upgrade
+    startCommand: python -m backend.combined
+    healthCheckPath: /api/health/ready
+    disk:
+      name: invoice-pdf-data
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PROCESS_ROLE
+        value: web
+      # Set this service's Internal Database URL manually in the Render Dashboard.
+      # It must target the isolated supply_chain_finance_v2 logical database.
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB3_PROVIDER_URI
+        sync: false
+      - key: CHAIN_ID
+        value: "11155111"
+      - key: RPC_HEALTHCHECK_CACHE_TTL
+        value: "30"
+      - key: SYNC_MAX_LAG_BLOCKS
+        value: "12"
+      - key: EVENT_SYNC_ENABLED
+        value: "false"
+      - key: EVENT_SYNC_BATCH_SIZE
+        value: "100"
+      - key: SYNC_POLL_INTERVAL
+        value: "12"
+      - key: STORAGE_BACKEND
+        value: render_disk
+      - key: RENDER_DISK_MOUNT_PATH
+        value: /opt/render/project/src/uploads
+      - key: UPLOAD_FOLDER
+        value: /opt/render/project/src/uploads
+      - key: WEB_INSTANCE_COUNT
+        value: "1"
+databases:
+  - name: supply-chain-finance-db
+    plan: 0.1c-256mb
+    region: singapore
+    databaseName: supply_chain_finance
+    user: supply_chain_finance
+
+services:
+  - type: web
+    name: supply-chain-finance-web
+    runtime: python
+    plan: 0.5c-512mb
+    region: singapore
+    numInstances: 1
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: flask --app app:app db upgrade
     startCommand: gunicorn app:app
     healthCheckPath: /api/health/ready
     disk:
