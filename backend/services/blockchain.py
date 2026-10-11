@@ -46,10 +46,12 @@ def role_hash(role: str) -> str:
 
 
 class RoleManagerService:
-    def __init__(self, provider_uri: str, contract_address: str, confirmations: int = 1):
+    def __init__(self, provider_uri: str, contract_address: str, confirmations: int = 1,
+                 chain_id: int = 11155111):
         self.provider_uri = provider_uri
         self.contract_address = contract_address
         self.confirmations = max(1, int(confirmations))
+        self.chain_id = int(chain_id)
         self._abi = json.loads(ROLE_ABI_FILE.read_text(encoding="utf-8"))
 
     def _client_and_contract(self):
@@ -60,7 +62,18 @@ class RoleManagerService:
 
             web3 = Web3(Web3.HTTPProvider(self.provider_uri, request_kwargs={"timeout": 3}))
             if not web3.is_connected():
+                current_app.logger.warning(
+                    "rpc_unavailable operation=connect error=connection_failed"
+                )
                 raise RpcUnavailable("Sepolia RPC is unavailable")
+            actual_chain_id = int(web3.eth.chain_id)
+            if actual_chain_id != self.chain_id:
+                current_app.logger.warning(
+                    "rpc_unavailable operation=connect error=chain_mismatch "
+                    "expected_chain_id=%s actual_chain_id=%s",
+                    self.chain_id, actual_chain_id,
+                )
+                raise RpcUnavailable("Sepolia RPC is connected to the wrong chain")
             contract = web3.eth.contract(
                 address=rpc_checksum_address(self.contract_address, "RoleManager"),
                 abi=self._abi,
@@ -69,6 +82,11 @@ class RoleManagerService:
         except RpcUnavailable:
             raise
         except Exception as exc:
+            response = getattr(exc, "response", None)
+            current_app.logger.warning(
+                "rpc_unavailable operation=connect error_type=%s http_status=%s",
+                type(exc).__name__, getattr(response, "status_code", None),
+            )
             raise RpcUnavailable("Sepolia RPC is unavailable") from exc
 
     def get_role(self, wallet_address: str) -> str:
@@ -147,4 +165,5 @@ def get_role_service():
         current_app.config.get("WEB3_PROVIDER_URI", ""),
         current_app.config["ROLE_MANAGER_ADDRESS"],
         current_app.config.get("BLOCK_CONFIRMATIONS", 1),
+        current_app.config.get("CHAIN_ID", 11155111),
     )
