@@ -1,5 +1,9 @@
+import web3
+
 from backend.app import create_app
-from backend.config import TestingConfig
+from backend.config import TestingConfig, ZERO_ADDRESS
+from backend.extensions import db
+from backend.models import SyncState
 from backend.routes.pages import PAGE_ROUTES
 from backend.storage import RenderDiskStorage
 
@@ -67,6 +71,64 @@ def test_readiness_render_disk_is_healthy_without_exposing_path(client, app, tmp
     assert storage["status"] == "ok"
     assert storage["free_space"] in {"adequate", "healthy"}
     assert str(tmp_path) not in response.get_data(as_text=True)
+
+
+def test_readiness_uses_live_chain_head_and_detects_stalled_sync(
+    client, app, monkeypatch
+):
+    class FakeWeb3:
+        HTTPProvider = staticmethod(lambda *_args, **_kwargs: object())
+
+        def __init__(self, _provider):
+            self.eth = type("Eth", (), {"chain_id": 11155111, "block_number": 200})()
+
+    monkeypatch.setattr(web3, "Web3", FakeWeb3)
+    app.config.update(
+        RPC_HEALTHCHECK_ENABLED=True,
+        RPC_HEALTHCHECK_CACHE_TTL=0,
+        WEB3_PROVIDER_URI="https://sepolia.example.invalid",
+        SYNC_MAX_LAG_BLOCKS=12,
+    )
+    db.session.add(SyncState(
+        chain_id=11155111,
+        contract_address=ZERO_ADDRESS,
+        contract_name="all-contracts",
+        last_synced_block=100,
+        latest_chain_block=101,
+        status="healthy",
+    ))
+    db.session.commit()
+
+    payload = client.get("/api/health/ready").get_json()
+
+    assert payload["status"] == "degraded"
+    assert payload["checks"]["rpc"]["latest_chain_block"] == 200
+    assert payload["checks"]["latest_chain_block"] == 200
+    assert payload["checks"]["sync_lag_blocks"] == 100
+    assert payload["checks"]["event_sync"]["error"] == "SYNC_LAG_EXCEEDED"
+
+
+def test_readiness_reports_rpc_chain_mismatch(client, app, monkeypatch):
+    class FakeWeb3:
+        HTTPProvider = staticmethod(lambda *_args, **_kwargs: object())
+
+        def __init__(self, _provider):
+            self.eth = type("Eth", (), {"chain_id": 1, "block_number": 26000000})()
+
+    monkeypatch.setattr(web3, "Web3", FakeWeb3)
+    app.config.update(
+        RPC_HEALTHCHECK_ENABLED=True,
+        RPC_HEALTHCHECK_CACHE_TTL=0,
+        WEB3_PROVIDER_URI="https://mainnet.example.invalid",
+    )
+
+    payload = client.get("/api/health/ready").get_json()
+
+    assert payload["status"] == "degraded"
+    assert payload["checks"]["rpc"]["status"] == "invalid"
+    assert payload["checks"]["rpc"]["error"] == "RPC_CHAIN_MISMATCH"
+    assert payload["checks"]["rpc"]["actual_chain_id"] == 1
+    assert payload["checks"]["latest_chain_block"] is None
 
 
 def test_unified_not_found(client):
