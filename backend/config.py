@@ -74,6 +74,8 @@ class Config:
     CORS_RESOURCES = {r"/api/*": {"origins": "*"}}
     RPC_HEALTHCHECK_ENABLED = False
     RPC_HEALTHCHECK_TIMEOUT = 2
+    RPC_HEALTHCHECK_CACHE_TTL = 30
+    SYNC_MAX_LAG_BLOCKS = 12
     NONCE_TTL_SECONDS = 300
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
     SESSION_COOKIE_HTTPONLY = True
@@ -100,6 +102,10 @@ class Config:
             ),
             UPLOAD_FOLDER=os.getenv("UPLOAD_FOLDER", str(BASE_DIR / "uploads")),
             WEB3_PROVIDER_URI=os.getenv("WEB3_PROVIDER_URI", ""),
+            RPC_HEALTHCHECK_CACHE_TTL=int(
+                os.getenv("RPC_HEALTHCHECK_CACHE_TTL", 30)
+            ),
+            SYNC_MAX_LAG_BLOCKS=int(os.getenv("SYNC_MAX_LAG_BLOCKS", 12)),
             CHAIN_ID=int(os.getenv("CHAIN_ID", deployment.get("chainId", 11155111))),
             START_BLOCK=int(os.getenv("START_BLOCK", deployment.get("startBlock", 0))),
             BLOCK_CONFIRMATIONS=int(os.getenv("BLOCK_CONFIRMATIONS", 1)),
