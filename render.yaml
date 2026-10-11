@@ -35,6 +35,10 @@ services:
         sync: false
       - key: CHAIN_ID
         value: "11155111"
+      - key: RPC_HEALTHCHECK_CACHE_TTL
+        value: "30"
+      - key: SYNC_MAX_LAG_BLOCKS
+        value: "12"
       - key: EVENT_SYNC_ENABLED
         value: "false"
       - key: STORAGE_BACKEND
