@@ -30,8 +30,9 @@ def test_liveness(client):
 
 def test_readiness_with_database(client):
     response = client.get("/api/health/ready")
-    assert response.status_code == 200
+    assert response.status_code == 503
     payload = response.get_json()
+    assert payload["status"] == "degraded"
     assert payload["checks"]["database"]["status"] == "ok"
     assert payload["checks"]["contracts"]["status"] == "ok"
     assert payload["checks"]["event_sync"]["status"] == "degraded"
@@ -65,12 +66,46 @@ def test_readiness_render_disk_is_healthy_without_exposing_path(client, app, tmp
         STORAGE_SERVICE=RenderDiskStorage(tmp_path, tmp_path, min_free_bytes=1),
     )
     response = client.get("/api/health/ready")
-    assert response.status_code == 200
+    assert response.status_code == 503
     storage = response.get_json()["checks"]["storage"]
     assert storage["backend"] == "render_disk"
     assert storage["status"] == "ok"
     assert storage["free_space"] in {"adequate", "healthy"}
     assert str(tmp_path) not in response.get_data(as_text=True)
+
+
+def test_readiness_returns_200_when_rpc_and_sync_are_healthy(
+    client, app, monkeypatch
+):
+    class FakeWeb3:
+        HTTPProvider = staticmethod(lambda *_args, **_kwargs: object())
+
+        def __init__(self, _provider):
+            self.eth = type("Eth", (), {"chain_id": 11155111, "block_number": 200})()
+
+    monkeypatch.setattr(web3, "Web3", FakeWeb3)
+    app.config.update(
+        RPC_HEALTHCHECK_ENABLED=True,
+        RPC_HEALTHCHECK_CACHE_TTL=0,
+        WEB3_PROVIDER_URI="https://sepolia.example.invalid",
+        SYNC_MAX_LAG_BLOCKS=12,
+    )
+    db.session.add(SyncState(
+        chain_id=11155111,
+        contract_address=ZERO_ADDRESS,
+        contract_name="all-contracts",
+        last_synced_block=199,
+        latest_chain_block=199,
+        status="healthy",
+    ))
+    db.session.commit()
+
+    response = client.get("/api/health/ready")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["status"] == "ready"
+    assert payload["checks"]["sync_lag_blocks"] == 1
 
 
 def test_readiness_uses_live_chain_head_and_detects_stalled_sync(
@@ -99,8 +134,10 @@ def test_readiness_uses_live_chain_head_and_detects_stalled_sync(
     ))
     db.session.commit()
 
-    payload = client.get("/api/health/ready").get_json()
+    response = client.get("/api/health/ready")
+    payload = response.get_json()
 
+    assert response.status_code == 503
     assert payload["status"] == "degraded"
     assert payload["checks"]["rpc"]["latest_chain_block"] == 200
     assert payload["checks"]["latest_chain_block"] == 200
@@ -122,8 +159,10 @@ def test_readiness_reports_rpc_chain_mismatch(client, app, monkeypatch):
         WEB3_PROVIDER_URI="https://mainnet.example.invalid",
     )
 
-    payload = client.get("/api/health/ready").get_json()
+    response = client.get("/api/health/ready")
+    payload = response.get_json()
 
+    assert response.status_code == 503
     assert payload["status"] == "degraded"
     assert payload["checks"]["rpc"]["status"] == "invalid"
     assert payload["checks"]["rpc"]["error"] == "RPC_CHAIN_MISMATCH"
