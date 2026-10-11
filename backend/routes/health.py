@@ -56,7 +56,8 @@ def ready():
         checks[name]["status"] not in {"ok", "healthy"}
         for name in ("rpc", "storage", "event_sync")
     )
-    return jsonify({"status": "degraded" if degraded else "ready", "checks": checks}), 200
+    status = "degraded" if degraded else "ready"
+    return jsonify({"status": status, "checks": checks}), 503 if degraded else 200
 
 
 def _sync_check(rpc):
