@@ -143,7 +143,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F11-01 | Balance matches chain | S1 | Open My Receivables; call `ReceivableToken.balanceOf(S1, id)` on Etherscan | Amount, core enterprise, due date and status match on-chain data | ☐ | |
+| TC-F11-01 | Balance matches chain | S1 | Open My Receivables; call `ReceivableToken.balanceOf(S1, id)` on Etherscan | Amount, core enterprise, due date and status match on-chain data | ✅ Pass — #4 (1,000, due 2026-10-12 17:18:18) and #5 (10,000, due 2026-11-13) match on-chain `balanceOf`; #2 (transferred to F1) correctly absent | `TC-F11-01.png` |
 | TC-F11-02 | Funder sees acquired receivable | F1 | After funding in the main flow, open My Loans | Receivable acquired from S1 is listed | ☐ | |
 
 ### F-12 Split & Transfer
