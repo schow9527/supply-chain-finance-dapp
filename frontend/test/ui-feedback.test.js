@@ -35,3 +35,28 @@ test("UIFeedback - Custom Error & Revert Parsing", () => {
     const balErr = { message: "insufficient funds for gas * price + value" };
     assert.match(UIFeedback.parseBlockchainError(balErr), /Insufficient Sepolia ETH in wallet to pay gas fees/);
 });
+
+test("UIFeedback - Decodes raw revert data when ethers reports unknown custom error", () => {
+    // ethers leaves err.revert null for some estimateGas failures via MetaMask
+    const fakeIface = {
+        parseError(data) {
+            if (data.startsWith("0x11ed168a")) return { name: "NotOverdueYet" };
+            throw new Error("no matching error");
+        }
+    };
+    const otherIface = { parseError() { throw new Error("no matching error"); } };
+    const rawErr = {
+        message: 'execution reverted (unknown custom error) (action="estimateGas", data="0x11ed168a0000")',
+        revert: null,
+        data: "0x11ed168a0000000000000000000000000000000000000000000000000000000000000002"
+    };
+    assert.match(UIFeedback.parseBlockchainError(rawErr, [otherIface, fakeIface]), /cannot be marked overdue/);
+
+    // Nested provider error shape
+    const nestedErr = { message: "execution reverted", error: { data: rawErr.data } };
+    assert.match(UIFeedback.parseBlockchainError(nestedErr, [fakeIface]), /cannot be marked overdue/);
+
+    // Undecodable data falls back to the raw message
+    const unknownErr = { message: "execution reverted", data: "0xdeadbeef" };
+    assert.strictEqual(UIFeedback.parseBlockchainError(unknownErr, [fakeIface]), "execution reverted");
+});

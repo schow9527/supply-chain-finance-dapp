@@ -91,7 +91,7 @@ function renderTable() {
             <td><code title="${inv.buyer_address}">${window.AppConfig.shortAddress(inv.buyer_address)}</code></td>
             <td><strong>${window.AppConfig.formatTokens(inv.amount)}</strong> mUSD</td>
             <td>${window.AppConfig.formatTimestamp(inv.due_date)}</td>
-            <td><code title="${inv.file_hash}">${inv.file_hash.slice(0, 10)}...${inv.file_hash.slice(-8)}</code></td>
+            <td><code title="${inv.file_hash}">${inv.file_hash.slice(0, 10)}...${inv.file_hash.slice(-8)}</code>${inv.file_url ? `<br><a href="${inv.file_url}" target="_blank" rel="noopener">📄 View PDF</a>` : `<br><span style="color:var(--text-muted); font-size:0.8rem;">No PDF on file</span>`}</td>
             <td>
                 <span class="badge badge-${inv.status === 'CONFIRMED' ? 'success' : (inv.status === 'REJECTED' ? 'danger' : 'warning')}">
                     ${inv.status === 'CONFIRMED' ? 'Confirmed & Minted' : (inv.status === 'REJECTED' ? 'Rejected' : 'Pending')}
