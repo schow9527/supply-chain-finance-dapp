@@ -2,6 +2,11 @@
 
 {% block title %}Financier Dashboard | SCF DApp{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="/static/js/dashboard-charts.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="app-layout">
     {% set active_page = "dashboard" %}
@@ -41,6 +46,11 @@
             </div>
         </div>
 
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+            <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">📊 Funding Portfolio (mUSD)</h3>
+            <div style="position:relative; height:260px;"><canvas id="fin-portfolio-chart"></canvas></div>
+        </div>
+
         <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                 <h3 style="font-size:1.125rem;">Credit Asset Operations Guidance</h3>
@@ -61,13 +71,29 @@ async function loadFinancierDashboard() {
     if (!acc) return;
 
     try {
-        const reqs = await window.DAppState.apiClient.getFinancingRequests("PENDING_QUOTE") || [];
-        document.getElementById("kpi-market-requests").innerHTML = `${reqs.length} <span style="font-size:1rem;">Requests</span>`;
+        const me = acc.toLowerCase();
+        const reqs = await window.DAppState.apiClient.getFinancingRequests() || [];
+        const openReqs = reqs.filter(r => r.status === "PENDING_QUOTE");
+        document.getElementById("kpi-market-requests").innerHTML = `${openReqs.length} <span style="font-size:1rem;">Requests</span>`;
+
+        // Disbursed = payout of the accepted quote on every funded request this funder won
+        let disbursed = 0n;
+        reqs.filter(r => r.status === "FUNDED").forEach(r => {
+            const won = (r.quotes || []).find(q => q.quote_id === r.accepted_quote_id && q.financier_address.toLowerCase() === me);
+            if (won) disbursed += BigInt(won.payout);
+        });
+        document.getElementById("kpi-funded-total").innerHTML = `${window.AppConfig.formatTokens(disbursed.toString())} <span style="font-size:1rem;">mUSD</span>`;
 
         const holdings = await window.DAppState.apiClient.getReceivables(acc) || [];
         let totalHoldings = 0n;
         holdings.forEach(h => { totalHoldings += BigInt(h.balance); });
         document.getElementById("kpi-portfolio-total").innerHTML = `${window.AppConfig.formatTokens(totalHoldings.toString())} <span style="font-size:1rem;">mUSD</span>`;
+        const overdue = holdings.filter(h => h.is_overdue);
+        document.getElementById("kpi-overdue-total").innerHTML = `${overdue.length} <span style="font-size:1rem;">Assets</span>`;
+
+        DashboardCharts.render("fin-portfolio-chart", "bar",
+            ["Disbursed to suppliers", "Pending repayment (face value)"],
+            [DashboardCharts.toTokens(disbursed), DashboardCharts.toTokens(totalHoldings)]);
     } catch (error) {
         console.error(error);
         UIFeedback.showToast(error.message || "Failed to load dashboard data", "error");
@@ -77,5 +103,7 @@ async function loadFinancierDashboard() {
 document.addEventListener("DOMContentLoaded", () => {
     setTimeout(loadFinancierDashboard, 600);
 });
+// Reload when the wallet/session becomes ready (the 600 ms timer alone can fire before sign-in)
+window.addEventListener("walletAccountChanged", () => setTimeout(loadFinancierDashboard, 300));
 </script>
 {% endblock %}

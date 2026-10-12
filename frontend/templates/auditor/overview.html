@@ -2,6 +2,11 @@
 
 {% block title %}Global Audit Overview | Auditor{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="/static/js/dashboard-charts.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="app-layout">
     {% set active_page = "overview" %}
@@ -41,6 +46,11 @@
             </div>
         </div>
 
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+            <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">📊 Invoice Status Distribution</h3>
+            <div style="position:relative; height:260px;"><canvas id="audit-status-chart"></canvas></div>
+        </div>
+
         <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
             <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">🛡️ Audit Compliance & Oversight Responsibilities</h3>
             <p style="color:var(--text-muted); font-size:0.875rem; line-height:1.7;">
@@ -56,12 +66,33 @@
 <script>
 async function loadAuditorOverview() {
     try {
-        const invs = await window.DAppState.apiClient.getInvoices() || [];
+        // Only invoices registered on-chain (exclude drafts without onchain_id)
+        const invs = (await window.DAppState.apiClient.getInvoices() || []).filter(i => i.onchain_id != null);
         document.getElementById("kpi-total-invoices").innerHTML = `${invs.length} <span style="font-size:1rem;">Invoices</span>`;
 
+        const confirmed = invs.filter(i => i.status === "CONFIRMED");
         let totalAmt = 0n;
-        invs.forEach(i => { if (i.status === 'CONFIRMED') totalAmt += BigInt(i.amount); });
+        confirmed.forEach(i => { totalAmt += BigInt(i.amount); });
         document.getElementById("kpi-total-receivables").innerHTML = `${window.AppConfig.formatTokens(totalAmt.toString())} <span style="font-size:1rem;">mUSD</span>`;
+
+        const funded = await window.DAppState.apiClient.getFinancingRequests("FUNDED") || [];
+        const financed = funded.reduce((total, r) => total + BigInt(r.amount), 0n);
+        document.getElementById("kpi-total-financed").innerHTML = `${window.AppConfig.formatTokens(financed.toString())} <span style="font-size:1rem;">mUSD</span>`;
+
+        const overdue = confirmed.filter(i => i.is_overdue);
+        const rate = confirmed.length ? (overdue.length / confirmed.length) * 100 : 0;
+        const rateEl = document.getElementById("kpi-overdue-rate");
+        rateEl.innerText = `${rate.toFixed(2)}%`;
+        rateEl.style.color = rate > 0 ? "var(--danger)" : "var(--success)";
+
+        const count = pred => invs.filter(pred).length;
+        DashboardCharts.render("audit-status-chart", "doughnut",
+            ["Pending", "Active", "Repaid", "Overdue", "Rejected"],
+            [count(i => i.status === "PENDING"),
+             count(i => i.status === "CONFIRMED" && i.repay_status !== "REPAID" && !i.is_overdue),
+             count(i => i.status === "CONFIRMED" && i.repay_status === "REPAID"),
+             overdue.length,
+             count(i => i.status === "REJECTED")]);
     } catch (error) {
         console.error(error);
         UIFeedback.showToast(error.message || "Failed to load audit statistics", "error");
@@ -71,5 +102,7 @@ async function loadAuditorOverview() {
 document.addEventListener("DOMContentLoaded", () => {
     setTimeout(loadAuditorOverview, 600);
 });
+// Reload when the wallet/session becomes ready (the 600 ms timer alone can fire before sign-in)
+window.addEventListener("walletAccountChanged", () => setTimeout(loadAuditorOverview, 300));
 </script>
 {% endblock %}
