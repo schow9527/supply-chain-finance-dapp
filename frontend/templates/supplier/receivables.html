@@ -178,7 +178,10 @@ async function confirmTransferReceivable() {
 }
 
 // Financing modal handlers
+let financeMaxBalance = 0n;
+
 function openFinanceModal(id, balance) {
+    financeMaxBalance = BigInt(balance);
     document.getElementById("finance-token-id").value = id;
     document.getElementById("finance-token-label").innerText = `#${id}`;
     document.getElementById("finance-max-amount").innerText = window.AppConfig.formatTokens(balance);
@@ -198,19 +201,27 @@ async function confirmRequestFinancing() {
         return;
     }
 
+    let amountWei;
     try {
-        const amountWei = window.AppConfig.parseTokens(amt);
-        // Ensure approval for pool
-        const poolAddr = window.DAppState.contractClient.addresses.FinancingPool;
-        if (poolAddr) {
-            await window.DAppState.contractClient.setApprovalForAllReceivables(poolAddr, true);
-        }
+        amountWei = BigInt(window.AppConfig.parseTokens(amt));
+    } catch (_) {
+        UIFeedback.showToast("Please enter a valid financing amount.", "warning");
+        return;
+    }
+    if (amountWei <= 0n || amountWei > financeMaxBalance) {
+        UIFeedback.showToast("Financing amount must be greater than 0 and not exceed your token balance.", "warning");
+        return;
+    }
+
+    try {
+        // No setApprovalForAll needed: ReceivableToken always approves FinancingPool as operator
         await window.DAppState.contractClient.requestFinancing(id, amountWei);
         closeFinanceModal();
         UIFeedback.showToast("Financing request submitted to market!", "success");
         setTimeout(() => window.location.href = "/supplier/financing", 1200);
     } catch (e) {
         console.error(e);
+        UIFeedback.showToast(UIFeedback.parseBlockchainError(e), "error");
     }
 }
 
