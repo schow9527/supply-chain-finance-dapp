@@ -14,10 +14,10 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-01 | Faucet button shows wrong amount | P2 | Member 3 | 2026-10-12 | ✅ Closed | `0c54fde` (PR #1) | 2026-10-12 ✅ |
 | BUG-02 | Stale session state after switching MetaMask account | P2 | Member 3 | 2026-10-12 | ✅ Closed | `0c54fde` (PR #1) | 2026-10-12 ✅ |
 | BUG-03 | No UI to grant Auditor / Admin roles | P2 | Member 3 | 2026-10-12 | ✅ Closed | `0c54fde` (PR #1) | 2026-10-12 ✅ |
-| BUG-04 | Duplicate login signature requests cause misleading "another wallet" error | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-04 | Duplicate login signature requests cause misleading "another wallet" error | P2 | Member 3 | 2026-10-12 | ⚪ Won't fix (team decision 2026-10-12; workaround: confirm only one sign-in request) | — | — |
 | BUG-05 | Transactions are sent from the previously connected account after switching MetaMask account | **P1** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`3a9d48a`) | 2026-10-12 ✅ (page reloads on account switch) |
 | BUG-06 | Contract revert reasons shown as raw "unknown custom error" hex | P2 | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`3a9d48a`) | 2026-10-12 ✅ (`RETEST-BUG-06.png`) |
-| BUG-07 | Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever | **P1** | Member 2 / Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-07 | Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever | **P1** | Member 2 / Member 3 | 2026-10-12 | ⚪ Deferred (team decision 2026-10-12; workaround: use a new invoice number) | — | — |
 | BUG-08 | No way to view/download the invoice PDF or check the hash in the UI | **P1** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`3a9d48a`) | 2026-10-12 ✅ (`RETEST-BUG-08.png`) |
 | BUG-09 | Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload | **P1** | Member 3 | 2026-10-12 | 🟢 Fixed & deployed, retest pending | `fix/frontend-bug05-06-08` (`be4c359`) | — |
 | BUG-10 | "Apply Financing" button does nothing (calls a non-existent function) | **P0** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`ce8bcf2`) | 2026-10-12 ✅ (TC-F15-01/02) |
