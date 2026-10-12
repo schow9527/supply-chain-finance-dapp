@@ -104,7 +104,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F07-01 | Resubmit identical invoice | S1 | Submit `TEST-101`, CE, 10,000 again while pending | Rejected with "invoice already exists" (backend 409 `INVOICE_ALREADY_UPLOADED` or contract `InvoiceAlreadyExists`) | ☐ | |
+| TC-F07-01 | Resubmit identical invoice | S1 | Submit `TEST-101`, CE, 10,000 again while pending | Rejected with "invoice already exists" (backend 409 `INVOICE_ALREADY_UPLOADED` or contract `InvoiceAlreadyExists`) | ✅ Pass — backend `409 INVOICE_ALREADY_UPLOADED`, MetaMask not opened (on-chain layer verified separately in TC-F07-03) | `TC-F07-01.png` |
 | TC-F07-02 | Resubmit a confirmed invoice | S1 | Submit `TEST-101` again after it is confirmed | Still rejected | ☐ | |
 | TC-F07-03 | Bypass backend, call contract directly | S1 | Call `submitInvoice` on Etherscan with `TEST-101`'s parameters | Reverts with `InvoiceAlreadyExists` – proves interception is on-chain, independent of the backend | ✅ Pass — `InvoiceAlreadyExists(5)` via console `estimateGas` (no tx sent) | `TC-F07-03.png` |
 | TC-F07-04 | Rejected invoice can be resubmitted | S1 | After `TEST-003` is rejected (TC-F09-01), submit it again with the same data | Allowed (rejection releases the dedup key) | ☐ | |
