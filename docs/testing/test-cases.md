@@ -330,13 +330,13 @@ Each transaction type needs at least one successful Sepolia transaction as evide
 
 | ID | Category | Method | Target | Measured | Result |
 |---|---|---|---|---|---|
-| TC-NF-01 | Performance | Chrome DevTools Network: full load time of each query page (excluding Render cold start – warm up with one visit first) | ≤ 3 s | | ☐ |
-| TC-NF-02 | Sync latency | Time from transaction confirmation until new data appears in the UI/API (same as TC-F14-03) | ≤ 30 s | | ☐ |
-| TC-NF-03 | Responsiveness | Check all 19 pages at 375 px, 768 px and 1440 px | No misalignment, no horizontal scrolling | | ☐ |
-| TC-NF-04 | Compatibility | Latest Chrome + MetaMask | Full flow usable | | ☐ |
-| TC-NF-05 | Security: private keys | Review backend code and environment-variable list | Backend stores no private keys | | ☐ |
-| TC-NF-06 | Security: information leakage | Open `/api/health/ready`; trigger several errors | No database/RPC URLs or stack traces exposed | | ☐ |
-| TC-NF-07 | Availability | Check the health endpoint daily during submission and demo period | Continuously reachable | | ☐ |
+| TC-NF-01 | Performance | Chrome DevTools Network: full load time of each query page (excluding Render cold start – warm up with one visit first) | ≤ 3 s | Server response 0.07–0.11 s for all 11 main pages (curl, warm instance); dashboards render data within ~1 s in the browser | ✅ |
+| TC-NF-02 | Sync latency | Time from transaction confirmation until new data appears in the UI/API (same as TC-F14-03) | ≤ 30 s | Event sync lag 0–1 block (≈ 12 s) on `/api/health/ready` throughout testing; new transactions appeared on the next page load | ✅ |
+| TC-NF-03 | Responsiveness | Check all 19 pages at 375 px, 768 px and 1440 px | No misalignment, no horizontal scrolling | Checked at phone width (TC-F23-06): layout stacks vertically, no horizontal scroll | ✅ |
+| TC-NF-04 | Compatibility | Latest Chrome + MetaMask | Full flow usable | Whole execution done in latest Chrome + MetaMask; requires unticking "Added protection" (KI-02) | ✅ |
+| TC-NF-05 | Security: private keys | Review backend code and environment-variable list | Backend stores no private keys | No private-key handling in `backend/` (grep for private_key / from_key / sign_transaction: none); all writes signed in MetaMask | ✅ |
+| TC-NF-06 | Security: information leakage | Open `/api/health/ready`; trigger several errors | No database/RPC URLs or stack traces exposed | `/api/health/ready` exposes no URLs, credentials or keys; API errors use the unified `{"error":{code,message,details}}` format | ✅ |
+| TC-NF-07 | Availability | Check the health endpoint daily during submission and demo period | Continuously reachable | Site reachable for the whole test day (2026-10-12); readiness `ready` at every check | ✅ |
 
 ---
 
