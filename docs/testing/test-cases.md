@@ -301,26 +301,26 @@ Each transaction type needs at least one successful Sepolia transaction as evide
 
 | # | Transaction | Sender | Test case | Tx hash (Etherscan link) | Gas used (on-chain) | Foundry benchmark | Result |
 |---|---|---|---|---|---:|---:|---|
-| 1 | `grantRole` | ADM | TC-F03-01 | | | 96,583 | ☐ |
-| 2 | `revokeRole` | ADM | TC-F04-01 | | | 35,650 | ☐ |
-| 3 | `pause` | ADM | TC-F05-01 | | | 47,041 | ☐ |
-| 4 | `unpause` | ADM | TC-F05-06 | | | — | ☐ |
-| 5 | `submitInvoice` | S1 | TC-F06-01 | | | 173,254 | ☐ |
-| 6 | `confirmInvoice` | CE | TC-F08-01 | | | 124,931 | ☐ |
-| 7 | `rejectInvoice` | CE | TC-F09-01 | | | 43,332 | ☐ |
-| 8 | `transferReceivable` | S1 | TC-F12-01 | | | 74,640 | ☐ |
-| 9 | `freeze` | AU | TC-F13-01 | | | 35,915 | ☐ |
-| 10 | `unfreeze` | AU | TC-F13-05 | | | 35,909 | ☐ |
-| 11 | `requestFinancing` | S1 | TC-F15-01 | | | 145,491 | ☐ |
-| 12 | `submitQuote` | F1 | TC-F16-01 | | | 152,198 | ☐ |
-| 13 | `withdrawQuote` | F2 | TC-F16-06 | | | 49,922 | ☐ |
-| 14 | `acceptQuote` | S1 | TC-F17-01 | | | 131,343 | ☐ |
-| 15 | `cancelRequest` | S1 | TC-F18-01 | | | 78,436 | ☐ |
-| 16 | `repay` | CE | TC-F19-01 | | | 83,586 | ☐ |
-| 17 | `redeem` | F1 | TC-F20-01 | | | 64,043 | ☐ |
-| 18 | `markOverdue` | F1 | TC-F21-02 | | | 76,931 | ☐ |
-| 19 | `faucet` | F1 | TC-F22-01 | | | 50,675 | ☐ |
-| 20 | `approve` (mUSD) | F1/CE | TC-F16-01 | | | — | ☐ |
+| 1 | `grantRole` | ADM | TC-F03-01 | [`0xd52acbb1…`](https://sepolia.etherscan.io/tx/0xd52acbb143fb8789d307b6477369dcef995283d6f7f53abf5d5e643f7450c7fd) | 354,585 | 96,583 | ✅ |
+| 2 | `revokeRole` | ADM | TC-F04-01 | — | — | 35,650 | ⏭ not executed on Sepolia (Foundry unit tests) |
+| 3 | `pause` | ADM | TC-F05-01 | — | — | 47,041 | ⏭ not executed on Sepolia (Foundry unit tests) |
+| 4 | `unpause` | ADM | TC-F05-06 | — | — | — | ⏭ not executed on Sepolia (Foundry unit tests) |
+| 5 | `submitInvoice` | S1 | TC-F06-01 | [`0xc453d1fd…`](https://sepolia.etherscan.io/tx/0xc453d1fd00c99077dea211e0172ccac8c4ea30ac89a210f58ebed18d27262315) | 597,602 | 173,254 | ✅ |
+| 6 | `confirmInvoice` | CE | TC-F08-01 | [`0xeabeba59…`](https://sepolia.etherscan.io/tx/0xeabeba59145cc5ec893dd543e056eacd1d973c222b28909e656fa9575a66a617) | 391,491 | 124,931 | ✅ |
+| 7 | `rejectInvoice` | CE | TC-F09-01 | — | — | 43,332 | ⏭ not executed on Sepolia (Foundry unit tests) |
+| 8 | `transferReceivable` | S1 | TC-F12-01 | [`0x2a63bf02…`](https://sepolia.etherscan.io/tx/0x2a63bf02098f8d6e6b82aeb9b80e101ba93edea354787b4cfb6042495ffbb034) | 164,760 | 74,640 | ✅ |
+| 9 | `freeze` | AU | TC-F13-01 | [`0x3e958edb…`](https://sepolia.etherscan.io/tx/0x3e958edb5162b95afc0d33c6dd22639df4aea5be4e1a48821bb902378304a9f6) | 37,707 | 35,915 | ✅ |
+| 10 | `unfreeze` | AU | TC-F13-05 | [`0x585afc3f…`](https://sepolia.etherscan.io/tx/0x585afc3f17e4a525aaf9dac1da6554aab8bf4e61861f018c6547f52cc962abcd) | 37,677 | 35,909 | ✅ |
+| 11 | `requestFinancing` | S1 | TC-F15-01 | [`0x9f4b73fb…`](https://sepolia.etherscan.io/tx/0x9f4b73fb642062b8ba77005ed280ed4afd46d66026f9f759202cbdae2dd105db) | 395,023 | 145,491 | ✅ |
+| 12 | `submitQuote` | F1 | TC-F16-01 | [`0x94d47d33…`](https://sepolia.etherscan.io/tx/0x94d47d33e5c3eaefb26584546b24e6acb07680b625ea9b34db0e39759c8b8c1e) | 407,579 | 152,198 | ✅ |
+| 13 | `withdrawQuote` | F2 | TC-F16-06 | [`0x0d230d1c…`](https://sepolia.etherscan.io/tx/0x0d230d1c6478aacb7bf3df46d147549c45d01286d25fed9a8554e954c120a9e6) | 71,122 | 49,922 | ✅ |
+| 14 | `acceptQuote` | S1 | TC-F17-01 | [`0x40efe5d4…`](https://sepolia.etherscan.io/tx/0x40efe5d424764955c63875d2905a74a3a6582129a6823e26c0255cfad1d6c06b) | 320,751 | 131,343 | ✅ |
+| 15 | `cancelRequest` | S1 | TC-F18-01 | — | — | 78,436 | ⏭ not executed on Sepolia (Foundry unit tests) |
+| 16 | `repay` | CE | TC-F19-01 | [`0x270c1e82…`](https://sepolia.etherscan.io/tx/0x270c1e82af8610297640a784440b0a7ca832fe51b858540db812bd7d4a0557eb) | 180,176 | 83,586 | ✅ |
+| 17 | `redeem` | F1 | TC-F20-01 | [`0xe845b3df…`](https://sepolia.etherscan.io/tx/0xe845b3dfa5c0475187f14ee400b3fb4e801b5b4dba0e02ac072ce68adac199a7) | 76,595 | 64,043 | ✅ |
+| 18 | `markOverdue` | F1 | TC-F21-02 | [`0xd1a69653…`](https://sepolia.etherscan.io/tx/0xd1a69653734aaca9914493b62ca392059146ce379594ff113c193b2ad907a3ae) | 167,051 | 76,931 | ✅ |
+| 19 | `faucet` | F1 | TC-F22-01 | [`0xf7dc7a77…`](https://sepolia.etherscan.io/tx/0xf7dc7a770e819ff91731a72185c0d5d7de0ac9c4506c8f98e6c6976f2e919f1c) | 139,895 | 50,675 | ✅ |
+| 20 | `approve` (mUSD) | F1/CE | TC-F16-01 | [`0xf0c68e74…`](https://sepolia.etherscan.io/tx/0xf0c68e74e62a84aae4a110e7adc425d23740e44fb468ca9d4c81f07b4a86eb45) | 128,263 | — | ✅ |
 
 > Foundry benchmarks are taken from [gas-optimization.md](../../contracts/docs/gas-optimization.md) (post-optimisation, `--isolate` mode). Transactions that write to a fresh storage slot may cost slightly more on-chain; this is expected.
 
