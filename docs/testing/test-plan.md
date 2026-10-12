@@ -59,7 +59,7 @@
 
 ## 5. Test Accounts
 
-Each wallet address can hold only one role, so several MetaMask accounts are needed. Every account needs Sepolia ETH for gas. At the gas price observed on 2026-10-12 (≈ 0.001 gwei) a `submitInvoice` costs < 0.000001 ETH, so 0.004 ETH per account is ample; CE funded each of the other accounts with 0.004 ETH on 2026-10-12.
+Each wallet address can hold only one role, so several MetaMask accounts are needed. Every account needs Sepolia ETH for gas. **Correction (2026-10-12):** the initial estimate assumed the network base fee (≈ 0.001 gwei), but MetaMask actually paid ≈ 1.5 gwei (priority fee), i.e. ~0.0002–0.0009 ETH per business transaction. The initial 0.004 ETH per account was not enough for the supplier (S1 ran out after ~6 transactions; topped up with 0.0035 ETH from X). Plan: obtain additional Sepolia ETH into `ADM2`/Main and distribute, and choose the "Low" fee option in MetaMask to reduce cost.
 
 | Alias | Role | Purpose | Address | Notes |
 |---|---|---|---|---|
