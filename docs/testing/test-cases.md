@@ -203,9 +203,9 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F17-01 | Accept quote | S1 | Accept F1's quote on My Financing | Single transaction: receivable to F1 and 9,700 mUSD to S1; `FinancingFunded` emitted. **Record block time for the time-to-financing metric** | ☐ | |
+| TC-F17-01 | Accept quote | S1 | Accept F1's quote on My Financing | Single transaction: receivable to F1 and 9,700 mUSD to S1; `FinancingFunded` emitted. **Record block time for the time-to-financing metric** | ✅ Pass — S1 accepted quote #4 (F1, 3%): in one tx request #3 Funded, 6,000 of #5 moved pool → F1, 5,820 mUSD pool → S1 (S1 2,910 → 8,730) | `TC-F17-01.png`; tx `0xc70576d2` |
 | TC-F17-02 | Non-requester accepts | S2 | Call `acceptQuote` | Rejected | ☐ | |
-| TC-F17-03 | Accept a withdrawn quote | S1 | Accept the quote withdrawn in TC-F16-06 | Rejected | ☐ | |
+| TC-F17-03 | Accept a withdrawn quote | S1 | Accept the quote withdrawn in TC-F16-06 | Rejected | ✅ Pass — accepting withdrawn quote #5 rejected at gas estimation with readable "This quote is expired or has been revoked." (BUG-06 fix confirmed); UI should not have offered the button (BUG-11) | `TC-F17-03.png` |
 | TC-F17-04 | Accept twice | S1 | After funding, accept another quote | Rejected – **counts toward the duplicate-financing interception rate** | ☐ | |
 
 ### F-18 Cancel Financing Request

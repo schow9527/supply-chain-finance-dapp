@@ -21,6 +21,7 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-08 | No way to view/download the invoice PDF or check the hash in the UI | **P1** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`3a9d48a`) | 2026-10-12 ✅ (`RETEST-BUG-08.png`) |
 | BUG-09 | Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload | **P1** | Member 3 | 2026-10-12 | 🟢 Fixed & deployed, retest pending | `fix/frontend-bug05-06-08` (`be4c359`) | — |
 | BUG-10 | "Apply Financing" button does nothing (calls a non-existent function) | **P0** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`ce8bcf2`) | 2026-10-12 ✅ (TC-F15-01/02) |
+| BUG-11 | Withdrawn quotes still show an "Accept" button | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 
@@ -120,6 +121,14 @@ BUG-01 – BUG-03 were found during test-environment setup (before formal execut
 - **Expected**: Submitting sends `FinancingPool.requestFinancing`; the interface spec states no approval is needed (`ReceivableToken.isApprovedForAll` always returns true for FinancingPool).
 - **Fix (on branch, not merged)**: remove the non-existent approval call; validate `0 < amount ≤ balance`; show errors as a toast.
 - **Note**: earlier financing in this test run (request #2) was created from the console, which is why this was not hit before.
+
+## BUG-11 · Withdrawn quotes still show an "Accept" button (P2)
+
+- **Where**: `frontend/templates/supplier/financing.html`, `renderQuotesList()`.
+- **Steps to reproduce**: F2 withdraws quote #5 on request #3 (TC-F16-06) → S1 opens My Financing.
+- **Observed**: Quote #5 is still listed with "Accept Quote & Receive Funds". The backend already projects it as `WITHDRAWN` (sync lag 0), but `renderQuotesList` ignores `q.status` and shows Accept for every quote while the request is open. Clicking it is safely rejected by the contract ("This quote is expired or has been revoked.", TC-F17-03).
+- **Expected**: Withdrawn quotes are shown as "Withdrawn" without an Accept button.
+- **Suggested fix**: render the Accept button only when `q.status === "ACTIVE"`; otherwise show a status badge.
 
 ## KI-01 · MetaMask flags the site as "Malicious" (known issue, won't fix)
 
