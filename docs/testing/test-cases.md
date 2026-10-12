@@ -92,7 +92,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F06-01 | Valid upload | S1 | Enter `TEST-101`, buyer CE, 10,000, +30 days, `invoice_ok.pdf` → submit and sign | PDF uploaded and hash returned; `submitInvoice` succeeds, `InvoiceSubmitted` emitted; invoice shown as "Pending" in My Invoices | ☐ | |
+| TC-F06-01 | Valid upload | S1 | Enter `TEST-101`, buyer CE, 10,000, +30 days, `invoice_ok.pdf` → submit and sign | PDF uploaded and hash returned; `submitInvoice` succeeds, `InvoiceSubmitted` emitted; invoice shown as "Pending" in My Invoices | ✅ Pass (as `TEST-102`, on-chain #5; success modal auto-redirects after a few seconds) | `TC-F06-01.png`; tx `0x3c72d626` |
 | TC-F06-02 | Zero or negative amount | S1 | Amount 0 / −5 | Blocked by frontend; if bypassed, API 422 `INVALID_AMOUNT`, contract `InvalidAmount` | ☐ | |
 | TC-F06-03 | Due date not in the future | S1 | Due date today or yesterday | Blocked by frontend; API 422 `INVALID_DUE_DATE`, contract `InvalidDueDate` | ☐ | |
 | TC-F06-04 | Non-PDF file | S1 | Upload `image.png`, `fake.pdf` | Rejected, API 422 `INVALID_FILE_TYPE` | ☐ | |
