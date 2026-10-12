@@ -78,7 +78,8 @@ All three defects were found during test-environment setup (before formal execut
 - **Expected**: PRD §9 (error handling) requires the contract's rejection reason to be shown clearly, e.g. "This receivable is not overdue yet (due 17:18)". Relates to TC-F26-04.
 - **Reproduced again**: TC-F12-05 (transfer of matured receivable #4) showed `unknown custom error` with data `0x5e4046db…` = `ReceivableMatured(uint256,uint64)`, also present in the frontend ABI.
 - **Good**: the failure was caught at the gas-estimation stage — MetaMask was never opened and no gas was spent.
-- **Suggested fix**: decode `error.data` with `contract.interface.parseError(...)` and map error names to friendly messages; hide the fee line when estimation fails.
+- **Root cause (verified in live code, 2026-10-12)**: `UIFeedback.parseBlockchainError` already maps both `NotOverdueYet` and `ReceivableMatured` to friendly text in `CUSTOM_ERROR_MESSAGES`, but it only looks at `err.revert?.name`. When ethers reports "unknown custom error" (here, during `estimateGas` through the MetaMask provider), `err.revert` is `null` and the raw message is shown. The selectors are in the frontend ABIs (`FinancingPool.json`, `ReceivableToken.json`).
+- **Suggested fix**: when `err.revert` is missing, decode `err.data` with `contract.interface.parseError(err.data)` (try each contract's interface) and then look up `CUSTOM_ERROR_MESSAGES`; hide the fee line when estimation fails.
 
 ## BUG-07 · Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever (P1)
 
@@ -86,6 +87,7 @@ All three defects were found during test-environment setup (before formal execut
 - **Steps to reproduce**: As S1, fill in `TEST-001`, buyer CE, 10,000, due 2026-11-13, `invoice_ok.pdf` → Submit → cancel the MetaMask transaction → click Submit again.
 - **Observed**: Toast "This invoice is already uploaded." (`409 INVOICE_ALREADY_UPLOADED`). On-chain `invoiceCount()` is unchanged (4) — `TEST-001` was never registered on-chain, yet the backend draft now blocks that invoice number permanently.
 - **Expected**: PRD §9 requires user-rejected signatures to be handled gracefully. A draft whose on-chain submission never happened should be reusable (e.g., treat `FILE_UPLOADED` drafts from the same supplier as replaceable, expire them, or let the user retry the on-chain step for the existing draft).
+- **Code path (verified in live code)**: `static/js/invoice-upload-flow.js` `uploadAndSubmit()` calls `apiClient.uploadInvoiceFile()` first and only then `contractClient.submitInvoice()`; there is no cleanup or retry path if the second step is rejected. Evidence: `GET /api/invoices` returned `TEST-001` (id 4) and `TEST-101` (id 5) with `status: FILE_UPLOADED`, `onchain_id: null`.
 - **Note**: The on-chain duplicate check (F-07) is unaffected; this is a backend/off-chain false positive.
 - **Workaround used during testing**: The main-flow invoice was renamed from `TEST-001` to `TEST-101`.
 
