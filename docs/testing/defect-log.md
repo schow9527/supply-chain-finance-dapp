@@ -3,7 +3,7 @@
 > **Owner**: YANG SHUYI (Member 6)
 > **Related**: [Test Plan](test-plan.md) · [Test Cases](test-cases.md)
 
-Fixes for BUG-05, 06, 08, 09 and 10 were merged into `feature/backend-member2` as `6a54755` on 2026-10-12 19:57 and deployed to Render.
+Fixes for BUG-05, 06, 08, 09 and 10 were merged into `feature/backend-member2` as `6a54755` (2026-10-12 19:57); fixes for BUG-11 and 12 as `8c0fc51` (20:47). Both were deployed to Render and retested.
 
 Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acceptance criteria · **P2** wording, display or usability issue.
 
@@ -19,10 +19,10 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-06 | Contract revert reasons shown as raw "unknown custom error" hex | P2 | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`3a9d48a`) | 2026-10-12 ✅ (`RETEST-BUG-06.png`) |
 | BUG-07 | Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever | **P1** | Member 2 / Member 3 | 2026-10-12 | ⚪ Deferred (team decision 2026-10-12; workaround: use a new invoice number) | — | — |
 | BUG-08 | No way to view/download the invoice PDF or check the hash in the UI | **P1** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`3a9d48a`) | 2026-10-12 ✅ (`RETEST-BUG-08.png`) |
-| BUG-09 | Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload | **P1** | Member 3 | 2026-10-12 | 🟢 Fixed & deployed, retest pending | `fix/frontend-bug05-06-08` (`be4c359`) | — |
+| BUG-09 | Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload | **P1** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`be4c359`) | 2026-10-12 ✅ (#5 shown as Unfrozen after reload, matching chain) |
 | BUG-10 | "Apply Financing" button does nothing (calls a non-existent function) | **P0** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`ce8bcf2`) | 2026-10-12 ✅ (TC-F15-01/02) |
-| BUG-11 | Withdrawn quotes still show an "Accept" button | P2 | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/dashboard-bug11-12` (`096318b`) | — |
-| BUG-12 | Dashboard KPIs hard-coded / wrong, and no charts (data visualisation missing) | **P1** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/dashboard-bug11-12` (`096318b`) | — |
+| BUG-11 | Withdrawn quotes still show an "Accept" button | P2 | Member 3 | 2026-10-12 | ✅ Closed | `fix/dashboard-bug11-12` (`096318b`) | 2026-10-12 ✅ (deployed code verified; no withdrawn quote left to display) |
+| BUG-12 | Dashboard KPIs hard-coded / wrong, and no charts (data visualisation missing) | **P1** | Member 3 | 2026-10-12 | ✅ Closed | `fix/dashboard-bug11-12` (`096318b`) | 2026-10-12 ✅ (TC-F23-02/03/04 retest) |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 

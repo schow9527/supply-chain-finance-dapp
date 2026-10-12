@@ -255,10 +255,10 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F23-01 | Supplier dashboard | S1 | Open dashboard | Total receivables held, amount financed, pending items, charts; figures match reality | ✅ Pass — held 1,000 and cumulative funded 8,730 match on-chain; no chart (BUG-12) | `TC-F23-01.png` |
-| TC-F23-02 | Core-enterprise dashboard | CE | Same | Pending invoices, total payables, upcoming payments, overdue records | ❌ Fail (BUG-12) — outstanding payables / settled shown as 0.00 | `TC-F23-02.png` |
-| TC-F23-03 | Funder dashboard | F1 | Same | Total funded, outstanding amount, overdue count | ❌ Fail (BUG-12) — total disbursed shown as 0.00 (should be 8,730) | `TC-F23-03.png` |
-| TC-F23-04 | Auditor overview | AU | Same | Platform invoice count, total receivables, total financing, overdue rate | ❌ Fail (BUG-12) — financed principal 0.00, overdue rate 0.00%, invoice count includes drafts | `TC-F23-04.png` |
+| TC-F23-01 | Supplier dashboard | S1 | Open dashboard | Total receivables held, amount financed, pending items, charts; figures match reality | ✅ Pass — held 1,000 and cumulative funded 8,730 match on-chain; bar chart added by BUG-12 fix | `TC-F23-01.png` |
+| TC-F23-02 | Core-enterprise dashboard | CE | Same | Pending invoices, total payables, upcoming payments, overdue records | ✅ Pass after BUG-12 fix — outstanding 11,000 (2 unpaid, 1 overdue), settled 3,000, doughnut chart; minor: chart colours for Overdue/Settled are counter-intuitive | `TC-F23-02.png` (retest) |
+| TC-F23-03 | Funder dashboard | F1 | Same | Total funded, outstanding amount, overdue count | ✅ Pass after BUG-12 fix — disbursed 8,730, pending repayment 6,000, bar chart | `TC-F23-03.png` (retest) |
+| TC-F23-04 | Auditor overview | AU | Same | Platform invoice count, total receivables, total financing, overdue rate | ✅ Pass after BUG-12 fix — 4 on-chain invoices, 14,000 minted, 9,000 financed, overdue rate 33.33%, doughnut chart; minor: subtitle under overdue rate is static ("healthy") | `TC-F23-04.png` (retest) |
 | TC-F23-05 | Data isolation | S2 | Open dashboard | Only S2's own data; nothing from S1 | ⏭ Out of scope — not required by course brief; API scoping covered by backend unit tests (`test_queries.py`) |  |
 | TC-F23-06 | Mobile display | Any | Chrome DevTools iPhone viewport, or a real phone | Layout intact, no horizontal scrolling, buttons tappable | ✅ Pass — at phone width the sidebar and KPI cards stack vertically, no horizontal scrolling | `TC-F23-06.png` |
 | TC-F24-01 | Transaction history | S1 | Open Transaction History | All of S1's on-chain transactions listed, each with a working Etherscan link | ✅ Pass — S1's transactions listed with block number, time and working Etherscan links; minor: action label is derived from the emitted event (e.g. acceptQuote shown as TRANSFER) | `TC-F24-01.png` |
