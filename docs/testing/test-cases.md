@@ -197,7 +197,7 @@
 | TC-F16-03 | Payout calculation | — | Compare UI value with `previewPayout(amount, bps)` | Identical | ✅ Pass — S1's My Financing shows both quotes with net payouts 5,820 (3%) and 5,850 (2.5%), matching on-chain `getQuote().payout` | `TC-F16-03.png` |
 | TC-F16-04 | Invalid discount rate | F1 | Enter 100 % or more | Rejected | ✅ Pass — 100% rejected by form validation "Please enter a valid discount rate (0.1% ~ 99.9%)" | `TC-F16-04.png` |
 | TC-F16-05 | No approval / insufficient balance | F1 | Quote without `approve` / with insufficient mUSD | Rejected with `ERC20InsufficientAllowance` / `ERC20InsufficientBalance`; clear message | ☐ | |
-| TC-F16-06 | Withdraw quote | F2 | Withdraw the quote from TC-F16-02 | `QuoteWithdrawn` emitted; locked mUSD returned to F2 | ☐ | |
+| TC-F16-06 | Withdraw quote | F2 | Withdraw the quote from TC-F16-02 | `QuoteWithdrawn` emitted; locked mUSD returned to F2 | ✅ Pass (via console — no withdraw button in the UI; not a PRD requirement) — quote #5 Withdrawn, 5,850 mUSD returned to F2 | `TC-F16-06.png` |
 
 ### F-17 Accept Quote & Disburse
 
