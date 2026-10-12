@@ -14,6 +14,7 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-03 | No UI to grant Auditor / Admin roles | P2 | Member 3 | 2026-10-12 | ✅ Closed | `0c54fde` (PR #1) | 2026-10-12 ✅ |
 | BUG-04 | Duplicate login signature requests cause misleading "another wallet" error | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | BUG-05 | Transactions are sent from the previously connected account after switching MetaMask account | **P1** | Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-06 | Contract revert reasons shown as raw "unknown custom error" hex | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 
@@ -66,6 +67,15 @@ All three defects were found during test-environment setup (before formal execut
 - **Impact**: A user believes they act as one party but the transaction executes with another account's role and funds (e.g., paying or approving from the wrong wallet). Classified **P1**.
 - **Suggested fix**: Rebuild `contractClient` (or call `contract.connect(newSigner)`) inside `handleAccountsChanged`; or simply `location.reload()` on `accountsChanged`, as is already done on `chainChanged`.
 - **Workaround used during testing**: Press F5 after every account switch.
+
+## BUG-06 · Contract revert reasons shown as raw "unknown custom error" hex
+
+- **Where**: transaction modal error handling (`frontend/static/js/contract-client.js` `executeWithLifecycle` → `UIFeedback`).
+- **Steps to reproduce**: As F1, open `/financier/portfolio` and click "Mark Overdue" on receivable #2 before its due date (TC-F21-01).
+- **Observed**: Modal shows `execution reverted (unknown custom error) (action="estimateGas", data="0x11ed168a000…")`. `0x11ed168a` is the selector of `NotOverdueYet(uint256,uint64)`, which **is** present in the frontend's `FinancingPool` ABI, so the reason could have been decoded. The modal also shows "Estimated Fee: 300000 Gas", which is the hard-coded fallback used when estimation fails, not a real estimate.
+- **Expected**: PRD §9 (error handling) requires the contract's rejection reason to be shown clearly, e.g. "This receivable is not overdue yet (due 17:18)". Relates to TC-F26-04.
+- **Good**: the failure was caught at the gas-estimation stage — MetaMask was never opened and no gas was spent.
+- **Suggested fix**: decode `error.data` with `contract.interface.parseError(...)` and map error names to friendly messages; hide the fee line when estimation fails.
 
 ## KI-01 · MetaMask flags the site as "Malicious" (known issue, won't fix)
 

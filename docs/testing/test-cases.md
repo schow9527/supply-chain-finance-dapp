@@ -238,7 +238,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F21-01 | Mark before due date | F1 | Before maturity, mark `TEST-OD-001` overdue | Rejected with `NotOverdueYet` | ☐ | |
+| TC-F21-01 | Mark before due date | F1 | Before maturity, mark `TEST-OD-001` overdue | Rejected with `NotOverdueYet` | ✅ Pass (display issue → BUG-06) | `TC-F21-01.png`; rejected at gas estimation (`NotOverdueYet`), no tx sent |
 | TC-F21-02 | **(after maturity)** Mark after due date | F1 | After the due date, with CE not having repaid | `MarkedOverdue` emitted; CE's overdue record visible on the dashboard (`overdueCount` +1) | ☐ | |
 | TC-F21-03 | Non-holder marks | F2 | Call `markOverdue` | Rejected | ☐ | |
 | TC-F21-04 | **(after maturity)** Late repayment after overdue | CE → F1 | CE repays → F1 redeems | Status changes Overdue → Repaid; redemption succeeds | ☐ | |
@@ -247,7 +247,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F22-01 | Claim | F1 | Click "Get test tokens" | mUSD balance +100,000; `Transfer` emitted | ☐ | |
+| TC-F22-01 | Claim | F1 | Click "Get test tokens" | mUSD balance +100,000; `Transfer` emitted | ✅ Pass (after KI-02 workaround) | `TC-F22-01.png`; tx `0xf7dc7a77` |
 
 ---
 
