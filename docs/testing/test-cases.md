@@ -192,10 +192,10 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F16-01 | Quote (with approval) | F1 | In the Financing Market, pick the `TEST-101` request, discount 3 % → UI guides `approve` of mUSD → `submitQuote` | Both transactions succeed; `Approval`, `QuoteSubmitted` emitted; supplier's net payout shown as 9,700 | ☐ | |
+| TC-F16-01 | Quote (with approval) | F1 | In the Financing Market, pick the `TEST-101` request, discount 3 % → UI guides `approve` of mUSD → `submitQuote` | Both transactions succeed; `Approval`, `QuoteSubmitted` emitted; supplier's net payout shown as 9,700 | ✅ Pass — approve 5,820 mUSD then quote #4 by F1 at 300 bps on request #3 (Active); 5,820 locked in pool | `TC-F16-01.png` |
 | TC-F16-02 | Multiple funders quote | F2 | Quote 2.5 % on the same request | Succeeds; S1 sees both quotes on My Financing | ☐ | |
 | TC-F16-03 | Payout calculation | — | Compare UI value with `previewPayout(amount, bps)` | Identical | ☐ | |
-| TC-F16-04 | Invalid discount rate | F1 | Enter 100 % or more | Rejected | ☐ | |
+| TC-F16-04 | Invalid discount rate | F1 | Enter 100 % or more | Rejected | ✅ Pass — 100% rejected by form validation "Please enter a valid discount rate (0.1% ~ 99.9%)" | `TC-F16-04.png` |
 | TC-F16-05 | No approval / insufficient balance | F1 | Quote without `approve` / with insufficient mUSD | Rejected with `ERC20InsufficientAllowance` / `ERC20InsufficientBalance`; clear message | ☐ | |
 | TC-F16-06 | Withdraw quote | F2 | Withdraw the quote from TC-F16-02 | `QuoteWithdrawn` emitted; locked mUSD returned to F2 | ☐ | |
 
