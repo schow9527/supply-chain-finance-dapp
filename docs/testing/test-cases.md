@@ -57,9 +57,9 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F03-01 | Approve and grant role | ADM | On the registration review page, approve X → sign `grantRole` in MetaMask | Transaction succeeds, `RoleGranted` emitted; application marked "Approved" with tx hash recorded; X enters the role's pages after refresh | ☐ | |
-| TC-F03-02 | Non-admin cannot grant | S1 | Call `grantRole` directly via Etherscan "Write Contract" or console | Reverts with `Unauthorized` | ☐ | |
+| TC-F03-02 | Non-admin cannot grant | S1 | Call `grantRole` directly via Etherscan "Write Contract" or console | Reverts with `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `AccessControlUnauthorizedAccount` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F03-03 | Rejection requires a reason | ADM | Reject with an empty reason / with a reason | Empty: blocked (API 422 `REJECT_REASON_REQUIRED`); with reason: status "Rejected", reason visible to applicant | ☐ | |
-| TC-F03-04 | One role per address | ADM | Grant Funder to S1, who is already a Supplier | Reverted by the contract | ☐ | |
+| TC-F03-04 | One role per address | ADM | Grant Funder to S1, who is already a Supplier | Reverted by the contract | ✅ Pass (contract layer, `eth_call`) — `AccountAlreadyHasRole` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F03-05 | Non-admin calls review API | S1 | `GET /api/enterprises` | HTTP 403 | ☐ | |
 
 ### F-04 Revoke Role
@@ -69,7 +69,7 @@
 | TC-F04-01 | Revoke role | ADM | On the Roles & System page, revoke X's Supplier role | `RoleRevoked` emitted; X removed from the authorised list | ☐ | |
 | TC-F04-02 | Writes rejected after revocation | X | Try to upload an invoice (`submitInvoice`) | Reverts with `Unauthorized`; UI shows a permission message | ☐ | |
 | TC-F04-03 | Revoked address can receive another role | ADM | Grant Auditor to X | Succeeds | ☐ | |
-| TC-F04-04 | Non-admin cannot revoke | S1 | Call `revokeRole` | `Unauthorized` | ☐ | |
+| TC-F04-04 | Non-admin cannot revoke | S1 | Call `revokeRole` | `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `AccessControlUnauthorizedAccount` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-05 Emergency Pause & Resume
 
@@ -81,7 +81,7 @@
 | TC-F05-02 | Business writes fail while paused | S1 | Upload invoice / split-transfer / request financing | All fail with "System is paused" (`SystemPaused`), ideally already at the gas-estimate stage | ☐ | |
 | TC-F05-03 | Reads unaffected while paused | S1/AU | Browse dashboard, invoice list, event log | Displayed normally | ☐ | |
 | TC-F05-04 | Emergency actions still allowed while paused | ADM/AU | Admin grants/revokes a role; auditor freezes a receivable | Succeed (by design – interface doc item 8) | ☐ | |
-| TC-F05-05 | Non-admin cannot pause | S1 | Call `pause` | `Unauthorized` | ☐ | |
+| TC-F05-05 | Non-admin cannot pause | S1 | Call `pause` | `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `AccessControlUnauthorizedAccount` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F05-06 | Resume | ADM | Click "Resume" | `Unpaused` emitted; S1 can upload an invoice again | ☐ | |
 
 ---
@@ -93,11 +93,11 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F06-01 | Valid upload | S1 | Enter `TEST-101`, buyer CE, 10,000, +30 days, `invoice_ok.pdf` → submit and sign | PDF uploaded and hash returned; `submitInvoice` succeeds, `InvoiceSubmitted` emitted; invoice shown as "Pending" in My Invoices | ✅ Pass (as `TEST-102`, on-chain #5; success modal auto-redirects after a few seconds) | `TC-F06-01.png`; tx `0x3c72d626` |
-| TC-F06-02 | Zero or negative amount | S1 | Amount 0 / −5 | Blocked by frontend; if bypassed, API 422 `INVALID_AMOUNT`, contract `InvalidAmount` | ☐ | |
-| TC-F06-03 | Due date not in the future | S1 | Due date today or yesterday | Blocked by frontend; API 422 `INVALID_DUE_DATE`, contract `InvalidDueDate` | ☐ | |
+| TC-F06-02 | Zero or negative amount | S1 | Amount 0 / −5 | Blocked by frontend; if bypassed, API 422 `INVALID_AMOUNT`, contract `InvalidAmount` | ◐ Contract ✅ `InvalidAmount`; UI validation ☐ | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
+| TC-F06-03 | Due date not in the future | S1 | Due date today or yesterday | Blocked by frontend; API 422 `INVALID_DUE_DATE`, contract `InvalidDueDate` | ◐ Contract ✅ `InvalidDueDate`; UI validation ☐ | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F06-04 | Non-PDF file | S1 | Upload `image.png`, `fake.pdf` | Rejected, API 422 `INVALID_FILE_TYPE` | ☐ | |
-| TC-F06-05 | Buyer is not a core enterprise | S1 | Buyer address = F1 or X | Rejected by contract (`InvalidBuyer`) or backend role check | ☐ | |
-| TC-F06-06 | Non-supplier uploads | CE | Open the upload page or call `POST /api/invoices/file` | API 403 `ROLE_REQUIRED`; contract `Unauthorized` | ☐ | |
+| TC-F06-05 | Buyer is not a core enterprise | S1 | Buyer address = F1 or X | Rejected by contract (`InvalidBuyer`) or backend role check | ✅ Pass (contract layer, `eth_call`) — `InvalidBuyer` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
+| TC-F06-06 | Non-supplier uploads | CE | Open the upload page or call `POST /api/invoices/file` | API 403 `ROLE_REQUIRED`; contract `Unauthorized` | ◐ Contract ✅ `Unauthorized`; API 403 ☐ | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F06-07 | File too large | S1 | Upload a PDF above the size limit | API 413 `FILE_TOO_LARGE` with a clear UI message | ☐ | |
 
 ### F-07 Duplicate Registration Prevention
@@ -115,8 +115,8 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F08-01 | Confirm and mint receivable | CE | Open `TEST-101` on Pending Invoices, view PDF → confirm | `InvoiceConfirmed`, `ReceivableMinted` emitted; a 10,000 receivable appears in S1's My Receivables | ✅ Pass — invoice #5 Confirmed; receivable #5 minted to S1 (10,000, Active) | `TC-F08-01.png`; tx `0xa423e023` |
-| TC-F08-02 | Only the invoiced buyer can confirm | Another core enterprise or S1 | Call `confirmInvoice(<TEST-001 id>)` | `NotInvoiceBuyer` / `Unauthorized` | ☐ | |
-| TC-F08-03 | Confirm twice | CE | Confirm `TEST-101` again | Rejected | ☐ | |
+| TC-F08-02 | Only the invoiced buyer can confirm | Another core enterprise or S1 | Call `confirmInvoice(<TEST-001 id>)` | `NotInvoiceBuyer` / `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `Unauthorized` (S1 used; only one core enterprise exists) | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
+| TC-F08-03 | Confirm twice | CE | Confirm `TEST-101` again | Rejected | ✅ Pass (contract layer, `eth_call`) — `InvoiceNotPending` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F08-04 | **(after maturity)** Confirm after due date | CE | Confirm `TEST-OD-002` after its due date has passed | `InvalidDueDate` | ✅ Pass — `InvalidDueDate(1791796698)` via console `estimateGas` as CE (invoice #3 hidden in UI as `FILE_MISSING` because it was seeded on-chain without a PDF); independently re-verified by `eth_call` | `TC-F08-04.png` |
 
 ### F-09 Reject Invoice
@@ -124,7 +124,7 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F09-01 | Reject invoice | CE | Reject `TEST-003` with reason "Amount does not match contract" | `InvoiceRejected` emitted; status "Rejected"; no receivable minted; S1 can see the reason | ☐ | |
-| TC-F09-02 | No reason | CE | Leave reason empty | Blocked by frontend and rejected by contract | ☐ | |
+| TC-F09-02 | No reason | CE | Leave reason empty | Blocked by frontend and rejected by contract | ◐ Contract ✅ `ReasonRequired`; UI validation ☐ | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-10 Invoice List & Details
 
@@ -155,7 +155,7 @@
 | TC-F12-03 | Recipient is not a supplier | S1 | Transfer to F1, CE or X | Rejected with `InvalidRecipient` | ✅ Pass (F1 as recipient) — rejected at gas estimation with `InvalidRecipient(F1)` (`0x17858bbe`), no tx sent; shown as raw hex (BUG-06) | `TC-F12-03.png` |
 | TC-F12-04 | Receivable frozen | S1 | Transfer #5 after it is frozen (see TC-F13-02) | Rejected with `ReceivableIsFrozen` | ☐ | |
 | TC-F12-05 | **(after maturity)** Receivable matured | S1 | Transfer part of the `TEST-OD-003` receivable to S2 after its due date | Rejected with `ReceivableMatured` | ✅ Pass — rejected at gas estimation with `ReceivableMatured` (`0x5e4046db`), no tx sent; message shown as raw hex (BUG-06) | `TC-F12-05.png` |
-| TC-F12-06 | Funder cannot transfer | F1 | Try to transfer a held receivable | Rejected | ☐ | |
+| TC-F12-06 | Funder cannot transfer | F1 | Try to transfer a held receivable | Rejected | ✅ Pass (contract layer, `eth_call`) — `Unauthorized` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-13 Freeze & Unfreeze
 
@@ -163,8 +163,8 @@
 |---|---|---|---|---|---|---|
 | TC-F13-01 | Freeze receivable | AU | On Receivable Tracing, find #5 → freeze with reason "Suspected fictitious trade" | `ReceivableFrozen` emitted; status shown as "Frozen" | ✅ Pass — AU froze #5 with reason (on-chain `frozen = true`); auditor page then mis-reports state after reload (BUG-09) | `TC-F13-01.png`; tx `0x3e958edb` |
 | TC-F13-02 | Frozen cannot be transferred/financed/redeemed | S1 | Transfer or request financing on the frozen receivable | Both rejected with `ReceivableIsFrozen` | ✅ Pass — UI disables Split & Transfer / Apply Financing; contract also rejects both via console `estimateGas` with `ReceivableIsFrozen` | `TC-F13-02-ui.png`, `TC-F13-02.png` |
-| TC-F13-03 | Reason required | AU | Freeze / unfreeze with an empty reason | Rejected | ☐ | |
-| TC-F13-04 | Non-auditor cannot freeze | S1/ADM | Call `freeze` | `Unauthorized` | ☐ | |
+| TC-F13-03 | Reason required | AU | Freeze / unfreeze with an empty reason | Rejected | ◐ Contract ✅ freeze w/o reason → `ReasonRequired`; unfreeze reason via UI ☐ (BUG-09 fix) | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
+| TC-F13-04 | Non-auditor cannot freeze | S1/ADM | Call `freeze` | `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `Unauthorized` (S1 and ADM2) | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F13-05 | Unfreeze restores previous state | AU → S1 | Unfreeze (with reason) → S1 transfers again | `ReceivableUnfrozen` emitted; transfer succeeds | ✅ Pass (via console as AU, UI unfreeze unavailable due to BUG-09) — #5 `frozen = false` | `TC-F13-05.png`; tx `0x585afc3f` |
 
 ### F-14 Receivable History
@@ -186,7 +186,7 @@
 | TC-F15-01 | Request financing | S1 | My Receivables → `TEST-101` → request financing for 10,000 | `FinancingRequested` emitted; receivable escrowed in FinancingPool; S1's balance decreases; status "Awaiting quotes" | ✅ Pass (after BUG-10 fix) — request #3 (#5, 6,000) Open; 6,000 escrowed in FinancingPool, S1 balance 0 | `TC-F15-01.png`; tx `0xab24bdac` |
 | TC-F15-02 | Exceeds balance | S1 | Request 20,000 | Rejected | ✅ Pass (after BUG-10 fix) — form rejects 20,000 against a 6,000 balance with a clear warning; no tx sent | `TC-F15-02.png` |
 | TC-F15-03 | Same amount cannot back two requests | S1 | Request again on `TEST-101` after the full amount is escrowed | Rejected (escrowed balance is 0) – **counts toward the duplicate-financing interception rate** | ✅ Pass — re-requesting #5 for 6,000 reverts with `ERC1155InsufficientBalance` (verified by `eth_call` as S1); also matured #4 rejected before sending with a readable message | `RETEST-BUG-06.png` |
-| TC-F15-04 | Non-supplier requests | F1 | Call `requestFinancing` | `Unauthorized` | ☐ | |
+| TC-F15-04 | Non-supplier requests | F1 | Call `requestFinancing` | `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `Unauthorized` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-16 Submit Quote
 
@@ -206,7 +206,7 @@
 | TC-F17-01 | Accept quote | S1 | Accept F1's quote on My Financing | Single transaction: receivable to F1 and 9,700 mUSD to S1; `FinancingFunded` emitted. **Record block time for the time-to-financing metric** | ✅ Pass — S1 accepted quote #4 (F1, 3%): in one tx request #3 Funded, 6,000 of #5 moved pool → F1, 5,820 mUSD pool → S1 (S1 2,910 → 8,730) | `TC-F17-01.png`; tx `0xc70576d2` |
 | TC-F17-02 | Non-requester accepts | S2 | Call `acceptQuote` | Rejected | ☐ | |
 | TC-F17-03 | Accept a withdrawn quote | S1 | Accept the quote withdrawn in TC-F16-06 | Rejected | ✅ Pass — accepting withdrawn quote #5 rejected at gas estimation with readable "This quote is expired or has been revoked." (BUG-06 fix confirmed); UI should not have offered the button (BUG-11) | `TC-F17-03.png` |
-| TC-F17-04 | Accept twice | S1 | After funding, accept another quote | Rejected – **counts toward the duplicate-financing interception rate** | ☐ | |
+| TC-F17-04 | Accept twice | S1 | After funding, accept another quote | Rejected – **counts toward the duplicate-financing interception rate** | ✅ Pass (contract layer, `eth_call`) — `RequestNotOpen` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-18 Cancel Financing Request
 
@@ -214,14 +214,14 @@
 |---|---|---|---|---|---|---|
 | TC-F18-01 | Cancel before acceptance | S1 | Request financing with S1's remaining 2,000 of `TEST-002` → cancel | `FinancingCancelled` emitted; receivable returned to S1 | ☐ | |
 | TC-F18-02 | Cannot accept after cancel | S1 | Accept a quote on the cancelled request | Rejected | ☐ | |
-| TC-F18-03 | Cannot cancel after funding | S1 | Cancel the funded `TEST-101` request | Rejected | ☐ | |
+| TC-F18-03 | Cannot cancel after funding | S1 | Cancel the funded `TEST-101` request | Rejected | ✅ Pass (contract layer, `eth_call`) — `RequestNotOpen` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-19 Repay at Maturity
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F19-01 | Repay (with approval) | CE | On Payables, click repay for `TEST-101` → guided `approve` → `repay` | Full face value 10,000 paid into FinancingPool; `Repaid` emitted; receivable status "Repaid" | ☐ | |
-| TC-F19-02 | Non-buyer repays | S1/F1 | Call `repay` | Rejected | ☐ | |
+| TC-F19-02 | Non-buyer repays | S1/F1 | Call `repay` | Rejected | ✅ Pass (contract layer, `eth_call`) — `NotReceivableBuyer` (S1 and F1) | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F19-03 | Repay twice | CE | Repay again | Rejected | ☐ | |
 | TC-F19-04 | Payables sorted | CE | Open Payables | Sorted by due date | ☐ | |
 
@@ -230,7 +230,7 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F20-01 | Funder redeems | F1 | Redeem `TEST-101` on My Loans | Receivable burned; 10,000 mUSD received 1:1; `Redeemed` emitted. F1 profit = 10,000 − 9,700 = 300 | ☐ | |
-| TC-F20-02 | Redeem before repayment | F1 | Redeem before CE has repaid | Rejected | ☐ | |
+| TC-F20-02 | Redeem before repayment | F1 | Redeem before CE has repaid | Rejected | ✅ Pass (contract layer, `eth_call`) — `NotRedeemable` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F20-03 | Split holders redeem separately | S1, S2 | After `TEST-002` is repaid, each redeems | S2 receives 4,000, S1 receives 2,000 | ☐ | |
 | TC-F20-04 | Redeem frozen receivable | F1 | Redeem a repaid but frozen receivable | Rejected with `ReceivableIsFrozen` | ☐ | |
 
@@ -240,7 +240,7 @@
 |---|---|---|---|---|---|---|
 | TC-F21-01 | Mark before due date | F1 | Before maturity, mark `TEST-OD-001` overdue | Rejected with `NotOverdueYet` | ✅ Pass (display issue → BUG-06) | `TC-F21-01.png`; rejected at gas estimation (`NotOverdueYet`), no tx sent |
 | TC-F21-02 | **(after maturity)** Mark after due date | F1 | After the due date, with CE not having repaid | `MarkedOverdue` emitted; CE's overdue record visible on the dashboard (`overdueCount` +1) | ✅ Pass — receivable #2 status Overdue; `overdueCount(CE)` = 1 (dashboard visibility checked in TC-F23-02) | `TC-F21-02.png`; tx `0xd1a69653` |
-| TC-F21-03 | Non-holder marks | F2 | Call `markOverdue` | Rejected | ☐ | |
+| TC-F21-03 | Non-holder marks | F2 | Call `markOverdue` | Rejected | ✅ Pass (contract layer, `eth_call`) — `NotReceivableHolder` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F21-04 | **(after maturity)** Late repayment after overdue | CE → F1 | CE repays → F1 redeems | Status changes Overdue → Repaid; redemption succeeds | ✅ Pass — CE approve + repay (#2 Overdue → Repaid, pool +3,000); F1 redeem burns #2 and receives 3,000 mUSD (F1 profit 90 = 3,000 − 2,910) | `TC-F21-04-repay.png`, `TC-F21-04-redeem.png`; txs `0x270c1e82`, `0xe845b3df` |
 
 ### F-22 Test Stablecoin Faucet
@@ -274,20 +274,22 @@
 
 ## 6. Permission Matrix Cross-Check (PRD §2)
 
+> Contract-layer results: [`evidence/onchain-negative-checks.md`](evidence/onchain-negative-checks.md) (rows PM-1 – PM-10).
+
 The PRD requires that "both the contracts and the backend enforce permissions; hiding buttons in the frontend does not count". For each row, call the contract (Etherscan Write Contract) or API with an **unauthorised role**; every call is expected to be rejected.
 
 | Operation | Unauthorised account used | Contract-layer rejection | Backend-layer rejection | Result |
 |---|---|---|---|---|
-| Grant/revoke role | S1 | `grantRole` → `Unauthorized` | `PATCH /api/enterprises/<id>` → 403 | ☐ |
-| Pause/resume | AU | `pause` → `Unauthorized` | — | ☐ |
-| Upload invoice | CE | `submitInvoice` → `Unauthorized` | `POST /api/invoices/file` → 403 | ☐ |
-| Confirm/reject invoice | S1 | `confirmInvoice` → reverted | — | ☐ |
-| Split/transfer | F1 | `transferReceivable` → reverted | — | ☐ |
-| Request financing | CE | `requestFinancing` → `Unauthorized` | — | ☐ |
-| Quote | S1 | `submitQuote` → `Unauthorized` | — | ☐ |
-| Repay | F1 | `repay` → reverted | — | ☐ |
-| Mark overdue | CE | `markOverdue` → reverted | — | ☐ |
-| Freeze/unfreeze | ADM | `freeze` → `Unauthorized` | — | ☐ |
+| Grant/revoke role | S1 | `grantRole` → `Unauthorized` | `PATCH /api/enterprises/<id>` → 403 | ◐ Contract ✅ (PM-1); backend ☐ |
+| Pause/resume | AU | `pause` → `Unauthorized` | — | ✅ Contract (PM-2) |
+| Upload invoice | CE | `submitInvoice` → `Unauthorized` | `POST /api/invoices/file` → 403 | ◐ Contract ✅ (PM-3); backend ☐ |
+| Confirm/reject invoice | S1 | `confirmInvoice` → reverted | — | ✅ Contract (PM-4) |
+| Split/transfer | F1 | `transferReceivable` → reverted | — | ✅ Contract (PM-5) |
+| Request financing | CE | `requestFinancing` → `Unauthorized` | — | ✅ Contract (PM-6) |
+| Quote | S1 | `submitQuote` → `Unauthorized` | — | ✅ Contract (PM-7) |
+| Repay | F1 | `repay` → reverted | — | ✅ Contract (PM-8) |
+| Mark overdue | CE | `markOverdue` → reverted | — | ✅ Contract (PM-9) |
+| Freeze/unfreeze | ADM | `freeze` → `Unauthorized` | — | ✅ Contract (PM-10) |
 | View all events | S1 | — | `GET /api/events` returns related events only | ☐ |
 | View registration applications | S1 | — | `GET /api/enterprises` → 403 | ☐ |
 
