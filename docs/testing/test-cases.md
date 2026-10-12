@@ -151,8 +151,8 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F12-01 | Partial split transfer | S1 | Transfer 4,000 of `TEST-002` to S2 | `ReceivableTransferred` emitted; S1 holds 2,000, S2 holds 4,000 | ✅ Pass — 4,000 of #5 transferred S1 → S2 (on-chain: S1 6,000, S2 4,000) | `TC-F12-01.png`; tx `0x2a63bf02` |
-| TC-F12-02 | Exceeds balance | S1 | Transfer 99,999 | Rejected with `ERC1155InsufficientBalance`; clear UI message | ☐ | |
-| TC-F12-03 | Recipient is not a supplier | S1 | Transfer to F1, CE or X | Rejected with `InvalidRecipient` | ☐ | |
+| TC-F12-02 | Exceeds balance | S1 | Transfer 99,999 | Rejected with `ERC1155InsufficientBalance`; clear UI message | ✅ Pass — rejected at gas estimation with `ERC1155InsufficientBalance` (`0x03dee4c5`), no tx sent; shown as raw hex (BUG-06) | `TC-F12-02.png` |
+| TC-F12-03 | Recipient is not a supplier | S1 | Transfer to F1, CE or X | Rejected with `InvalidRecipient` | ✅ Pass (F1 as recipient) — rejected at gas estimation with `InvalidRecipient(F1)` (`0x17858bbe`), no tx sent; shown as raw hex (BUG-06) | `TC-F12-03.png` |
 | TC-F12-04 | Receivable frozen | S1 | Transfer `TEST-004` after it is frozen (see TC-F13-02) | Rejected with `ReceivableIsFrozen` | ☐ | |
 | TC-F12-05 | **(after maturity)** Receivable matured | S1 | Transfer part of the `TEST-OD-003` receivable to S2 after its due date | Rejected with `ReceivableMatured` | ✅ Pass — rejected at gas estimation with `ReceivableMatured` (`0x5e4046db`), no tx sent; message shown as raw hex (BUG-06) | `TC-F12-05.png` |
 | TC-F12-06 | Funder cannot transfer | F1 | Try to transfer a held receivable | Rejected | ☐ | |
