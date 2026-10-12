@@ -41,7 +41,7 @@
         /**
          * Generic runner executing transaction across 4 stages with UI feedback
          */
-        async executeWithLifecycle(contractName, methodName, args = [], successMsg = "交易已成功上链！") {
+        async executeWithLifecycle(contractName, methodName, args = [], successMsg = "Transaction confirmed successfully on-chain!") {
             const feedback = typeof window !== "undefined" && window.UIFeedback ? window.UIFeedback : null;
             const contract = this.contracts[contractName];
             if (!contract) {
@@ -96,19 +96,19 @@
 
         // ==================== 1. RoleManager Functions ====================
         async grantRole(roleBytes32, account) {
-            return this.executeWithLifecycle("RoleManager", "grantRole", [roleBytes32, account], "已成功为企业分配链上角色！");
+            return this.executeWithLifecycle("RoleManager", "grantRole", [roleBytes32, account], "Role granted successfully on-chain!");
         }
 
         async revokeRole(roleBytes32, account) {
-            return this.executeWithLifecycle("RoleManager", "revokeRole", [roleBytes32, account], "已成功撤销该账户角色！");
+            return this.executeWithLifecycle("RoleManager", "revokeRole", [roleBytes32, account], "Role revoked successfully on-chain!");
         }
 
         async pauseSystem() {
-            return this.executeWithLifecycle("RoleManager", "pause", [], "系统已成功进入紧急熔断暂停状态！");
+            return this.executeWithLifecycle("RoleManager", "pause", [], "System has entered emergency pause state!");
         }
 
         async unpauseSystem() {
-            return this.executeWithLifecycle("RoleManager", "unpause", [], "系统已成功解除暂停，恢复正常！");
+            return this.executeWithLifecycle("RoleManager", "unpause", [], "System has been unpaused and restored to normal!");
         }
 
         async isRegistered(account) {
@@ -126,71 +126,71 @@
                 "InvoiceRegistry",
                 "submitInvoice",
                 [invoiceNo, buyer, amountUnits, dueDateTs, fileHashBytes32],
-                "发票已成功提交上链登记！"
+                "Invoice registered successfully on-chain!"
             );
         }
 
         async confirmInvoice(invoiceId) {
-            return this.executeWithLifecycle("InvoiceRegistry", "confirmInvoice", [invoiceId], "发票已确认，等额应收凭证已自动铸造！");
+            return this.executeWithLifecycle("InvoiceRegistry", "confirmInvoice", [invoiceId], "Invoice confirmed! Equivalent receivable token has been minted.");
         }
 
         async rejectInvoice(invoiceId, reason) {
-            return this.executeWithLifecycle("InvoiceRegistry", "rejectInvoice", [invoiceId, reason], "发票已拒绝。");
+            return this.executeWithLifecycle("InvoiceRegistry", "rejectInvoice", [invoiceId, reason], "Invoice has been rejected.");
         }
 
         // ==================== 3. ReceivableToken Functions ====================
         async transferReceivable(to, id, amount) {
-            return this.executeWithLifecycle("ReceivableToken", "transferReceivable", [to, id, amount], "凭证拆分转让成功！");
+            return this.executeWithLifecycle("ReceivableToken", "transferReceivable", [to, id, amount], "Receivable token split and transferred successfully!");
         }
 
         async freezeReceivable(id, reason) {
-            return this.executeWithLifecycle("ReceivableToken", "freeze", [id, reason], "凭证已被审计员链上冻结！");
+            return this.executeWithLifecycle("ReceivableToken", "freeze", [id, reason], "Receivable token has been frozen on-chain by auditor!");
         }
 
-        async unfreezeReceivable(id, reason = "经审查核实无误解除冻结") {
-            return this.executeWithLifecycle("ReceivableToken", "unfreeze", [id, reason], "凭证已成功解除冻结！");
+        async unfreezeReceivable(id, reason = "Verified and unfrozen") {
+            return this.executeWithLifecycle("ReceivableToken", "unfreeze", [id, reason], "Receivable token has been unfrozen successfully!");
         }
 
         // ==================== 4. FinancingPool Functions ====================
         async requestFinancing(receivableId, amount) {
-            return this.executeWithLifecycle("FinancingPool", "requestFinancing", [receivableId, amount], "融资申请已成功提交，凭证已托管至资金池！");
+            return this.executeWithLifecycle("FinancingPool", "requestFinancing", [receivableId, amount], "Financing request submitted! Token escrowed into pool.");
         }
 
         async submitQuote(requestId, discountBps) {
-            return this.executeWithLifecycle("FinancingPool", "submitQuote", [requestId, discountBps], "报价已成功提交并锁定放款资金！");
+            return this.executeWithLifecycle("FinancingPool", "submitQuote", [requestId, discountBps], "Quote submitted and funding locked successfully!");
         }
 
         async withdrawQuote(quoteId) {
-            return this.executeWithLifecycle("FinancingPool", "withdrawQuote", [quoteId], "报价已撤回，锁定资金已退回钱包！");
+            return this.executeWithLifecycle("FinancingPool", "withdrawQuote", [quoteId], "Quote withdrawn. Locked funds returned to wallet!");
         }
 
         async acceptQuote(requestId, quoteId) {
-            return this.executeWithLifecycle("FinancingPool", "acceptQuote", [requestId, quoteId], "已成功接受报价，放款资金已当场到账！");
+            return this.executeWithLifecycle("FinancingPool", "acceptQuote", [requestId, quoteId], "Quote accepted! Funds disbursed to wallet immediately!");
         }
 
         async cancelFinancingRequest(requestId) {
-            return this.executeWithLifecycle("FinancingPool", "cancelRequest", [requestId], "融资申请已取消，托管凭证已退回。");
+            return this.executeWithLifecycle("FinancingPool", "cancelRequest", [requestId], "Financing request cancelled. Escrowed token returned.");
         }
 
         async repayInvoice(receivableId) {
-            return this.executeWithLifecycle("FinancingPool", "repay", [receivableId], "到期还款已结清！");
+            return this.executeWithLifecycle("FinancingPool", "repay", [receivableId], "Due payment settled successfully!");
         }
 
         async redeemReceivable(receivableId) {
-            return this.executeWithLifecycle("FinancingPool", "redeem", [receivableId], "凭证已销毁，1:1 稳定币兑付已到账！");
+            return this.executeWithLifecycle("FinancingPool", "redeem", [receivableId], "Token burned! 1:1 mUSD redemption credited to wallet!");
         }
 
         async markOverdue(receivableId) {
-            return this.executeWithLifecycle("FinancingPool", "markOverdue", [receivableId], "已标记为逾期账款！");
+            return this.executeWithLifecycle("FinancingPool", "markOverdue", [receivableId], "Marked as overdue on-chain!");
         }
 
         // ==================== 5. MockStablecoin Functions ====================
         async claimFaucet() {
-            return this.executeWithLifecycle("MockStablecoin", "faucet", [], "已成功领取 100,000 mUSD 测试代币！");
+            return this.executeWithLifecycle("MockStablecoin", "faucet", [], "Successfully claimed 100,000 mUSD test tokens!");
         }
 
         async approveStablecoin(spender, amount) {
-            return this.executeWithLifecycle("MockStablecoin", "approve", [spender, amount], "稳定币扣款授权成功！");
+            return this.executeWithLifecycle("MockStablecoin", "approve", [spender, amount], "mUSD allowance approved successfully!");
         }
     }
 

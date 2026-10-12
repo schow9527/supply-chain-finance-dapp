@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}系统控制与角色撤销 | 管理员{% endblock %}
+{% block title %}System Control & Role Management | Admin{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,8 +10,8 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>系统紧急熔断与角色撤销管理 (F-04 / F-05)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">突发安全事件时一键全局熔断写操作，或依法吊销违规企业链上角色</p>
+                <h2>System Control & Role Governance (F-04 / F-05)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Manage emergency circuit breakers and directly grant or revoke on-chain roles</p>
             </div>
         </div>
 
@@ -19,43 +19,74 @@
         <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.5rem; margin-bottom:2rem;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                    <h3 style="margin-bottom:0.375rem;">🚨 全局紧急熔断暂停开关 (F-05)</h3>
+                    <h3 style="margin-bottom:0.375rem;">🚨 Global Emergency Circuit Breaker (F-05)</h3>
                     <p style="font-size:0.875rem; color:var(--text-muted);">
-                        暂停期间，全网所有发票登记、凭证转让、融资申请与放款写操作将被智能合约无条件拦截，查询不受影响。
+                        During pause, all invoice registrations, token transfers, financing requests, and loan disbursements across the network will be intercepted by smart contracts. Read queries remain unaffected.
                     </p>
                 </div>
                 <div style="text-align:right;">
-                    <div style="margin-bottom:0.5rem;">当前系统状态：<strong id="pause-status-text" style="color:var(--success);">正常运行中</strong></div>
-                    <button id="toggle-pause-btn" class="btn btn-danger" onclick="handleTogglePause()">🛑 紧急暂停全网系统</button>
+                    <div style="margin-bottom:0.5rem;">Current System Status: <strong id="pause-status-text" style="color:var(--success);">Normal Operation</strong></div>
+                    <button id="toggle-pause-btn" class="btn btn-danger" onclick="handleTogglePause()">🛑 Emergency Pause Network</button>
                 </div>
             </div>
         </div>
 
-        <!-- 2. Revoke Role (F-04) -->
-        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.5rem; max-width:650px;">
-            <h3 style="margin-bottom:0.75rem;">⛔ 撤销企业链上角色 (F-04)</h3>
-            <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.25rem;">
-                撤销后该地址将立即失去对应角色权限，所有专属写操作将被合约拒绝。
-            </p>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem;">
+            <!-- 2. Direct Grant Role (BUG-03 / F-03) -->
+            <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.5rem;">
+                <h3 style="margin-bottom:0.75rem;">➕ Direct Grant On-Chain Role</h3>
+                <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.25rem;">
+                    Directly grant an on-chain role (such as Auditor or Admin) to a specified wallet address via RoleManager.
+                </p>
 
-            <form onsubmit="handleRevokeRole(event)">
-                <div class="form-group">
-                    <label>目标企业钱包地址 <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="revoke-address-input" class="form-control" required placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$">
-                </div>
+                <form onsubmit="handleDirectGrantRole(event)">
+                    <div class="form-group">
+                        <label>Target Wallet Address <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="grant-address-input" class="form-control" required placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$">
+                    </div>
 
-                <div class="form-group">
-                    <label>要撤销的角色 <span style="color:var(--danger)">*</span></label>
-                    <select id="revoke-role-select" class="form-control" required>
-                        <option value="SUPPLIER">供应商 (SUPPLIER_ROLE)</option>
-                        <option value="CORE_ENTERPRISE">核心企业 (CORE_ENTERPRISE_ROLE)</option>
-                        <option value="FINANCIER">资金方 (FINANCIER_ROLE)</option>
-                        <option value="AUDITOR">审计员 (AUDITOR_ROLE)</option>
-                    </select>
-                </div>
+                    <div class="form-group">
+                        <label>Role to Grant <span style="color:var(--danger)">*</span></label>
+                        <select id="grant-role-select" class="form-control" required>
+                            <option value="AUDITOR">Auditor (AUDITOR_ROLE)</option>
+                            <option value="ADMIN">Platform Admin (DEFAULT_ADMIN_ROLE)</option>
+                            <option value="SUPPLIER">Supplier (SUPPLIER_ROLE)</option>
+                            <option value="CORE_ENTERPRISE">Core Enterprise (CORE_ENTERPRISE_ROLE)</option>
+                            <option value="FINANCIER">Financier (FINANCIER_ROLE)</option>
+                        </select>
+                    </div>
 
-                <button type="submit" class="btn btn-danger">执行链上角色撤销 (MetaMask 签名)</button>
-            </form>
+                    <button type="submit" class="btn btn-primary" style="width:100%;">Grant On-Chain Role (MetaMask)</button>
+                </form>
+            </div>
+
+            <!-- 3. Revoke Role (F-04) -->
+            <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.5rem;">
+                <h3 style="margin-bottom:0.75rem;">⛔ Revoke Enterprise On-Chain Role (F-04)</h3>
+                <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.25rem;">
+                    Once revoked, the address immediately loses the role privileges and dedicated write operations will be rejected.
+                </p>
+
+                <form onsubmit="handleRevokeRole(event)">
+                    <div class="form-group">
+                        <label>Target Wallet Address <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="revoke-address-input" class="form-control" required placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Role to Revoke <span style="color:var(--danger)">*</span></label>
+                        <select id="revoke-role-select" class="form-control" required>
+                            <option value="SUPPLIER">Supplier (SUPPLIER_ROLE)</option>
+                            <option value="CORE_ENTERPRISE">Core Enterprise (CORE_ENTERPRISE_ROLE)</option>
+                            <option value="FINANCIER">Financier (FINANCIER_ROLE)</option>
+                            <option value="AUDITOR">Auditor (AUDITOR_ROLE)</option>
+                            <option value="ADMIN">Platform Admin (DEFAULT_ADMIN_ROLE)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-danger" style="width:100%;">Revoke On-Chain Role (MetaMask)</button>
+                </form>
+            </div>
         </div>
     </main>
 </div>
@@ -66,6 +97,7 @@
 let isCurrentlyPaused = false;
 
 const ROLE_HASHES = {
+    ADMIN: "0x0000000000000000000000000000000000000000000000000000000000000000",
     SUPPLIER: ethers.keccak256(ethers.toUtf8Bytes("SUPPLIER")),
     CORE_ENTERPRISE: ethers.keccak256(ethers.toUtf8Bytes("CORE_ENTERPRISE")),
     FINANCIER: ethers.keccak256(ethers.toUtf8Bytes("FUNDER")),
@@ -82,34 +114,56 @@ async function checkSystemPauseState() {
         const btnEl = document.getElementById("toggle-pause-btn");
 
         if (isCurrentlyPaused) {
-            textEl.innerText = "已紧急暂停";
+            textEl.innerText = "Emergency Paused";
             textEl.style.color = "var(--danger)";
-            btnEl.innerText = "▶ 恢复系统运行";
+            btnEl.innerText = "▶ Resume Network Operations";
             btnEl.className = "btn btn-success";
         } else {
-            textEl.innerText = "正常运行中";
+            textEl.innerText = "Normal Operation";
             textEl.style.color = "var(--success)";
-            btnEl.innerText = "🛑 紧急暂停全网系统";
+            btnEl.innerText = "🛑 Emergency Pause Network";
             btnEl.className = "btn btn-danger";
         }
     } catch (_) {}
 }
 
 async function handleTogglePause() {
-    const action = isCurrentlyPaused ? "恢复" : "暂停";
-    if (!confirm(`确认要向以太坊发起【${action}系统】的管理员交易？`)) return;
+    const action = isCurrentlyPaused ? "resume" : "pause";
+    if (!confirm(`Are you sure you want to trigger the admin transaction to ${action} the system?`)) return;
 
     try {
         if (isCurrentlyPaused) {
             await window.DAppState.contractClient.unpauseSystem();
-            UIFeedback.showToast("系统已恢复正常运作！", "success");
+            UIFeedback.showToast("System has been unpaused and restored to normal operation!", "success");
         } else {
             await window.DAppState.contractClient.pauseSystem();
-            UIFeedback.showToast("系统已进入紧急熔断暂停状态！", "warning");
+            UIFeedback.showToast("System has entered emergency pause state!", "warning");
         }
         await checkSystemPauseState();
     } catch (e) {
         console.error(e);
+    }
+}
+
+async function handleDirectGrantRole(e) {
+    e.preventDefault();
+    const targetAddr = document.getElementById("grant-address-input").value.trim();
+    const roleKey = document.getElementById("grant-role-select").value;
+
+    if (!confirm(`Are you sure you want to grant [${roleKey}] role to address ${targetAddr} on-chain?`)) return;
+
+    const roleBytes32 = ROLE_HASHES[roleKey];
+    if (!roleBytes32) {
+        UIFeedback.showToast("Unknown role specified.", "error");
+        return;
+    }
+
+    try {
+        await window.DAppState.contractClient.grantRole(roleBytes32, targetAddr);
+        UIFeedback.showToast(`Role [${roleKey}] successfully granted to ${targetAddr}!`, "success");
+        document.getElementById("grant-address-input").value = "";
+    } catch (err) {
+        console.error(err);
     }
 }
 
@@ -118,12 +172,12 @@ async function handleRevokeRole(e) {
     const targetAddr = document.getElementById("revoke-address-input").value.trim();
     const roleKey = document.getElementById("revoke-role-select").value;
 
-    if (!confirm(`确认在链上撤销地址 ${targetAddr} 的 ${roleKey} 权限？`)) return;
+    if (!confirm(`Are you sure you want to revoke [${roleKey}] role from address ${targetAddr} on-chain?`)) return;
 
     const roleBytes32 = ROLE_HASHES[roleKey];
     try {
         await window.DAppState.contractClient.revokeRole(roleBytes32, targetAddr);
-        UIFeedback.showToast("已成功撤销该账户的角色权限！", "success");
+        UIFeedback.showToast("Role revoked successfully from this account!", "success");
         document.getElementById("revoke-address-input").value = "";
     } catch (err) {
         console.error(err);

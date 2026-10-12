@@ -1,92 +1,92 @@
 {% extends "base.html" %}
 
-{% block title %}去中心化供应链金融 DApp | 首页{% endblock %}
+{% block title %}Supply Chain Finance DApp | Home{% endblock %}
 
 {% block content %}
 <main class="container">
     <section class="hero">
-        <h1>基于以太坊智能合约的去中心化供应链金融平台</h1>
-        <p class="subtitle">解决中小微企业融资难、银行发票核验难、核心大厂信用难穿透的行业痛点</p>
+        <h1>Decentralized Supply Chain Finance Platform</h1>
+        <p class="subtitle">Empowering SME liquidity, preventing invoice duplication, and unlocking core enterprise credit through Ethereum smart contracts</p>
         <div class="actions">
-            <a href="/register" class="btn btn-primary">🏢 申请企业入驻</a>
-            <button onclick="claimTestTokens()" class="btn btn-outline">💧 领取 10,000 测试稳定币</button>
-            <a href="/common/transactions" class="btn btn-secondary">📜 交易记录</a>
-            <a href="/common/events" class="btn btn-secondary">🔍 事件审计</a>
+            <a href="/register" class="btn btn-primary">🏢 Apply for Onboarding</a>
+            <button onclick="claimTestTokens()" class="btn btn-outline">💧 Claim 100,000 mUSD Test Tokens</button>
+            <a href="/common/transactions" class="btn btn-secondary">📜 Transaction History</a>
+            <a href="/common/events" class="btn btn-secondary">🔍 Event Audit</a>
         </div>
     </section>
 
     <!-- Role Quick Navigation -->
-    <h2 style="font-size: 1.25rem; margin-bottom: 1rem; color: var(--text-main);">选择工作台角色控制台</h2>
+    <h2 style="font-size: 1.25rem; margin-bottom: 1rem; color: var(--text-main);">Role Dashboards</h2>
     <div class="roles-grid">
         <a href="/supplier/dashboard" class="card">
             <div class="card-icon">🏭</div>
-            <h3>供应商控制台 (Supplier)</h3>
-            <p>登记发票、拆分转让 ERC-1155 凭证、向资金池申请贴现融资。</p>
+            <h3>Supplier Dashboard</h3>
+            <p>Register invoices, split and transfer ERC-1155 tokens, and apply for discount financing.</p>
         </a>
         <a href="/core_enterprise/dashboard" class="card">
             <div class="card-icon">🏢</div>
-            <h3>核心企业控制台 (Core Enterprise)</h3>
-            <p>核验上游发票并链上确认铸证，临期款项预警与到期 1:1 全额清算。</p>
+            <h3>Core Enterprise Dashboard</h3>
+            <p>Verify invoices to mint receivable tokens, track payment deadlines, and settle liabilities 1:1.</p>
         </a>
         <a href="/financier/dashboard" class="card">
             <div class="card-icon">🏦</div>
-            <h3>资金方控制台 (Financier)</h3>
-            <p>浏览公开融资市场、在线输入贴现率报价、到期兑付稳定币。</p>
+            <h3>Financier Dashboard</h3>
+            <p>Explore open financing markets, submit discount rate quotes, and redeem matured tokens.</p>
         </a>
         <a href="/auditor/overview" class="card">
             <div class="card-icon">🛡️</div>
-            <h3>审计员控制台 (Auditor)</h3>
-            <p>全平台业务宏观总览，时间线穿透追溯凭证流转，异常凭证一键冻结。</p>
+            <h3>Auditor Dashboard</h3>
+            <p>Global portfolio overview, end-to-end token transfer lineage, and on-chain asset freeze controls.</p>
         </a>
         <a href="/admin/registrations" class="card">
             <div class="card-icon">⚙️</div>
-            <h3>平台管理员控制台 (Admin)</h3>
-            <p>企业入驻资质人工审查与链上角色发牌，系统全局紧急熔断暂停。</p>
+            <h3>Platform Admin Dashboard</h3>
+            <p>Review enterprise onboarding, grant on-chain roles, and manage global emergency pause.</p>
         </a>
     </div>
 
     <!-- 8-step process illustration -->
     <section style="background:#fff; border:1px solid var(--border); border-radius:10px; padding:1.5rem; margin-top:1.5rem;">
-        <h3 style="margin-bottom:1rem;">📌 核心业务流程 (8 步主线流程)</h3>
+        <h3 style="margin-bottom:1rem;">📌 Core Business Lifecycle (8-Step Process)</h3>
         <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; text-align:center;">
             <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
-                <div style="font-weight:700; color:var(--primary);">1. 供应商</div>
-                <div style="font-size:0.75rem;">开具并上传发票</div>
+                <div style="font-weight:700; color:var(--primary);">1. Supplier</div>
+                <div style="font-size:0.75rem;">Issues & uploads invoice</div>
             </div>
             <div style="align-self:center;">➔</div>
             <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
-                <div style="font-weight:700; color:var(--primary);">2. 核心企业</div>
-                <div style="font-size:0.75rem;">确认发票真实性</div>
+                <div style="font-weight:700; color:var(--primary);">2. Core Enterprise</div>
+                <div style="font-size:0.75rem;">Confirms invoice validity</div>
             </div>
             <div style="align-self:center;">➔</div>
             <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
-                <div style="font-weight:700; color:var(--primary);">3. 合约自动</div>
-                <div style="font-size:0.75rem;">铸造等额应收凭证</div>
+                <div style="font-weight:700; color:var(--primary);">3. Smart Contract</div>
+                <div style="font-size:0.75rem;">Mints ERC-1155 tokens</div>
             </div>
             <div style="align-self:center;">➔</div>
             <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
-                <div style="font-weight:700; color:var(--primary);">4. 供应商</div>
-                <div style="font-size:0.75rem;">申请融资 / 拆分转让</div>
+                <div style="font-weight:700; color:var(--primary);">4. Supplier</div>
+                <div style="font-size:0.75rem;">Requests financing / splits</div>
             </div>
             <div style="align-self:center;">➔</div>
             <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
-                <div style="font-weight:700; color:var(--primary);">5. 资金方</div>
-                <div style="font-size:0.75rem;">提交贴现率报价</div>
+                <div style="font-weight:700; color:var(--primary);">5. Financier</div>
+                <div style="font-size:0.75rem;">Submits discount quote</div>
             </div>
             <div style="align-self:center;">➔</div>
             <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
-                <div style="font-weight:700; color:var(--primary);">6. 供应商</div>
-                <div style="font-size:0.75rem;">接受报价当场放款</div>
+                <div style="font-weight:700; color:var(--primary);">6. Supplier</div>
+                <div style="font-size:0.75rem;">Accepts quote & funded</div>
             </div>
             <div style="align-self:center;">➔</div>
             <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
-                <div style="font-weight:700; color:var(--primary);">7. 核心企业</div>
-                <div style="font-size:0.75rem;">到期支付面值还款</div>
+                <div style="font-weight:700; color:var(--primary);">7. Core Enterprise</div>
+                <div style="font-size:0.75rem;">Settles payment at due date</div>
             </div>
             <div style="align-self:center;">➔</div>
             <div style="flex:1; min-width:120px; background:#f8fafc; padding:0.75rem; border-radius:6px; border:1px solid var(--border);">
-                <div style="font-weight:700; color:var(--primary);">8. 持有人</div>
-                <div style="font-size:0.75rem;">销毁凭证1:1兑付</div>
+                <div style="font-weight:700; color:var(--primary);">8. Holder</div>
+                <div style="font-size:0.75rem;">Burns token to redeem 1:1</div>
             </div>
         </div>
     </section>

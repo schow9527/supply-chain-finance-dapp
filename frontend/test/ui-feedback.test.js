@@ -13,25 +13,25 @@ test("UIFeedback - Transaction Stages", () => {
 test("UIFeedback - Custom Error & Revert Parsing", () => {
     // 1. User cancelled in MetaMask
     const userCancelErr = { code: "ACTION_REJECTED", message: "User denied transaction signature" };
-    assert.match(UIFeedback.parseBlockchainError(userCancelErr), /用户已在 MetaMask 中取消了交易签名/);
+    assert.match(UIFeedback.parseBlockchainError(userCancelErr), /Transaction signature was cancelled in MetaMask/);
 
     // 2. Custom error: InvoiceAlreadyExists
     const dupErr = { revert: { name: "InvoiceAlreadyExists" } };
-    assert.match(UIFeedback.parseBlockchainError(dupErr), /防重拦截：该发票号与承兑买方组合已在链上登记/);
+    assert.match(UIFeedback.parseBlockchainError(dupErr), /Duplicate rejected: This invoice number and buyer combination is already registered on-chain/);
 
     // 3. Custom error: SystemPaused
     const pauseErr = { revert: { name: "SystemPaused" } };
-    assert.match(UIFeedback.parseBlockchainError(pauseErr), /系统当前处于紧急暂停状态/);
+    assert.match(UIFeedback.parseBlockchainError(pauseErr), /System is currently in emergency pause/);
 
     // 4. Custom error: ReceivableIsFrozen
     const freezeErr = { revert: { name: "ReceivableIsFrozen" } };
-    assert.match(UIFeedback.parseBlockchainError(freezeErr), /已被审计员链上冻结/);
+    assert.match(UIFeedback.parseBlockchainError(freezeErr), /This receivable token has been frozen by an auditor/);
 
     // 5. Custom error: Unauthorized
     const unauthErr = { revert: { name: "Unauthorized" } };
-    assert.match(UIFeedback.parseBlockchainError(unauthErr), /当前账户没有执行该操作的权限/);
+    assert.match(UIFeedback.parseBlockchainError(unauthErr), /Current account is not authorized to perform this action/);
 
     // 6. Insufficient balance string
     const balErr = { message: "insufficient funds for gas * price + value" };
-    assert.match(UIFeedback.parseBlockchainError(balErr), /钱包内 Sepolia 测试 ETH 不足/);
+    assert.match(UIFeedback.parseBlockchainError(balErr), /Insufficient Sepolia ETH in wallet to pay gas fees/);
 });

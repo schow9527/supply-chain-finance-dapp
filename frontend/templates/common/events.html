@@ -1,47 +1,47 @@
 {% extends "base.html" %}
 
-{% block title %}链上审计事件日志 | SCF DApp{% endblock %}
+{% block title %}On-Chain Audit Event Logs | SCF DApp{% endblock %}
 
 {% block content %}
 <main class="container">
     <div class="page-header">
         <div>
-            <h2>以太坊智能合约审计事件流 (F-25)</h2>
-            <p style="color:var(--text-muted); font-size:0.875rem;">17 类业务合约事件全量索引，支持多维筛选穿透审计</p>
+            <h2>Ethereum Smart Contract Audit Event Stream (F-25)</h2>
+            <p style="color:var(--text-muted); font-size:0.875rem;">Comprehensive indexing of all contract event categories supporting multi-dimensional filtering and audit</p>
         </div>
         <div>
-            <button class="btn btn-outline" onclick="loadEvents()">🔄 刷新事件流</button>
+            <button class="btn btn-outline" onclick="loadEvents()">🔄 Refresh Events</button>
         </div>
     </div>
 
     <!-- Filter form -->
     <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1rem; margin-bottom:1.25rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
         <select id="contract-filter" class="form-control" style="max-width:200px;" onchange="loadEvents()">
-            <option value="">全部智能合约</option>
+            <option value="">All Smart Contracts</option>
             <option value="RoleManager">RoleManager</option>
             <option value="InvoiceRegistry">InvoiceRegistry</option>
             <option value="ReceivableToken">ReceivableToken</option>
             <option value="FinancingPool">FinancingPool</option>
             <option value="MockStablecoin">MockStablecoin</option>
         </select>
-        <input type="text" id="event-name-filter" class="form-control" placeholder="按事件名筛选 (如 InvoiceSubmitted)" style="max-width:240px;" oninput="loadEvents()">
-        <input type="text" id="address-filter" class="form-control" placeholder="按涉及地址筛选 (0x...)" style="max-width:240px;" oninput="loadEvents()">
+        <input type="text" id="event-name-filter" class="form-control" placeholder="Filter by event name (e.g. InvoiceSubmitted)" style="max-width:260px;" oninput="loadEvents()">
+        <input type="text" id="address-filter" class="form-control" placeholder="Filter by address (0x...)" style="max-width:240px;" oninput="loadEvents()">
     </div>
 
     <div class="table-container">
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>事件名称</th>
-                    <th>来源合约</th>
-                    <th>区块高度</th>
-                    <th>解析参数 (Indexed / Data)</th>
-                    <th>交易哈希</th>
-                    <th>时间</th>
+                    <th>Event Name</th>
+                    <th>Source Contract</th>
+                    <th>Block Number</th>
+                    <th>Parsed Arguments (Indexed / Data)</th>
+                    <th>Transaction Hash</th>
+                    <th>Time</th>
                 </tr>
             </thead>
             <tbody id="events-tbody">
-                <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载合约事件...</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">Loading contract events...</td></tr>
             </tbody>
         </table>
     </div>
@@ -64,7 +64,7 @@ async function loadEvents() {
         }) || [];
 
         if (events.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">暂无匹配的链上事件记录</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">No matching on-chain event records found</td></tr>`;
             return;
         }
 
@@ -84,8 +84,8 @@ async function loadEvents() {
         `).join("");
     } catch (error) {
         console.error(error);
-        UIFeedback.showToast(error.message || "事件查询失败", "error");
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无事件数据</td></tr>`;
+        UIFeedback.showToast(error.message || "Failed to load events", "error");
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No event data</td></tr>`;
     }
 }
 
