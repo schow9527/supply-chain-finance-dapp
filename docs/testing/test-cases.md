@@ -117,7 +117,7 @@
 | TC-F08-01 | Confirm and mint receivable | CE | Open `TEST-101` on Pending Invoices, view PDF → confirm | `InvoiceConfirmed`, `ReceivableMinted` emitted; a 10,000 receivable appears in S1's My Receivables | ✅ Pass — invoice #5 Confirmed; receivable #5 minted to S1 (10,000, Active) | `TC-F08-01.png`; tx `0xa423e023` |
 | TC-F08-02 | Only the invoiced buyer can confirm | Another core enterprise or S1 | Call `confirmInvoice(<TEST-001 id>)` | `NotInvoiceBuyer` / `Unauthorized` | ☐ | |
 | TC-F08-03 | Confirm twice | CE | Confirm `TEST-101` again | Rejected | ☐ | |
-| TC-F08-04 | **(after maturity)** Confirm after due date | CE | Confirm `TEST-OD-002` after its due date has passed | `InvalidDueDate` | ☐ | |
+| TC-F08-04 | **(after maturity)** Confirm after due date | CE | Confirm `TEST-OD-002` after its due date has passed | `InvalidDueDate` | ✅ Pass — `InvalidDueDate(1791796698)` via console `estimateGas` as CE (invoice #3 hidden in UI as `FILE_MISSING` because it was seeded on-chain without a PDF); independently re-verified by `eth_call` | `TC-F08-04.png` |
 
 ### F-09 Reject Invoice
 
