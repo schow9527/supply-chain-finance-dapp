@@ -17,7 +17,7 @@
 
 | Data | Value | Purpose |
 |---|---|---|
-| Main-flow invoice | `TEST-001`, S1 → CE, 10,000 mUSD, due +30 days | Main flow |
+| Main-flow invoice | `TEST-101`, S1 → CE, 10,000 mUSD, due +30 days | Main flow (renamed from `TEST-001`, which is blocked by BUG-07) |
 | Split invoice | `TEST-002`, S1 → CE, 6,000 mUSD, +30 days | Split-transfer 4,000 to S2 |
 | Rejection invoice | `TEST-003`, S1 → CE, 1,000 mUSD, +30 days | Rejection and resubmission |
 | Freeze invoice | `TEST-004`, S1 → CE, 2,000 mUSD, +30 days | Freeze / unfreeze |
@@ -92,7 +92,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F06-01 | Valid upload | S1 | Enter `TEST-001`, buyer CE, 10,000, +30 days, `invoice_ok.pdf` → submit and sign | PDF uploaded and hash returned; `submitInvoice` succeeds, `InvoiceSubmitted` emitted; invoice shown as "Pending" in My Invoices | ☐ | |
+| TC-F06-01 | Valid upload | S1 | Enter `TEST-101`, buyer CE, 10,000, +30 days, `invoice_ok.pdf` → submit and sign | PDF uploaded and hash returned; `submitInvoice` succeeds, `InvoiceSubmitted` emitted; invoice shown as "Pending" in My Invoices | ☐ | |
 | TC-F06-02 | Zero or negative amount | S1 | Amount 0 / −5 | Blocked by frontend; if bypassed, API 422 `INVALID_AMOUNT`, contract `InvalidAmount` | ☐ | |
 | TC-F06-03 | Due date not in the future | S1 | Due date today or yesterday | Blocked by frontend; API 422 `INVALID_DUE_DATE`, contract `InvalidDueDate` | ☐ | |
 | TC-F06-04 | Non-PDF file | S1 | Upload `image.png`, `fake.pdf` | Rejected, API 422 `INVALID_FILE_TYPE` | ☐ | |
@@ -104,19 +104,19 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F07-01 | Resubmit identical invoice | S1 | Submit `TEST-001`, CE, 10,000 again while pending | Rejected with "invoice already exists" (backend 409 `INVOICE_ALREADY_UPLOADED` or contract `InvoiceAlreadyExists`) | ☐ | |
-| TC-F07-02 | Resubmit a confirmed invoice | S1 | Submit `TEST-001` again after it is confirmed | Still rejected | ☐ | |
-| TC-F07-03 | Bypass backend, call contract directly | S1 | Call `submitInvoice` on Etherscan with `TEST-001`'s parameters | Reverts with `InvoiceAlreadyExists` – proves interception is on-chain, independent of the backend | ☐ | |
+| TC-F07-01 | Resubmit identical invoice | S1 | Submit `TEST-101`, CE, 10,000 again while pending | Rejected with "invoice already exists" (backend 409 `INVOICE_ALREADY_UPLOADED` or contract `InvoiceAlreadyExists`) | ☐ | |
+| TC-F07-02 | Resubmit a confirmed invoice | S1 | Submit `TEST-101` again after it is confirmed | Still rejected | ☐ | |
+| TC-F07-03 | Bypass backend, call contract directly | S1 | Call `submitInvoice` on Etherscan with `TEST-101`'s parameters | Reverts with `InvoiceAlreadyExists` – proves interception is on-chain, independent of the backend | ☐ | |
 | TC-F07-04 | Rejected invoice can be resubmitted | S1 | After `TEST-003` is rejected (TC-F09-01), submit it again with the same data | Allowed (rejection releases the dedup key) | ☐ | |
-| TC-F07-05 | Observation: amount changed only | S1 | Same number and buyer as `TEST-001`, amount 10,001 | Record the actual result. The dedup key includes the amount, so by design this is accepted; discuss this limitation in the report | ☐ | |
+| TC-F07-05 | Observation: amount changed only | S1 | Same number and buyer as `TEST-101`, amount 10,001 | Record the actual result. The dedup key includes the amount, so by design this is accepted; discuss this limitation in the report | ☐ | |
 
 ### F-08 Confirm Invoice
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F08-01 | Confirm and mint receivable | CE | Open `TEST-001` on Pending Invoices, view PDF → confirm | `InvoiceConfirmed`, `ReceivableMinted` emitted; a 10,000 receivable appears in S1's My Receivables | ☐ | |
+| TC-F08-01 | Confirm and mint receivable | CE | Open `TEST-101` on Pending Invoices, view PDF → confirm | `InvoiceConfirmed`, `ReceivableMinted` emitted; a 10,000 receivable appears in S1's My Receivables | ☐ | |
 | TC-F08-02 | Only the invoiced buyer can confirm | Another core enterprise or S1 | Call `confirmInvoice(<TEST-001 id>)` | `NotInvoiceBuyer` / `Unauthorized` | ☐ | |
-| TC-F08-03 | Confirm twice | CE | Confirm `TEST-001` again | Rejected | ☐ | |
+| TC-F08-03 | Confirm twice | CE | Confirm `TEST-101` again | Rejected | ☐ | |
 | TC-F08-04 | **(after maturity)** Confirm after due date | CE | Confirm `TEST-OD-002` after its due date has passed | `InvalidDueDate` | ☐ | |
 
 ### F-09 Reject Invoice
@@ -171,7 +171,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F14-01 | Full timeline | AU | After the main flow, look up the `TEST-001` receivable | Chronological: minted → financing requested → funded → repaid → redeemed, each with a transaction link | ☐ | |
+| TC-F14-01 | Full timeline | AU | After the main flow, look up the `TEST-101` receivable | Chronological: minted → financing requested → funded → repaid → redeemed, each with a transaction link | ☐ | |
 | TC-F14-02 | Split record | AU | Look up the `TEST-002` receivable | Shows the 4,000 transfer S1 → S2 | ☐ | |
 | TC-F14-03 | Sync latency | AU | Time from sending a transaction until it appears in the timeline | ≤ 30 s (non-functional requirement) | ☐ | |
 
@@ -183,16 +183,16 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F15-01 | Request financing | S1 | My Receivables → `TEST-001` → request financing for 10,000 | `FinancingRequested` emitted; receivable escrowed in FinancingPool; S1's balance decreases; status "Awaiting quotes" | ☐ | |
+| TC-F15-01 | Request financing | S1 | My Receivables → `TEST-101` → request financing for 10,000 | `FinancingRequested` emitted; receivable escrowed in FinancingPool; S1's balance decreases; status "Awaiting quotes" | ☐ | |
 | TC-F15-02 | Exceeds balance | S1 | Request 20,000 | Rejected | ☐ | |
-| TC-F15-03 | Same amount cannot back two requests | S1 | Request again on `TEST-001` after the full amount is escrowed | Rejected (escrowed balance is 0) – **counts toward the duplicate-financing interception rate** | ☐ | |
+| TC-F15-03 | Same amount cannot back two requests | S1 | Request again on `TEST-101` after the full amount is escrowed | Rejected (escrowed balance is 0) – **counts toward the duplicate-financing interception rate** | ☐ | |
 | TC-F15-04 | Non-supplier requests | F1 | Call `requestFinancing` | `Unauthorized` | ☐ | |
 
 ### F-16 Submit Quote
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F16-01 | Quote (with approval) | F1 | In the Financing Market, pick the `TEST-001` request, discount 3 % → UI guides `approve` of mUSD → `submitQuote` | Both transactions succeed; `Approval`, `QuoteSubmitted` emitted; supplier's net payout shown as 9,700 | ☐ | |
+| TC-F16-01 | Quote (with approval) | F1 | In the Financing Market, pick the `TEST-101` request, discount 3 % → UI guides `approve` of mUSD → `submitQuote` | Both transactions succeed; `Approval`, `QuoteSubmitted` emitted; supplier's net payout shown as 9,700 | ☐ | |
 | TC-F16-02 | Multiple funders quote | F2 | Quote 2.5 % on the same request | Succeeds; S1 sees both quotes on My Financing | ☐ | |
 | TC-F16-03 | Payout calculation | — | Compare UI value with `previewPayout(amount, bps)` | Identical | ☐ | |
 | TC-F16-04 | Invalid discount rate | F1 | Enter 100 % or more | Rejected | ☐ | |
@@ -214,13 +214,13 @@
 |---|---|---|---|---|---|---|
 | TC-F18-01 | Cancel before acceptance | S1 | Request financing with S1's remaining 2,000 of `TEST-002` → cancel | `FinancingCancelled` emitted; receivable returned to S1 | ☐ | |
 | TC-F18-02 | Cannot accept after cancel | S1 | Accept a quote on the cancelled request | Rejected | ☐ | |
-| TC-F18-03 | Cannot cancel after funding | S1 | Cancel the funded `TEST-001` request | Rejected | ☐ | |
+| TC-F18-03 | Cannot cancel after funding | S1 | Cancel the funded `TEST-101` request | Rejected | ☐ | |
 
 ### F-19 Repay at Maturity
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F19-01 | Repay (with approval) | CE | On Payables, click repay for `TEST-001` → guided `approve` → `repay` | Full face value 10,000 paid into FinancingPool; `Repaid` emitted; receivable status "Repaid" | ☐ | |
+| TC-F19-01 | Repay (with approval) | CE | On Payables, click repay for `TEST-101` → guided `approve` → `repay` | Full face value 10,000 paid into FinancingPool; `Repaid` emitted; receivable status "Repaid" | ☐ | |
 | TC-F19-02 | Non-buyer repays | S1/F1 | Call `repay` | Rejected | ☐ | |
 | TC-F19-03 | Repay twice | CE | Repay again | Rejected | ☐ | |
 | TC-F19-04 | Payables sorted | CE | Open Payables | Sorted by due date | ☐ | |
@@ -229,7 +229,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F20-01 | Funder redeems | F1 | Redeem `TEST-001` on My Loans | Receivable burned; 10,000 mUSD received 1:1; `Redeemed` emitted. F1 profit = 10,000 − 9,700 = 300 | ☐ | |
+| TC-F20-01 | Funder redeems | F1 | Redeem `TEST-101` on My Loans | Receivable burned; 10,000 mUSD received 1:1; `Redeemed` emitted. F1 profit = 10,000 − 9,700 = 300 | ☐ | |
 | TC-F20-02 | Redeem before repayment | F1 | Redeem before CE has repaid | Rejected | ☐ | |
 | TC-F20-03 | Split holders redeem separately | S1, S2 | After `TEST-002` is repaid, each redeems | S2 receives 4,000, S1 receives 2,000 | ☐ | |
 | TC-F20-04 | Redeem frozen receivable | F1 | Redeem a repaid but frozen receivable | Rejected with `ReceivableIsFrozen` | ☐ | |

@@ -15,6 +15,7 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-04 | Duplicate login signature requests cause misleading "another wallet" error | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | BUG-05 | Transactions are sent from the previously connected account after switching MetaMask account | **P1** | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | BUG-06 | Contract revert reasons shown as raw "unknown custom error" hex | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-07 | Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever | **P1** | Member 2 / Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 
@@ -76,6 +77,15 @@ All three defects were found during test-environment setup (before formal execut
 - **Expected**: PRD §9 (error handling) requires the contract's rejection reason to be shown clearly, e.g. "This receivable is not overdue yet (due 17:18)". Relates to TC-F26-04.
 - **Good**: the failure was caught at the gas-estimation stage — MetaMask was never opened and no gas was spent.
 - **Suggested fix**: decode `error.data` with `contract.interface.parseError(...)` and map error names to friendly messages; hide the fee line when estimation fails.
+
+## BUG-07 · Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever (P1)
+
+- **Where**: invoice upload flow — `frontend/templates/supplier/upload_invoice.html` first calls `POST /api/invoices/file` (stores the PDF and an `Invoice` row with status `FILE_UPLOADED`), then sends `submitInvoice` via MetaMask. `backend/routes/invoices.py` rejects any later upload with the same `invoice_no` + supplier + buyer unless the existing row is `REJECTED`.
+- **Steps to reproduce**: As S1, fill in `TEST-001`, buyer CE, 10,000, due 2026-11-13, `invoice_ok.pdf` → Submit → cancel the MetaMask transaction → click Submit again.
+- **Observed**: Toast "This invoice is already uploaded." (`409 INVOICE_ALREADY_UPLOADED`). On-chain `invoiceCount()` is unchanged (4) — `TEST-001` was never registered on-chain, yet the backend draft now blocks that invoice number permanently.
+- **Expected**: PRD §9 requires user-rejected signatures to be handled gracefully. A draft whose on-chain submission never happened should be reusable (e.g., treat `FILE_UPLOADED` drafts from the same supplier as replaceable, expire them, or let the user retry the on-chain step for the existing draft).
+- **Note**: The on-chain duplicate check (F-07) is unaffected; this is a backend/off-chain false positive.
+- **Workaround used during testing**: The main-flow invoice was renamed from `TEST-001` to `TEST-101`.
 
 ## KI-01 · MetaMask flags the site as "Malicious" (known issue, won't fix)
 
