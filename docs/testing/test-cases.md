@@ -255,10 +255,10 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F23-01 | Supplier dashboard | S1 | Open dashboard | Total receivables held, amount financed, pending items, charts; figures match reality | ☐ | |
-| TC-F23-02 | Core-enterprise dashboard | CE | Same | Pending invoices, total payables, upcoming payments, overdue records | ☐ | |
-| TC-F23-03 | Funder dashboard | F1 | Same | Total funded, outstanding amount, overdue count | ☐ | |
-| TC-F23-04 | Auditor overview | AU | Same | Platform invoice count, total receivables, total financing, overdue rate | ☐ | |
+| TC-F23-01 | Supplier dashboard | S1 | Open dashboard | Total receivables held, amount financed, pending items, charts; figures match reality | ✅ Pass — held 1,000 and cumulative funded 8,730 match on-chain; no chart (BUG-12) | `TC-F23-01.png` |
+| TC-F23-02 | Core-enterprise dashboard | CE | Same | Pending invoices, total payables, upcoming payments, overdue records | ❌ Fail (BUG-12) — outstanding payables / settled shown as 0.00 | `TC-F23-02.png` |
+| TC-F23-03 | Funder dashboard | F1 | Same | Total funded, outstanding amount, overdue count | ❌ Fail (BUG-12) — total disbursed shown as 0.00 (should be 8,730) | `TC-F23-03.png` |
+| TC-F23-04 | Auditor overview | AU | Same | Platform invoice count, total receivables, total financing, overdue rate | ❌ Fail (BUG-12) — financed principal 0.00, overdue rate 0.00%, invoice count includes drafts | `TC-F23-04.png` |
 | TC-F23-05 | Data isolation | S2 | Open dashboard | Only S2's own data; nothing from S1 | ⏭ Out of scope — not required by course brief; API scoping covered by backend unit tests (`test_queries.py`) |  |
 | TC-F23-06 | Mobile display | Any | Chrome DevTools iPhone viewport, or a real phone | Layout intact, no horizontal scrolling, buttons tappable | ☐ | |
 | TC-F24-01 | Transaction history | S1 | Open Transaction History | All of S1's on-chain transactions listed, each with a working Etherscan link | ☐ | |

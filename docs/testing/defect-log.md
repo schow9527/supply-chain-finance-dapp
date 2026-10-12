@@ -21,7 +21,8 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-08 | No way to view/download the invoice PDF or check the hash in the UI | **P1** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`3a9d48a`) | 2026-10-12 ✅ (`RETEST-BUG-08.png`) |
 | BUG-09 | Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload | **P1** | Member 3 | 2026-10-12 | 🟢 Fixed & deployed, retest pending | `fix/frontend-bug05-06-08` (`be4c359`) | — |
 | BUG-10 | "Apply Financing" button does nothing (calls a non-existent function) | **P0** | Member 3 | 2026-10-12 | ✅ Closed | `fix/frontend-bug05-06-08` (`ce8bcf2`) | 2026-10-12 ✅ (TC-F15-01/02) |
-| BUG-11 | Withdrawn quotes still show an "Accept" button | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-11 | Withdrawn quotes still show an "Accept" button | P2 | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/dashboard-bug11-12` (`096318b`) | — |
+| BUG-12 | Dashboard KPIs hard-coded / wrong, and no charts (data visualisation missing) | **P1** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/dashboard-bug11-12` (`096318b`) | — |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 
@@ -129,6 +130,26 @@ BUG-01 – BUG-03 were found during test-environment setup (before formal execut
 - **Observed**: Quote #5 is still listed with "Accept Quote & Receive Funds". The backend already projects it as `WITHDRAWN` (sync lag 0), but `renderQuotesList` ignores `q.status` and shows Accept for every quote while the request is open. Clicking it is safely rejected by the contract ("This quote is expired or has been revoked.", TC-F17-03).
 - **Expected**: Withdrawn quotes are shown as "Withdrawn" without an Accept button.
 - **Suggested fix**: render the Accept button only when `q.status === "ACTIVE"`; otherwise show a status badge.
+
+## BUG-12 · Dashboard KPIs hard-coded / wrong, and no charts (P1)
+
+- **Where**: `frontend/templates/{supplier,core_enterprise,financier}/dashboard.html`, `frontend/templates/auditor/overview.html`.
+- **Found**: TC-F23-01 – 04 screenshots compared with on-chain state (2026-10-12 ~20:50).
+- **Observed vs. on-chain truth**:
+
+| Dashboard | KPI shown | On-chain truth | Cause |
+|---|---|---|---|
+| Core enterprise | Outstanding payables **0.00** | 11,000 unpaid (#5 10,000 + #4 1,000) | loader can exit before the wallet is ready; also counted repaid invoices |
+| Core enterprise | Cumulative settled **0.00** | 3,000 repaid (#2) | card never computed (static placeholder) |
+| Core enterprise | Due within 7 days **0.00** | (0 is correct by coincidence) | card never computed |
+| Funder | Total disbursed **0.00** | 8,730 (2,910 + 5,820) | card never computed |
+| Funder | Overdue assets **0** | (0 correct by coincidence) | card never computed |
+| Auditor | Total financed principal **0.00** | 9,000 (#2 3,000 + #5 6,000) | card never computed |
+| Auditor | Overdue rate **0.00%** | #4 is past due and unpaid | card never computed |
+| Auditor | Total invoices **6** | 4 on-chain in the projection | counted 2 BUG-07 drafts never sent on-chain |
+
+- **Also**: none of the dashboards contained a chart, although the course brief requires "data visualisation" and PRD F-23 requires "key figures and charts".
+- **Fix (on branch, not merged)**: compute every KPI from the existing APIs (on-chain invoices only), reload on `walletAccountChanged`, add one Chart.js chart per role dashboard (`static/js/dashboard-charts.js`), and label drafts on the supplier dashboard.
 
 ## KI-01 · MetaMask flags the site as "Malicious" (known issue, won't fix)
 
