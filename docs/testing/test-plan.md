@@ -59,18 +59,18 @@
 
 ## 5. Test Accounts
 
-Each wallet address can hold only one role, so several MetaMask accounts are needed. Every account needs Sepolia ETH for gas (≥ 0.05 ETH recommended).
+Each wallet address can hold only one role, so several MetaMask accounts are needed. Every account needs Sepolia ETH for gas. At the gas price observed on 2026-10-12 (≈ 0.001 gwei) a `submitInvoice` costs < 0.000001 ETH, so 0.004 ETH per account is ample; CE funded each of the other accounts with 0.004 ETH on 2026-10-12.
 
 | Alias | Role | Purpose | Address | Notes |
 |---|---|---|---|---|
 | `ADM` | Admin | Grant/revoke roles, pause/unpause | `0x0ced068d2f30d72ca4c8d41d9619a2183d06834f` | **Deployer wallet, held by Member 1** – requires Member 1's assistance |
-| `CE` | Core Enterprise | Confirm/reject invoices, repay at maturity | TBD | Needs mUSD for repayment |
-| `S1` | Supplier | Upload invoices, split/transfer, request financing | TBD | |
-| `S2` | Supplier (tier 2) | Receive split receivables | TBD | |
-| `F1` | Funder | Quote, fund, mark overdue, redeem | TBD | Needs mUSD for funding |
-| `F2` | Funder | Second competing quote on the same request (F-16) | TBD | Needs mUSD |
-| `AU` | Auditor | Freeze/unfreeze, global view | TBD | |
-| `X` | Unauthorised | Access-control tests, role revocation, registration flow | TBD | No role, or role revoked after use |
+| `CE` | Core Enterprise | Confirm/reject invoices, repay at maturity | `0x3d06C8284962154159c2F7eC6F8789A75dd7A892` | Needs mUSD for repayment |
+| `S1` | Supplier | Upload invoices, split/transfer, request financing | `0xC5192Be82Ef411Ca3ec3B8Ea03EA260C770795F2` | |
+| `S2` | Supplier (tier 2) | Receive split receivables | `0xE128d23F32B6f576054f0F9D7ec0B6Ef2EAa282e` | |
+| `F1` | Funder | Quote, fund, mark overdue, redeem | `0xE21E58104Aa80450bA60C6A535129E7d9F8b9916` | Needs mUSD for funding |
+| `F2` | Funder | Second competing quote on the same request (F-16) | `0x9c781511c1b3843837da8be745e0CCCeCd04661E` | Needs mUSD |
+| `AU` | Auditor | Freeze/unfreeze, global view | `0x2aAEe8c8A554c988872179d6391A29f6f18d37ce` | |
+| `X` | Unauthorised | Access-control tests, role revocation, registration flow | `0x0B1A4a58beAAF4C990C058158716D9867f053D55` | No role, or role revoked after use |
 
 ## 6. Schedule
 
