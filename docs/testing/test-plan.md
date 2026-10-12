@@ -32,7 +32,7 @@
 | L2 Backend unit tests | `pytest` (195 passed; 2 integration tests skipped – require real PostgreSQL/S3) | Written by Member 2; re-run by YANG SHUYI | ✅ Re-run and passed on 2026-10-12 |
 | L3 Frontend unit tests | `npm test` (Node built-in test runner, 16 tests) | Written by Member 3; re-run by YANG SHUYI | ✅ Re-run and passed on 2026-10-12 |
 | L4 End-to-end functional tests | Manual execution of [test-cases.md](test-cases.md) on the live Render deployment, with screenshots and transaction hashes | YANG SHUYI | Pending |
-| L5 User testing | ≥ 5 participants outside the team complete the full flow from task cards and fill in a questionnaire | Organised by YANG SHUYI | Pending |
+| L5 User testing | Lightweight study (see §9.1): 2–3 participants complete the main flow from a task card on the tester's laptop, then fill in a 5-question questionnaire | Organised by YANG SHUYI | Pending |
 
 > Note on re-running L2: on Windows, if the repository sits in a deep directory, the storage tests fail with HTTP 503 because the path exceeds 260 characters. Use a short temp directory, e.g. `pytest --basetemp=C:/pt`. This is an environment issue, not a code defect.
 
@@ -90,7 +90,7 @@ Therefore, **on Day 1 an invoice due "tomorrow" must be registered, confirmed an
 | D1 | Negative and access-control cases; pause cases (pausing affects the whole team – **notify the group chat first** and unpause immediately afterwards) | D0 |
 | D2 | Maturity-dependent cases: TC-F21, TC-F12-05, TC-F08-04 | D1 seed invoice |
 | D2 | Mobile responsive checks; success-metric summary | — |
-| D3+ | User testing (L5) | Main flow fully passing |
+| D3+ | User testing (L5), ~10 min per participant | Main flow fully passing |
 
 ## 7. Defect Management
 
@@ -115,6 +115,18 @@ Therefore, **on Day 1 an invoice due "tomorrow" must be registered, confirmed an
 | Cost per transaction | Gas used per transaction type before vs. after optimisation (already measured by Member 1, see [gas-optimization.md](../../contracts/docs/gas-optimization.md)); spot-check against real Sepolia "Gas Used" values | After < before (main flow −15.3 %) | Foundry report + Etherscan |
 | Task completion rate | Participants who complete the full flow without assistance / total participants | ≥ 80 % | L5 observation sheet |
 | User satisfaction | Mean score of a 1–5 post-test questionnaire | ≥ 4.0 | L5 questionnaire |
+
+### 9.1 User Testing Protocol (lightweight)
+
+| Item | Decision |
+|---|---|
+| Participants | 2–3 people: Members 4 and 5 (non-developers, reported as internal pilot testers) plus at least one person outside the team |
+| Setup | Tester's own laptop with the prepared accounts (§5) already connected – participants do not install MetaMask |
+| Task | One task card covering the main flow: upload invoice → confirm → request financing → quote → accept → repay → redeem, switching accounts as instructed |
+| Duration | ~10 minutes per participant |
+| Observation | Tester records, without helping, whether each step was completed unaided and where the participant hesitated |
+| Questionnaire | 5 questions on a 1–5 scale (ease of use, clarity of status/feedback, clarity of error messages, trust in the result, overall satisfaction) |
+| Limitation | Small, partly internal sample; results are indicative only and this is stated in the report |
 
 ## 10. Risks and Dependencies
 
