@@ -20,7 +20,7 @@
 | Main-flow invoice | `TEST-101`, S1 → CE, 10,000 mUSD, due +30 days | Main flow (renamed from `TEST-001`, which is blocked by BUG-07) |
 | Split invoice | ~~`TEST-002`~~ → **receivable #5 (`TEST-102`) reused** to save gas: 4,000 split to S2, S1 keeps 6,000 | Split, freeze and financing all use #5 |
 | Rejection invoice | `TEST-003`, S1 → CE, 1,000 mUSD, +30 days | Rejection and resubmission |
-| Freeze invoice | `TEST-004`, S1 → CE, 2,000 mUSD, +30 days | Freeze / unfreeze |
+| Freeze invoice | ~~#5~~ → **receivable #5 reused** (frozen, then unfrozen) | Freeze / unfreeze |
 | Maturity seed 1 | `TEST-OD-001`, S1 → CE, 3,000 mUSD, **due +30 min** (console) | Confirmed and financed to F1; used for overdue tests (TC-F21) |
 | Maturity seed 2 | `TEST-OD-002`, S1 → CE, 1,000 mUSD, **due +30 min** (console) | Left unconfirmed; confirmed after maturity (TC-F08-04) |
 | Maturity seed 3 | `TEST-OD-003`, S1 → CE, 1,000 mUSD, **due +30 min** (console) | Confirmed and kept by S1; transferred after maturity (TC-F12-05) |
@@ -153,7 +153,7 @@
 | TC-F12-01 | Partial split transfer | S1 | Transfer 4,000 of `TEST-002` to S2 | `ReceivableTransferred` emitted; S1 holds 2,000, S2 holds 4,000 | ✅ Pass — 4,000 of #5 transferred S1 → S2 (on-chain: S1 6,000, S2 4,000) | `TC-F12-01.png`; tx `0x2a63bf02` |
 | TC-F12-02 | Exceeds balance | S1 | Transfer 99,999 | Rejected with `ERC1155InsufficientBalance`; clear UI message | ✅ Pass — rejected at gas estimation with `ERC1155InsufficientBalance` (`0x03dee4c5`), no tx sent; shown as raw hex (BUG-06) | `TC-F12-02.png` |
 | TC-F12-03 | Recipient is not a supplier | S1 | Transfer to F1, CE or X | Rejected with `InvalidRecipient` | ✅ Pass (F1 as recipient) — rejected at gas estimation with `InvalidRecipient(F1)` (`0x17858bbe`), no tx sent; shown as raw hex (BUG-06) | `TC-F12-03.png` |
-| TC-F12-04 | Receivable frozen | S1 | Transfer `TEST-004` after it is frozen (see TC-F13-02) | Rejected with `ReceivableIsFrozen` | ☐ | |
+| TC-F12-04 | Receivable frozen | S1 | Transfer #5 after it is frozen (see TC-F13-02) | Rejected with `ReceivableIsFrozen` | ☐ | |
 | TC-F12-05 | **(after maturity)** Receivable matured | S1 | Transfer part of the `TEST-OD-003` receivable to S2 after its due date | Rejected with `ReceivableMatured` | ✅ Pass — rejected at gas estimation with `ReceivableMatured` (`0x5e4046db`), no tx sent; message shown as raw hex (BUG-06) | `TC-F12-05.png` |
 | TC-F12-06 | Funder cannot transfer | F1 | Try to transfer a held receivable | Rejected | ☐ | |
 
@@ -161,11 +161,11 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F13-01 | Freeze receivable | AU | On Receivable Tracing, find `TEST-004` → freeze with reason "Suspected fictitious trade" | `ReceivableFrozen` emitted; status shown as "Frozen" | ☐ | |
-| TC-F13-02 | Frozen cannot be transferred/financed/redeemed | S1 | Transfer or request financing on the frozen receivable | Both rejected with `ReceivableIsFrozen` | ☐ | |
+| TC-F13-01 | Freeze receivable | AU | On Receivable Tracing, find #5 → freeze with reason "Suspected fictitious trade" | `ReceivableFrozen` emitted; status shown as "Frozen" | ✅ Pass — AU froze #5 with reason (on-chain `frozen = true`); auditor page then mis-reports state after reload (BUG-09) | `TC-F13-01.png`; tx `0x3e958edb` |
+| TC-F13-02 | Frozen cannot be transferred/financed/redeemed | S1 | Transfer or request financing on the frozen receivable | Both rejected with `ReceivableIsFrozen` | ✅ Pass — UI disables Split & Transfer / Apply Financing; contract also rejects both via console `estimateGas` with `ReceivableIsFrozen` | `TC-F13-02-ui.png`, `TC-F13-02.png` |
 | TC-F13-03 | Reason required | AU | Freeze / unfreeze with an empty reason | Rejected | ☐ | |
 | TC-F13-04 | Non-auditor cannot freeze | S1/ADM | Call `freeze` | `Unauthorized` | ☐ | |
-| TC-F13-05 | Unfreeze restores previous state | AU → S1 | Unfreeze (with reason) → S1 transfers again | `ReceivableUnfrozen` emitted; transfer succeeds | ☐ | |
+| TC-F13-05 | Unfreeze restores previous state | AU → S1 | Unfreeze (with reason) → S1 transfers again | `ReceivableUnfrozen` emitted; transfer succeeds | ✅ Pass (via console as AU, UI unfreeze unavailable due to BUG-09) — #5 `frozen = false` | `TC-F13-05.png`; tx `0x585afc3f` |
 
 ### F-14 Receivable History
 
