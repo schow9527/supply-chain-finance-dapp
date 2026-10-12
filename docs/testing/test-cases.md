@@ -18,7 +18,7 @@
 | Data | Value | Purpose |
 |---|---|---|
 | Main-flow invoice | `TEST-101`, S1 → CE, 10,000 mUSD, due +30 days | Main flow (renamed from `TEST-001`, which is blocked by BUG-07) |
-| Split invoice | `TEST-002`, S1 → CE, 6,000 mUSD, +30 days | Split-transfer 4,000 to S2 |
+| Split invoice | ~~`TEST-002`~~ → **receivable #5 (`TEST-102`) reused** to save gas: 4,000 split to S2, S1 keeps 6,000 | Split, freeze and financing all use #5 |
 | Rejection invoice | `TEST-003`, S1 → CE, 1,000 mUSD, +30 days | Rejection and resubmission |
 | Freeze invoice | `TEST-004`, S1 → CE, 2,000 mUSD, +30 days | Freeze / unfreeze |
 | Maturity seed 1 | `TEST-OD-001`, S1 → CE, 3,000 mUSD, **due +30 min** (console) | Confirmed and financed to F1; used for overdue tests (TC-F21) |
@@ -150,7 +150,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F12-01 | Partial split transfer | S1 | Transfer 4,000 of `TEST-002` to S2 | `ReceivableTransferred` emitted; S1 holds 2,000, S2 holds 4,000 | ☐ | |
+| TC-F12-01 | Partial split transfer | S1 | Transfer 4,000 of `TEST-002` to S2 | `ReceivableTransferred` emitted; S1 holds 2,000, S2 holds 4,000 | ✅ Pass — 4,000 of #5 transferred S1 → S2 (on-chain: S1 6,000, S2 4,000) | `TC-F12-01.png`; tx `0x2a63bf02` |
 | TC-F12-02 | Exceeds balance | S1 | Transfer 99,999 | Rejected with `ERC1155InsufficientBalance`; clear UI message | ☐ | |
 | TC-F12-03 | Recipient is not a supplier | S1 | Transfer to F1, CE or X | Rejected with `InvalidRecipient` | ☐ | |
 | TC-F12-04 | Receivable frozen | S1 | Transfer `TEST-004` after it is frozen (see TC-F13-02) | Rejected with `ReceivableIsFrozen` | ☐ | |
