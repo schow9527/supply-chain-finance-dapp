@@ -64,6 +64,7 @@ Each wallet address can hold only one role, so several MetaMask accounts are nee
 | Alias | Role | Purpose | Address | Notes |
 |---|---|---|---|---|
 | `ADM` | Admin | Grant/revoke roles, pause/unpause | `0x0ced068d2f30d72ca4c8d41d9619a2183d06834f` | **Deployer wallet, held by Member 1** – requires Member 1's assistance |
+| `ADM2` | Admin (tester) | Approve registrations, revoke roles, pause/unpause during testing | `0x877c15eB8449DF65323a2e49902d889052a9Df42` | Tester's own admin account (MetaMask name `Main`), to be granted `DEFAULT_ADMIN_ROLE` by `ADM`; revoke tests are run only against `X` |
 | `CE` | Core Enterprise | Confirm/reject invoices, repay at maturity | `0x3d06C8284962154159c2F7eC6F8789A75dd7A892` | Needs mUSD for repayment |
 | `S1` | Supplier | Upload invoices, split/transfer, request financing | `0xC5192Be82Ef411Ca3ec3B8Ea03EA260C770795F2` | |
 | `S2` | Supplier (tier 2) | Receive split receivables | `0xE128d23F32B6f576054f0F9D7ec0B6Ef2EAa282e` | |
@@ -119,7 +120,7 @@ Therefore, **on Day 1 an invoice due "tomorrow" must be registered, confirmed an
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Admin wallet is held only by Member 1 | Role grants and pause tests depend on Member 1 | Book a time slot in D0 and grant all roles in one session |
+| Admin wallet is held only by Member 1 | Role grants and pause tests depend on Member 1 | In D0, Member 1 grants `DEFAULT_ADMIN_ROLE` to `ADM2` (the contract allows multiple admins), so later admin test cases run without Member 1 |
 | Sepolia faucet limits and block times | Slower testing; inflated time-to-financing figures | Obtain ETH early; state testnet block time in the metric report |
 | Backend branch not yet merged into `main` | Version in the report differs from the repository's main branch | After merging, re-label the build under test with the merge commit |
 | Render runs on paid instances | Live site goes offline if billing stops, interrupting testing and recording | Confirm billing covers the period through the final demo |
