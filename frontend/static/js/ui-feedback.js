@@ -60,17 +60,42 @@
     /**
      * Translates revert reason, custom error, or RPC error into friendly message
      */
-    function parseBlockchainError(err) {
+    // Revert data can sit at different depths depending on provider and call stage
+    function extractRevertData(err) {
+        const candidates = [err.data, err.error?.data, err.info?.error?.data, err.error?.error?.data];
+        return candidates.find(d => typeof d === "string" && /^0x[0-9a-fA-F]{8}/.test(d)) || null;
+    }
+
+    function defaultContractInterfaces() {
+        const contracts = typeof window !== "undefined" && window.DAppState?.contractClient?.contracts;
+        return contracts ? Object.values(contracts).map(c => c.interface).filter(Boolean) : [];
+    }
+
+    // When ethers reports "unknown custom error" (err.revert is null, e.g. during
+    // estimateGas via MetaMask), decode the selector against our contract ABIs.
+    function decodeCustomErrorName(err, interfaces) {
+        const data = extractRevertData(err);
+        if (!data) return null;
+        for (const iface of interfaces) {
+            try {
+                const parsed = iface.parseError(data);
+                if (parsed && parsed.name) return parsed.name;
+            } catch (_) {}
+        }
+        return null;
+    }
+
+    function parseBlockchainError(err, interfaces = defaultContractInterfaces()) {
         if (!err) return "Unknown error";
         const message = err.message || String(err);
-        
+
         // Check user rejection
         if (err.code === "ACTION_REJECTED" || message.includes("user rejected") || message.includes("User denied")) {
             return "Transaction signature was cancelled in MetaMask.";
         }
 
-        // Check custom error from ethers v6 (error.revert?.name)
-        const customName = err.revert?.name || (err.info?.error?.data?.name);
+        // Check custom error from ethers v6 (error.revert?.name), else decode raw revert data
+        const customName = err.revert?.name || (err.info?.error?.data?.name) || decodeCustomErrorName(err, interfaces);
         if (customName && CUSTOM_ERROR_MESSAGES[customName]) {
             return CUSTOM_ERROR_MESSAGES[customName];
         }

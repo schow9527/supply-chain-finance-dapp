@@ -301,9 +301,11 @@ function updateUI() {
 
 // Event listeners for wallet
 if (typeof window !== "undefined" && window.ethereum) {
-    window.ethereum.on("accountsChanged", async (accs) => {
+    // Reload on account switch (like chainChanged) so contractClient is rebuilt
+    // with the new signer; otherwise transactions are sent from the old account.
+    window.ethereum.on("accountsChanged", async () => {
         try { await window.DAppState.apiClient.logout(); } catch (_) {}
-        await handleAccountsChanged(accs);
+        location.reload();
     });
     window.ethereum.on("chainChanged", () => location.reload());
 }

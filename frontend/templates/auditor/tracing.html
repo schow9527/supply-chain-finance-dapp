@@ -71,6 +71,27 @@
 let currentTraceId = null;
 let currentIsFrozen = false;
 
+function renderFreezeState(frozen) {
+    currentIsFrozen = frozen;
+    const badge = document.getElementById("trace-freeze-status");
+    badge.innerText = frozen ? "Frozen" : "Active / Unfrozen";
+    badge.className = frozen ? "badge badge-danger" : "badge badge-success";
+    document.getElementById("freeze-btn").classList.toggle("hidden", frozen);
+    document.getElementById("unfreeze-btn").classList.toggle("hidden", !frozen);
+}
+
+// Read the real frozen flag from ReceivableToken so the page is correct after reload
+async function loadFreezeState(id) {
+    try {
+        const token = window.DAppState.contractClient.contracts.ReceivableToken;
+        const receivable = await token.getReceivable(id);
+        renderFreezeState(Boolean(receivable.frozen));
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast("Could not read on-chain freeze status", "warning");
+    }
+}
+
 async function searchReceivableTrace() {
     const id = document.getElementById("search-token-id").value.trim();
     if (!id) {
@@ -84,6 +105,7 @@ async function searchReceivableTrace() {
         const card = document.getElementById("trace-result-card");
         card.classList.remove("hidden");
         document.getElementById("trace-title").innerText = `Receivable Token #${id}`;
+        await loadFreezeState(id);
 
         const timeline = document.getElementById("trace-timeline");
         if (history.length === 0) {
@@ -134,25 +156,24 @@ async function confirmFreeze() {
         await window.DAppState.contractClient.freezeReceivable(currentTraceId, reason);
         closeFreezeModal();
         UIFeedback.showToast("Token frozen on-chain successfully!", "warning");
-        document.getElementById("trace-freeze-status").innerText = "Frozen";
-        document.getElementById("trace-freeze-status").className = "badge badge-danger";
-        document.getElementById("freeze-btn").classList.add("hidden");
-        document.getElementById("unfreeze-btn").classList.remove("hidden");
+        renderFreezeState(true);
     } catch (e) {
         console.error(e);
     }
 }
 
 async function handleUnfreeze() {
-    if (!confirm(`Are you sure you want to unfreeze Token #${currentTraceId}?`)) return;
+    // Unfreeze also requires an auditor-entered reason for the audit trail
+    const reason = (prompt(`Reason for unfreezing Token #${currentTraceId}:`) || "").trim();
+    if (!reason) {
+        UIFeedback.showToast("Please provide a reason for the unfreeze!", "warning");
+        return;
+    }
 
     try {
-        await window.DAppState.contractClient.unfreezeReceivable(currentTraceId);
+        await window.DAppState.contractClient.unfreezeReceivable(currentTraceId, reason);
         UIFeedback.showToast("Token unfrozen successfully!", "success");
-        document.getElementById("trace-freeze-status").innerText = "Active / Unfrozen";
-        document.getElementById("trace-freeze-status").className = "badge badge-success";
-        document.getElementById("unfreeze-btn").classList.add("hidden");
-        document.getElementById("freeze-btn").classList.remove("hidden");
+        renderFreezeState(false);
     } catch (e) {
         console.error(e);
     }

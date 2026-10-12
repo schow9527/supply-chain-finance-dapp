@@ -91,7 +91,7 @@ async function loadPendingInvoices() {
                 <td><code>${window.AppConfig.shortAddress(inv.supplier_address)}</code></td>
                 <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(inv.amount)}</strong> mUSD</td>
                 <td>${window.AppConfig.formatTimestamp(inv.due_date)}</td>
-                <td><code>${inv.file_hash.slice(0, 10)}...${inv.file_hash.slice(-8)}</code></td>
+                <td><code>${inv.file_hash.slice(0, 10)}...${inv.file_hash.slice(-8)}</code>${inv.file_url ? `<br><a href="${inv.file_url}" target="_blank" rel="noopener">📄 View PDF</a>` : `<br><span style="color:var(--text-muted); font-size:0.8rem;">No PDF on file</span>`}</td>
                 <td>
                     <button class="btn btn-sm btn-success" onclick="handleConfirmInvoice(${inv.onchain_id || inv.id})">
                         ✅ Confirm & Mint (F-08)
