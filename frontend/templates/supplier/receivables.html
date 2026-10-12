@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}我的应收凭证 (ERC-1155) | 供应商{% endblock %}
+{% block title %}My Digital Receivables (ERC-1155) | Supplier{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,11 +10,11 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>我的应收凭证资产池 (F-11 / F-12 / F-15)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">基于 ERC-1155 标准，支持向下游供应商拆分转让信用或申请资金池融资</p>
+                <h2>My Digital Receivable Asset Pool (F-11 / F-12 / F-15)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Based on ERC-1155 standard, supports splitting and transferring credit to downstream suppliers or applying for pool financing</p>
             </div>
             <div>
-                <button class="btn btn-outline" onclick="loadReceivables()">🔄 刷新链上凭证余额</button>
+                <button class="btn btn-outline" onclick="loadReceivables()">🔄 Refresh Token Balances</button>
             </div>
         </div>
 
@@ -22,74 +22,74 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>凭证 ID (Token ID)</th>
-                        <th>持有面值份额</th>
-                        <th>核心企业承兑方</th>
-                        <th>到期日</th>
-                        <th>凭证状态</th>
-                        <th>操作</th>
+                        <th>Token ID</th>
+                        <th>Held Face Value Share</th>
+                        <th>Core Enterprise Acceptor</th>
+                        <th>Due Date</th>
+                        <th>Token Status</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="receivables-table-body">
-                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载链上凭证...</td></tr>
+                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">Loading on-chain tokens...</td></tr>
                 </tbody>
             </table>
         </div>
     </main>
 </div>
 
-<!-- Modal 1: 拆分转让凭证 (F-12) -->
+<!-- Modal 1: Split & Transfer Token (F-12) -->
 <div id="transfer-modal" class="modal-overlay hidden">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>拆分转让凭证给下一级供应商 (F-12)</h3>
+            <h3>Split & Transfer Token to Downstream Supplier (F-12)</h3>
             <button class="modal-close-btn" onclick="closeTransferModal()">×</button>
         </div>
         <div class="modal-body">
             <input type="hidden" id="transfer-token-id">
             <div class="form-group">
-                <label>凭证 ID：<span id="transfer-token-label" style="font-weight:700;"></span></label>
-                <div class="form-hint">当前可转让最大面值：<span id="transfer-max-amount" style="font-weight:700; color:var(--primary);"></span> mUSDT</div>
+                <label>Token ID: <span id="transfer-token-label" style="font-weight:700;"></span></label>
+                <div class="form-hint">Max Transferable Face Value: <span id="transfer-max-amount" style="font-weight:700; color:var(--primary);"></span> mUSD</div>
             </div>
             <div class="form-group">
-                <label>转让目标供应商钱包地址 <span style="color:var(--danger)">*</span></label>
+                <label>Target Supplier Wallet Address <span style="color:var(--danger)">*</span></label>
                 <input type="text" id="transfer-to-address" class="form-control" placeholder="0x..." required>
-                <div class="form-hint">必须是已在平台注册的供应商地址</div>
+                <div class="form-hint">Must be a registered supplier address on the platform</div>
             </div>
             <div class="form-group">
-                <label>拆分转让金额 (mUSDT) <span style="color:var(--danger)">*</span></label>
-                <input type="number" step="0.01" min="1" id="transfer-amount-input" class="form-control" required placeholder="例如：10000">
+                <label>Split & Transfer Amount (mUSD) <span style="color:var(--danger)">*</span></label>
+                <input type="number" step="0.01" min="1" id="transfer-amount-input" class="form-control" required placeholder="e.g., 10000">
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeTransferModal()">取消</button>
-            <button class="btn btn-primary" onclick="confirmTransferReceivable()">🚀 签名并转让</button>
+            <button class="btn btn-secondary" onclick="closeTransferModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmTransferReceivable()">🚀 Sign & Transfer</button>
         </div>
     </div>
 </div>
 
-<!-- Modal 2: 申请融资 (F-15) -->
+<!-- Modal 2: Request Financing (F-15) -->
 <div id="finance-modal" class="modal-overlay hidden">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>申请流动性保理融资 (F-15)</h3>
+            <h3>Apply for Factoring Financing (F-15)</h3>
             <button class="modal-close-btn" onclick="closeFinanceModal()">×</button>
         </div>
         <div class="modal-body">
             <input type="hidden" id="finance-token-id">
             <div class="form-group">
-                <label>凭证 ID：<span id="finance-token-label" style="font-weight:700;"></span></label>
-                <div class="form-hint">可融资金额上限：<span id="finance-max-amount" style="font-weight:700; color:var(--primary);"></span> mUSDT</div>
+                <label>Token ID: <span id="finance-token-label" style="font-weight:700;"></span></label>
+                <div class="form-hint">Max Financing Limit: <span id="finance-max-amount" style="font-weight:700; color:var(--primary);"></span> mUSD</div>
             </div>
             <div class="form-group">
-                <label>申请融资金额 (mUSDT) <span style="color:var(--danger)">*</span></label>
-                <input type="number" step="0.01" min="1" id="finance-amount-input" class="form-control" required placeholder="例如：20000">
-                <div class="form-hint">凭证将暂时托管至资金池合约，待资金方报价</div>
+                <label>Requested Financing Amount (mUSD) <span style="color:var(--danger)">*</span></label>
+                <input type="number" step="0.01" min="1" id="finance-amount-input" class="form-control" required placeholder="e.g., 20000">
+                <div class="form-hint">Tokens will be escrowed into FinancingPool awaiting funder quotes</div>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeFinanceModal()">取消</button>
-            <button class="btn btn-primary" onclick="confirmRequestFinancing()">🚀 签名并提交申请</button>
+            <button class="btn btn-secondary" onclick="closeFinanceModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmRequestFinancing()">🚀 Sign & Submit Request</button>
         </div>
     </div>
 </div>
@@ -103,7 +103,7 @@ async function loadReceivables() {
     const acc = window.DAppState.account;
     const tbody = document.getElementById("receivables-table-body");
     if (!acc) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">请先连接 MetaMask 钱包</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Please connect MetaMask wallet first</td></tr>`;
         return;
     }
 
@@ -112,38 +112,38 @@ async function loadReceivables() {
         renderReceivables();
     } catch (error) {
         console.error(error);
-        UIFeedback.showToast(error.message || "凭证查询失败", "error");
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无凭证资产</td></tr>`;
+        UIFeedback.showToast(error.message || "Failed to load receivable tokens", "error");
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No receivable token assets</td></tr>`;
     }
 }
 
 function renderReceivables() {
     const tbody = document.getElementById("receivables-table-body");
     if (heldReceivables.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">当前未持有任何应收账款凭证</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Currently holding no receivable token assets</td></tr>`;
         return;
     }
 
     tbody.innerHTML = heldReceivables.map(r => `
         <tr>
             <td><strong>#${r.receivable_id}</strong></td>
-            <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(r.balance)}</strong> mUSDT</td>
-            <td><code>${window.AppConfig.shortAddress(r.buyer_address || "核心企业")}</code></td>
+            <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(r.balance)}</strong> mUSD</td>
+            <td><code>${window.AppConfig.shortAddress(r.buyer_address || "Core Enterprise")}</code></td>
             <td>${window.AppConfig.formatTimestamp(r.due_date)}</td>
             <td>
                 <span class="badge badge-${r.is_frozen ? 'danger' : 'success'}">
-                    ${r.is_frozen ? '已冻结' : '正常流转'}
+                    ${r.is_frozen ? 'Frozen' : 'Active / Unfrozen'}
                 </span>
             </td>
             <td>
-                <button class="btn btn-sm btn-outline" ${r.is_frozen ? 'disabled' : ''} onclick="openTransferModal(${r.receivable_id}, '${r.balance}')">拆分转让</button>
-                <button class="btn btn-sm btn-primary" ${r.is_frozen ? 'disabled' : ''} onclick="openFinanceModal(${r.receivable_id}, '${r.balance}')">申请融资</button>
+                <button class="btn btn-sm btn-outline" ${r.is_frozen ? 'disabled' : ''} onclick="openTransferModal(${r.receivable_id}, '${r.balance}')">Split & Transfer</button>
+                <button class="btn btn-sm btn-primary" ${r.is_frozen ? 'disabled' : ''} onclick="openFinanceModal(${r.receivable_id}, '${r.balance}')">Apply Financing</button>
             </td>
         </tr>
     `).join("");
 }
 
-// 拆分转让弹窗
+// Transfer modal handlers
 function openTransferModal(id, balance) {
     document.getElementById("transfer-token-id").value = id;
     document.getElementById("transfer-token-label").innerText = `#${id}`;
@@ -152,15 +152,17 @@ function openTransferModal(id, balance) {
     document.getElementById("transfer-to-address").value = "";
     document.getElementById("transfer-modal").classList.remove("hidden");
 }
+
 function closeTransferModal() {
     document.getElementById("transfer-modal").classList.add("hidden");
 }
+
 async function confirmTransferReceivable() {
     const id = document.getElementById("transfer-token-id").value;
     const to = document.getElementById("transfer-to-address").value.trim();
     const amt = document.getElementById("transfer-amount-input").value;
     if (!to || !amt) {
-        UIFeedback.showToast("请填写完整转让信息！", "warning");
+        UIFeedback.showToast("Please fill in all transfer information!", "warning");
         return;
     }
 
@@ -168,14 +170,14 @@ async function confirmTransferReceivable() {
         const amountWei = window.AppConfig.parseTokens(amt);
         await window.DAppState.contractClient.transferReceivable(to, id, amountWei);
         closeTransferModal();
-        UIFeedback.showToast("凭证拆分转让已成功上链！", "success");
+        UIFeedback.showToast("Token split and transferred successfully on-chain!", "success");
         await loadReceivables();
     } catch (e) {
         console.error(e);
     }
 }
 
-// 融资申请弹窗
+// Financing modal handlers
 function openFinanceModal(id, balance) {
     document.getElementById("finance-token-id").value = id;
     document.getElementById("finance-token-label").innerText = `#${id}`;
@@ -183,14 +185,16 @@ function openFinanceModal(id, balance) {
     document.getElementById("finance-amount-input").value = "";
     document.getElementById("finance-modal").classList.remove("hidden");
 }
+
 function closeFinanceModal() {
     document.getElementById("finance-modal").classList.add("hidden");
 }
+
 async function confirmRequestFinancing() {
     const id = document.getElementById("finance-token-id").value;
     const amt = document.getElementById("finance-amount-input").value;
     if (!amt) {
-        UIFeedback.showToast("请填写融资金额！", "warning");
+        UIFeedback.showToast("Please specify a financing amount!", "warning");
         return;
     }
 
@@ -203,7 +207,7 @@ async function confirmRequestFinancing() {
         }
         await window.DAppState.contractClient.requestFinancing(id, amountWei);
         closeFinanceModal();
-        UIFeedback.showToast("融资申请已提交至市场！", "success");
+        UIFeedback.showToast("Financing request submitted to market!", "success");
         setTimeout(() => window.location.href = "/supplier/financing", 1200);
     } catch (e) {
         console.error(e);

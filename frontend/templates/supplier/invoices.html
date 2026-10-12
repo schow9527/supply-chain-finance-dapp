@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}我的发票列表 | 供应商{% endblock %}
+{% block title %}My Invoices | Supplier{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,39 +10,39 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>我的发票列表与存证 (F-10)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">查看所有提交登记的发票生命周期状态及文件哈希比对</p>
+                <h2>My Invoices & Evidence (F-10)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Inspect lifecycle status and on-chain file hash verification for all registered invoices</p>
             </div>
             <div>
-                <a href="/supplier/upload_invoice" class="btn btn-primary">➕ 上传新发票</a>
+                <a href="/supplier/upload_invoice" class="btn btn-primary">➕ Upload New Invoice</a>
             </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
             <div style="display:flex; gap:0.5rem;">
-                <button class="btn btn-sm btn-outline active" onclick="filterInvoices('')">全部</button>
-                <button class="btn btn-sm btn-outline" onclick="filterInvoices('PENDING')">待确认</button>
-                <button class="btn btn-sm btn-outline" onclick="filterInvoices('CONFIRMED')">已确认铸证</button>
-                <button class="btn btn-sm btn-outline" onclick="filterInvoices('REJECTED')">已拒绝</button>
+                <button class="btn btn-sm btn-outline active" onclick="filterInvoices('')">All</button>
+                <button class="btn btn-sm btn-outline" onclick="filterInvoices('PENDING')">Pending</button>
+                <button class="btn btn-sm btn-outline" onclick="filterInvoices('CONFIRMED')">Confirmed & Minted</button>
+                <button class="btn btn-sm btn-outline" onclick="filterInvoices('REJECTED')">Rejected</button>
             </div>
-            <button class="btn btn-sm btn-outline" onclick="loadInvoices()">🔄 刷新列表</button>
+            <button class="btn btn-sm btn-outline" onclick="loadInvoices()">🔄 Refresh List</button>
         </div>
 
         <div class="table-container">
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>发票编号</th>
-                        <th>买方核心企业</th>
-                        <th>面值金额</th>
-                        <th>到期时间</th>
-                        <th>链上文件哈希</th>
-                        <th>状态</th>
-                        <th>操作</th>
+                        <th>Invoice No</th>
+                        <th>Buyer (Core Enterprise)</th>
+                        <th>Face Value</th>
+                        <th>Due Date</th>
+                        <th>On-Chain File Hash</th>
+                        <th>Status</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="invoices-table-body">
-                    <tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载发票数据...</td></tr>
+                    <tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">Loading invoice data...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -59,7 +59,7 @@ async function loadInvoices() {
     const acc = window.DAppState.account;
     const tbody = document.getElementById("invoices-table-body");
     if (!acc) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">请先连接 MetaMask 钱包</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Please connect MetaMask wallet first</td></tr>`;
         return;
     }
 
@@ -67,7 +67,7 @@ async function loadInvoices() {
         allInvoices = await window.DAppState.apiClient.getInvoices({ supplier: acc }) || [];
         renderTable();
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">暂无发票或等待后端事件同步...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No invoices found or waiting for event sync...</td></tr>`;
     }
 }
 
@@ -81,7 +81,7 @@ function renderTable() {
     const filtered = currentFilter ? allInvoices.filter(i => i.status === currentFilter) : allInvoices;
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">暂无符合条件的发票记录</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No matching invoice records found</td></tr>`;
         return;
     }
 
@@ -89,17 +89,17 @@ function renderTable() {
         <tr>
             <td><strong>${inv.invoice_no}</strong></td>
             <td><code title="${inv.buyer_address}">${window.AppConfig.shortAddress(inv.buyer_address)}</code></td>
-            <td><strong>${window.AppConfig.formatTokens(inv.amount)}</strong> mUSDT</td>
+            <td><strong>${window.AppConfig.formatTokens(inv.amount)}</strong> mUSD</td>
             <td>${window.AppConfig.formatTimestamp(inv.due_date)}</td>
             <td><code title="${inv.file_hash}">${inv.file_hash.slice(0, 10)}...${inv.file_hash.slice(-8)}</code></td>
             <td>
                 <span class="badge badge-${inv.status === 'CONFIRMED' ? 'success' : (inv.status === 'REJECTED' ? 'danger' : 'warning')}">
-                    ${inv.status === 'CONFIRMED' ? '已确认铸证' : (inv.status === 'REJECTED' ? '已拒绝' : '待确认')}
+                    ${inv.status === 'CONFIRMED' ? 'Confirmed & Minted' : (inv.status === 'REJECTED' ? 'Rejected' : 'Pending')}
                 </span>
-                ${inv.reject_reason ? `<div style="font-size:0.75rem; color:var(--danger);">原因: ${inv.reject_reason}</div>` : ''}
+                ${inv.reject_reason ? `<div style="font-size:0.75rem; color:var(--danger);">Reason: ${inv.reject_reason}</div>` : ''}
             </td>
             <td>
-                ${inv.status === 'CONFIRMED' ? `<a href="/supplier/receivables" class="btn btn-sm btn-primary">查看凭证</a>` : '-'}
+                ${inv.status === 'CONFIRMED' ? `<a href="/supplier/receivables" class="btn btn-sm btn-primary">View Token</a>` : '-'}
             </td>
         </tr>
     `).join("");

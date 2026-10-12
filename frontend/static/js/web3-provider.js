@@ -2,9 +2,9 @@
  * Web3 Provider & State Manager for Supply Chain Finance DApp
  * Handles: MetaMask connection, Network guard (Sepolia), Account routing.
  *
- * 核心设计：本项目是多页面应用（MPA），每次页面跳转都会重新加载此脚本。
- * 因此必须在每次 DOMContentLoaded 时静默地重新检测 MetaMask 已授权账户，
- * 而不是要求用户再次手动点击"连接"。
+ * Core architecture: Multi-page application (MPA). Each page navigation re-loads this script.
+ * We silently detect authorized MetaMask accounts upon DOMContentLoaded,
+ * rather than requiring users to manually click "Connect" on every page change.
  */
 
 window.DAppState = {
@@ -48,18 +48,16 @@ async function initWeb3() {
     if (window.ethereum) {
         window.DAppState.provider = new ethers.BrowserProvider(window.ethereum);
 
-        // 先用 eth_accounts 静默查询（不弹窗）
+        // Silent query via eth_accounts (no popup)
         let accounts = await window.DAppState.provider.send("eth_accounts", []).catch(() => []);
 
-        // 如果 eth_accounts 返回空，尝试直接通过 ethereum.request 再查一次
-        // 某些 MetaMask 版本对 ethers BrowserProvider 包装后的 send 行为不一致
+        // Fallback for MetaMask providers
         if (accounts.length === 0 && window.ethereum.selectedAddress) {
             accounts = [window.ethereum.selectedAddress];
         }
 
         if (accounts.length > 0) {
-            // 初始化 contractClient（需要在 handleAccountsChanged 之前，
-            // 因为里面要用 contractClient 查链上角色）
+            // Initialize contractClient before handleAccountsChanged
             window.DAppState.signer = await window.DAppState.provider.getSigner();
             window.DAppState.contractClient = new window.ContractClient(
                 window.DAppState.provider,
@@ -77,7 +75,7 @@ async function initWeb3() {
 
 async function connectWallet() {
     if (!window.ethereum) {
-        UIFeedback.showToast("未检测到 MetaMask 插件，请先安装！", "warning");
+        UIFeedback.showToast("MetaMask extension not found. Please install MetaMask!", "warning");
         window.open("https://metamask.io/download/", "_blank");
         return;
     }
@@ -88,7 +86,7 @@ async function connectWallet() {
         }
         const accounts = await window.DAppState.provider.send("eth_requestAccounts", []);
 
-        // 确保 signer 和 contractClient 在角色检测前就位
+        // Ensure signer and contractClient are ready before checking role
         window.DAppState.signer = await window.DAppState.provider.getSigner();
         if (!window.DAppState.contractClient && window.DAppState._addresses && window.DAppState._abis) {
             window.DAppState.contractClient = new window.ContractClient(
@@ -102,7 +100,7 @@ async function connectWallet() {
         await handleAccountsChanged(accounts);
         await ensureSepoliaNetwork();
         await authenticateWallet();
-        UIFeedback.showToast("钱包连接成功！", "success");
+        UIFeedback.showToast("Wallet connected successfully!", "success");
     } catch (err) {
         console.error("User rejected or failed:", err);
         if (!err.isWalletAuthError) {
@@ -189,13 +187,24 @@ async function authenticateWallet() {
         err.isWalletAuthError = true;
         window.DAppState.sessionAuthenticated = false;
         if (err && (err.code === 4001 || err.code === "ACTION_REJECTED")) {
-            UIFeedback.showToast("已取消钱包登录签名；这不是链上交易，不会产生 Gas。", "warning");
+            UIFeedback.showToast("Signature cancelled. This is an off-chain authentication and does not cost Gas.", "warning");
         } else {
-            UIFeedback.showToast(err.message || "钱包身份验证失败", "error");
+            UIFeedback.showToast(err.message || "Wallet authentication failed", "error");
         }
         throw err;
     }
 }
+
+async function ensureAuthenticated() {
+    if (!window.DAppState.account || !window.DAppState.signer) {
+        await connectWallet();
+        return;
+    }
+    if (!window.DAppState.sessionAuthenticated) {
+        await authenticateWallet();
+    }
+}
+window.ensureAuthenticated = ensureAuthenticated;
 
 async function ensureSepoliaNetwork() {
     if (!window.DAppState.provider) return;
@@ -214,7 +223,7 @@ async function ensureSepoliaNetwork() {
                         chainId: window.AppConfig.SEPOLIA_CHAIN_ID_HEX,
                         chainName: "Sepolia Testnet",
                         nativeCurrency: { name: "SepoliaETH", symbol: "ETH", decimals: 18 },
-                        rpcUrls: ["https://rpc.sepolia.org"]
+                        rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com", "https://1rpc.io/sepolia"]
                     }]
                 });
             }
@@ -224,16 +233,16 @@ async function ensureSepoliaNetwork() {
 
 async function claimTestTokens() {
     if (!window.DAppState.account) {
-        UIFeedback.showToast("请先连接钱包！", "warning");
+        UIFeedback.showToast("Please connect your wallet first!", "warning");
         return;
     }
     if (!window.DAppState.contractClient) {
-        UIFeedback.showToast("合约客户端尚未就绪，请检查测试网配置", "warning");
+        UIFeedback.showToast("Contract client not ready. Please check testnet configuration.", "warning");
         return;
     }
     try {
         await window.DAppState.contractClient.claimFaucet();
-        UIFeedback.showToast("10,000 mUSDT 测试币已成功领取！", "success");
+        UIFeedback.showToast("100,000 mUSD test tokens claimed successfully!", "success");
     } catch (err) {
         console.error(err);
     }
@@ -252,17 +261,22 @@ function updateUI() {
     const connectBtn = document.getElementById("connect-wallet-btn");
     if (connectBtn) {
         if (acc) {
-            connectBtn.innerText = window.AppConfig.shortAddress(acc);
-            connectBtn.className = "btn btn-outline";
+            if (window.DAppState.sessionAuthenticated) {
+                connectBtn.innerText = window.AppConfig.shortAddress(acc);
+                connectBtn.className = "btn btn-outline";
+            } else {
+                connectBtn.innerText = "🔑 Sign In (" + window.AppConfig.shortAddress(acc) + ")";
+                connectBtn.className = "btn btn-primary";
+            }
         } else {
-            connectBtn.innerText = "连接 MetaMask";
+            connectBtn.innerText = "Connect MetaMask";
             connectBtn.className = "btn btn-primary";
         }
     }
 
     const roleBadge = document.getElementById("role-badge");
     if (roleBadge) {
-        roleBadge.innerText = window.AppConfig.ROLE_LABELS[role] || "未登录";
+        roleBadge.innerText = window.AppConfig.ROLE_LABELS[role] || "Unregistered";
         roleBadge.className = `badge badge-${role === "NONE" ? "secondary" : "success"}`;
     }
 
@@ -273,7 +287,7 @@ function updateUI() {
                 netBadge.innerText = "Sepolia";
                 netBadge.className = "badge badge-success";
             } else {
-                netBadge.innerText = "网络错误";
+                netBadge.innerText = "Network Error";
                 netBadge.className = "badge badge-warning";
             }
         }).catch(() => {});

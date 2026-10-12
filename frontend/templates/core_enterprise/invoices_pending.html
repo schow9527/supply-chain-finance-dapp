@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}待确认发票核验 | 核心企业{% endblock %}
+{% block title %}Verify Pending Invoices | Core Enterprise{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,11 +10,11 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>待核验供应商发票 (F-08 / F-09)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">核对上游供应商开具的发票真伪与金额，确认后合约将自动向供应商铸造等额应收凭证</p>
+                <h2>Pending Supplier Invoices Verification (F-08 / F-09)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Verify authenticity and amount of invoices issued by upstream suppliers. Confirmation automatically mints equivalent receivable tokens to the supplier.</p>
             </div>
             <div>
-                <button class="btn btn-outline" onclick="loadPendingInvoices()">🔄 刷新列表</button>
+                <button class="btn btn-outline" onclick="loadPendingInvoices()">🔄 Refresh List</button>
             </div>
         </div>
 
@@ -22,16 +22,16 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>发票编号</th>
-                        <th>开具供应商</th>
-                        <th>发票面值</th>
-                        <th>承诺付款日</th>
-                        <th>PDF 存证哈希</th>
-                        <th>审核操作</th>
+                        <th>Invoice No</th>
+                        <th>Supplier</th>
+                        <th>Face Value</th>
+                        <th>Due Date</th>
+                        <th>File Hash</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="pending-invoices-tbody">
-                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载待确认发票...</td></tr>
+                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">Loading pending invoices...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -42,23 +42,23 @@
 <div id="reject-modal" class="modal-overlay hidden">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>驳回/拒绝发票登记 (F-09)</h3>
+            <h3>Reject Invoice Registration (F-09)</h3>
             <button class="modal-close-btn" onclick="closeRejectModal()">×</button>
         </div>
         <div class="modal-body">
             <input type="hidden" id="reject-invoice-id">
             <div class="form-group">
-                <label>发票编号：<span id="reject-invoice-no-label" style="font-weight:700;"></span></label>
+                <label>Invoice No: <span id="reject-invoice-no-label" style="font-weight:700;"></span></label>
             </div>
             <div class="form-group">
-                <label>驳回原因 (必填) <span style="color:var(--danger)">*</span></label>
-                <textarea id="reject-reason-input" class="form-control" rows="3" placeholder="例如：采购订单货物验收不符，或金额开具有误"></textarea>
-                <div class="form-hint">驳回理由将记录于区块链事件与数据库中</div>
+                <label>Rejection Reason (Required) <span style="color:var(--danger)">*</span></label>
+                <textarea id="reject-reason-input" class="form-control" rows="3" placeholder="e.g., Goods inspection discrepancy or incorrect invoice amount"></textarea>
+                <div class="form-hint">The rejection reason will be recorded on-chain and in the database.</div>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeRejectModal()">取消</button>
-            <button class="btn btn-danger" onclick="confirmRejectInvoice()">确认驳回</button>
+            <button class="btn btn-secondary" onclick="closeRejectModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmRejectInvoice()">Confirm Rejection</button>
         </div>
     </div>
 </div>
@@ -72,7 +72,7 @@ async function loadPendingInvoices() {
     const acc = window.DAppState.account;
     const tbody = document.getElementById("pending-invoices-tbody");
     if (!acc) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">请先连接核心企业 MetaMask 钱包</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Please connect core enterprise MetaMask wallet first</td></tr>`;
         return;
     }
 
@@ -81,7 +81,7 @@ async function loadPendingInvoices() {
         pendingList = invs;
 
         if (pendingList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">暂无待审核的发票，所有账款均已处理</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">No pending invoices to review. All invoices have been processed.</td></tr>`;
             return;
         }
 
@@ -89,32 +89,32 @@ async function loadPendingInvoices() {
             <tr>
                 <td><strong>${inv.invoice_no}</strong></td>
                 <td><code>${window.AppConfig.shortAddress(inv.supplier_address)}</code></td>
-                <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(inv.amount)}</strong> mUSDT</td>
+                <td><strong style="color:var(--primary);">${window.AppConfig.formatTokens(inv.amount)}</strong> mUSD</td>
                 <td>${window.AppConfig.formatTimestamp(inv.due_date)}</td>
                 <td><code>${inv.file_hash.slice(0, 10)}...${inv.file_hash.slice(-8)}</code></td>
                 <td>
                     <button class="btn btn-sm btn-success" onclick="handleConfirmInvoice(${inv.onchain_id || inv.id})">
-                        ✅ 确认并铸证 (F-08)
+                        ✅ Confirm & Mint (F-08)
                     </button>
                     <button class="btn btn-sm btn-danger" onclick="openRejectModal(${inv.onchain_id || inv.id}, '${inv.invoice_no}')">
-                        ❌ 拒绝 (F-09)
+                        ❌ Reject (F-09)
                     </button>
                 </td>
             </tr>
         `).join("");
     } catch (error) {
         console.error(error);
-        UIFeedback.showToast(error.message || "待确认发票查询失败", "error");
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无待核验发票数据</td></tr>`;
+        UIFeedback.showToast(error.message || "Failed to load pending invoices", "error");
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No pending invoice data</td></tr>`;
     }
 }
 
 async function handleConfirmInvoice(id) {
-    if (!confirm(`确认核验并批准该发票？确认后智能合约将为供应商自动铸造等额数字凭证。`)) return;
+    if (!confirm(`Are you sure you want to verify and approve this invoice? Confirmation will automatically mint an equivalent digital receivable token to the supplier.`)) return;
 
     try {
         await window.DAppState.contractClient.confirmInvoice(id);
-        UIFeedback.showToast("发票核验成功！等额凭证已自动签发至供应商账户！", "success");
+        UIFeedback.showToast("Invoice verified successfully! Equivalent token minted to supplier account!", "success");
         await loadPendingInvoices();
     } catch (e) {
         console.error(e);
@@ -134,14 +134,14 @@ async function confirmRejectInvoice() {
     const id = document.getElementById("reject-invoice-id").value;
     const reason = document.getElementById("reject-reason-input").value.trim();
     if (!reason) {
-        UIFeedback.showToast("请填写驳回原因！", "warning");
+        UIFeedback.showToast("Please provide a rejection reason!", "warning");
         return;
     }
 
     try {
         await window.DAppState.contractClient.rejectInvoice(id, reason);
         closeRejectModal();
-        UIFeedback.showToast("发票已驳回！", "info");
+        UIFeedback.showToast("Invoice rejected.", "info");
         await loadPendingInvoices();
     } catch (e) {
         console.error(e);
