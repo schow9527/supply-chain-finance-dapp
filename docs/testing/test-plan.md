@@ -75,22 +75,21 @@ Each wallet address can hold only one role, so several MetaMask accounts are nee
 
 ## 6. Schedule
 
-On-chain state is cumulative – later test cases depend on invoices and receivables created by earlier ones – so cases must be executed in order. Two groups of cases **cannot run until the next day**:
+On-chain state is cumulative – later test cases depend on invoices and receivables created by earlier ones – so cases must be executed in order.
 
-- The contract requires the due date to be in the future, and the frontend date picker's earliest option is tomorrow.
-- Marking overdue (F-21) and blocking transfers/confirmation after maturity (F-12, F-08) require the due date to have actually passed.
-
-Therefore, **on Day 1 an invoice due "tomorrow" must be registered, confirmed and financed to F1**, so it can be used for the overdue tests on Day 2.
+Some cases need a due date that has **actually passed**: marking overdue (F-21), and blocking confirmation / transfer after maturity (F-08, F-12). The frontend date picker only allows dates from tomorrow onward, but the contract only requires `dueDate > block.timestamp`. To finish in a single day, the **maturity seed invoices** `TEST-OD-001/002/003` are submitted from the browser developer console via the page's own `contractClient` (same MetaMask flow and transaction modal) with a due date **30 minutes** ahead. They are registered first; the rest of the main flow runs while they mature. These seed invoices have no PDF in the backend, which is expected and does not affect the cases they serve.
 
 | Phase | Activities | Depends on |
 |---|---|---|
-| D0 Setup | Create 8 accounts, obtain Sepolia ETH, fill in the account table; ask ADM to grant roles to CE/S1/S2/F1/F2/AU (or use the registration/approval flow, which also covers F-02/F-03) | Member 1 |
-| D1 morning | Register overdue seed invoice `TEST-OD-001` (due tomorrow) → confirm → request financing → fund to F1 | D0 |
-| D1 | Main flow: TC-F01 – TC-F20, TC-F22 – TC-F26 | D0 |
-| D1 | Negative and access-control cases; pause cases (pausing affects the whole team – **notify the group chat first** and unpause immediately afterwards) | D0 |
-| D2 | Maturity-dependent cases: TC-F21, TC-F12-05, TC-F08-04 | D1 seed invoice |
-| D2 | Mobile responsive checks; success-metric summary | — |
-| D3+ | User testing (L5), ~10 min per participant | Main flow fully passing |
+| D0 Setup ✅ | 8 accounts created and funded with Sepolia ETH; CE/S1/S2/F1/F2 approved via registration flow; AUDITOR granted to AU and admin to ADM2 by ADM (2026-10-12) | Member 1 |
+| Pre-test ✅ | BUG-01 – BUG-03 found during setup, fixed and retested on the live site (see [defect-log.md](defect-log.md)) | Member 3 |
+| S1 Funding | F1, F2, CE claim mUSD from the faucet (TC-F22-01) | D0 |
+| S2 Maturity seeds | Submit `TEST-OD-001/002/003` (due +30 min) via console; confirm OD-001 and OD-003; finance OD-001 to F1; run TC-F21-01 (mark before due) | S1 |
+| S3 Main flow | TC-F01 – TC-F20, TC-F22 – TC-F26 while seeds mature | S1 |
+| S4 After maturity | TC-F21-02 – 04, TC-F12-05, TC-F08-04 | S2 + 30 min |
+| S5 Negative & permissions | Negative cases, permission matrix (§6 of test cases); pause cases (pausing affects the whole team – **notify the group chat first** and unpause immediately afterwards) | S3 |
+| S6 Non-functional | Mobile responsive checks, page-load timing, sync latency | — |
+| S7 User testing | L5, ~10 min per participant (see §9.1) | Main flow fully passing |
 
 ## 7. Defect Management
 

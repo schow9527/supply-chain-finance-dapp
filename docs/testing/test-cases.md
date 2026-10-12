@@ -21,7 +21,9 @@
 | Split invoice | `TEST-002`, S1 → CE, 6,000 mUSD, +30 days | Split-transfer 4,000 to S2 |
 | Rejection invoice | `TEST-003`, S1 → CE, 1,000 mUSD, +30 days | Rejection and resubmission |
 | Freeze invoice | `TEST-004`, S1 → CE, 2,000 mUSD, +30 days | Freeze / unfreeze |
-| Overdue seed | `TEST-OD-001`, S1 → CE, 3,000 mUSD, **due tomorrow** | Confirmed and financed to F1 on D1; overdue tests on D2 |
+| Maturity seed 1 | `TEST-OD-001`, S1 → CE, 3,000 mUSD, **due +30 min** (console) | Confirmed and financed to F1; used for overdue tests (TC-F21) |
+| Maturity seed 2 | `TEST-OD-002`, S1 → CE, 1,000 mUSD, **due +30 min** (console) | Left unconfirmed; confirmed after maturity (TC-F08-04) |
+| Maturity seed 3 | `TEST-OD-003`, S1 → CE, 1,000 mUSD, **due +30 min** (console) | Confirmed and kept by S1; transferred after maturity (TC-F12-05) |
 | PDF files | `invoice_ok.pdf` (valid PDF), `fake.pdf` (renamed .txt), `image.png` | File validation |
 
 ---
@@ -115,7 +117,7 @@
 | TC-F08-01 | Confirm and mint receivable | CE | Open `TEST-001` on Pending Invoices, view PDF → confirm | `InvoiceConfirmed`, `ReceivableMinted` emitted; a 10,000 receivable appears in S1's My Receivables | ☐ | |
 | TC-F08-02 | Only the invoiced buyer can confirm | Another core enterprise or S1 | Call `confirmInvoice(<TEST-001 id>)` | `NotInvoiceBuyer` / `Unauthorized` | ☐ | |
 | TC-F08-03 | Confirm twice | CE | Confirm `TEST-001` again | Rejected | ☐ | |
-| TC-F08-04 | **(D2)** Confirm after due date | CE | Leave an invoice due tomorrow unconfirmed; confirm it the next day | `InvalidDueDate` | ☐ | |
+| TC-F08-04 | **(after maturity)** Confirm after due date | CE | Confirm `TEST-OD-002` after its due date has passed | `InvalidDueDate` | ☐ | |
 
 ### F-09 Reject Invoice
 
@@ -152,7 +154,7 @@
 | TC-F12-02 | Exceeds balance | S1 | Transfer 99,999 | Rejected with `ERC1155InsufficientBalance`; clear UI message | ☐ | |
 | TC-F12-03 | Recipient is not a supplier | S1 | Transfer to F1, CE or X | Rejected with `InvalidRecipient` | ☐ | |
 | TC-F12-04 | Receivable frozen | S1 | Transfer `TEST-004` after it is frozen (see TC-F13-02) | Rejected with `ReceivableIsFrozen` | ☐ | |
-| TC-F12-05 | **(D2)** Receivable matured | S1 | Transfer a receivable past its due date | Rejected with `ReceivableMatured` | ☐ | |
+| TC-F12-05 | **(after maturity)** Receivable matured | S1 | Transfer part of the `TEST-OD-003` receivable to S2 after its due date | Rejected with `ReceivableMatured` | ☐ | |
 | TC-F12-06 | Funder cannot transfer | F1 | Try to transfer a held receivable | Rejected | ☐ | |
 
 ### F-13 Freeze & Unfreeze
@@ -236,10 +238,10 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F21-01 | Mark before due date | F1 | On D1, mark `TEST-OD-001` overdue | Rejected with `NotOverdueYet` | ☐ | |
-| TC-F21-02 | **(D2)** Mark after due date | F1 | After the due date, with CE not having repaid | `MarkedOverdue` emitted; CE's overdue record visible on the dashboard (`overdueCount` +1) | ☐ | |
+| TC-F21-01 | Mark before due date | F1 | Before maturity, mark `TEST-OD-001` overdue | Rejected with `NotOverdueYet` | ☐ | |
+| TC-F21-02 | **(after maturity)** Mark after due date | F1 | After the due date, with CE not having repaid | `MarkedOverdue` emitted; CE's overdue record visible on the dashboard (`overdueCount` +1) | ☐ | |
 | TC-F21-03 | Non-holder marks | F2 | Call `markOverdue` | Rejected | ☐ | |
-| TC-F21-04 | **(D2)** Late repayment after overdue | CE → F1 | CE repays → F1 redeems | Status changes Overdue → Repaid; redemption succeeds | ☐ | |
+| TC-F21-04 | **(after maturity)** Late repayment after overdue | CE → F1 | CE repays → F1 redeems | Status changes Overdue → Repaid; redemption succeeds | ☐ | |
 
 ### F-22 Test Stablecoin Faucet
 
