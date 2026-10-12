@@ -241,7 +241,7 @@
 | TC-F21-01 | Mark before due date | F1 | Before maturity, mark `TEST-OD-001` overdue | Rejected with `NotOverdueYet` | ✅ Pass (display issue → BUG-06) | `TC-F21-01.png`; rejected at gas estimation (`NotOverdueYet`), no tx sent |
 | TC-F21-02 | **(after maturity)** Mark after due date | F1 | After the due date, with CE not having repaid | `MarkedOverdue` emitted; CE's overdue record visible on the dashboard (`overdueCount` +1) | ✅ Pass — receivable #2 status Overdue; `overdueCount(CE)` = 1 (dashboard visibility checked in TC-F23-02) | `TC-F21-02.png`; tx `0xd1a69653` |
 | TC-F21-03 | Non-holder marks | F2 | Call `markOverdue` | Rejected | ☐ | |
-| TC-F21-04 | **(after maturity)** Late repayment after overdue | CE → F1 | CE repays → F1 redeems | Status changes Overdue → Repaid; redemption succeeds | ☐ | |
+| TC-F21-04 | **(after maturity)** Late repayment after overdue | CE → F1 | CE repays → F1 redeems | Status changes Overdue → Repaid; redemption succeeds | ✅ Pass — CE approve + repay (#2 Overdue → Repaid, pool +3,000); F1 redeem burns #2 and receives 3,000 mUSD (F1 profit 90 = 3,000 − 2,910) | `TC-F21-04-repay.png`, `TC-F21-04-redeem.png`; txs `0x270c1e82`, `0xe845b3df` |
 
 ### F-22 Test Stablecoin Faucet
 
