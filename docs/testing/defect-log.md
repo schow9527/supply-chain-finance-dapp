@@ -16,6 +16,7 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-05 | Transactions are sent from the previously connected account after switching MetaMask account | **P1** | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | BUG-06 | Contract revert reasons shown as raw "unknown custom error" hex | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | BUG-07 | Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever | **P1** | Member 2 / Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-08 | No way to view/download the invoice PDF or check the hash in the UI | **P1** | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 
@@ -86,6 +87,13 @@ All three defects were found during test-environment setup (before formal execut
 - **Expected**: PRD §9 requires user-rejected signatures to be handled gracefully. A draft whose on-chain submission never happened should be reusable (e.g., treat `FILE_UPLOADED` drafts from the same supplier as replaceable, expire them, or let the user retry the on-chain step for the existing draft).
 - **Note**: The on-chain duplicate check (F-07) is unaffected; this is a backend/off-chain false positive.
 - **Workaround used during testing**: The main-flow invoice was renamed from `TEST-001` to `TEST-101`.
+
+## BUG-08 · No way to view/download the invoice PDF or check the hash in the UI (P1)
+
+- **Where**: `frontend/templates/supplier/invoices.html`, `frontend/templates/core_enterprise/invoices_pending.html` (no code in `frontend/` references `file_url` or `/api/invoices/<id>/file`).
+- **Observed**: "My Invoices" and "Pending Invoices" show only a truncated file hash. There is no "view / download PDF" link and no indicator of whether the stored file's hash matches the on-chain `fileHash`. The backend endpoint works: `GET /api/invoices/6/file` returned the original `invoice_ok.pdf` for S1 (TC-F10-02) and `403 ROLE_REQUIRED` for S2 (TC-F10-03).
+- **Expected**: PRD F-10 — "can download the PDF, and shows whether the file hash matches the on-chain value"; PRD §8 page list — the core enterprise "views the PDF, then confirms or rejects". Without it, the core enterprise confirms invoices without seeing the document.
+- **Suggested fix**: add a "View PDF" link using the `file_url` already returned by `GET /api/invoices`; compute SHA-256 of the downloaded file in the browser and compare with the on-chain `getInvoice(id).fileHash`.
 
 ## KI-01 · MetaMask flags the site as "Malicious" (known issue, won't fix)
 
