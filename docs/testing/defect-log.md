@@ -13,6 +13,7 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-02 | Stale session state after switching MetaMask account | P2 | Member 3 | 2026-10-12 | ✅ Closed | `0c54fde` (PR #1) | 2026-10-12 ✅ |
 | BUG-03 | No UI to grant Auditor / Admin roles | P2 | Member 3 | 2026-10-12 | ✅ Closed | `0c54fde` (PR #1) | 2026-10-12 ✅ |
 | BUG-04 | Duplicate login signature requests cause misleading "another wallet" error | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-05 | Transactions are sent from the previously connected account after switching MetaMask account | **P1** | Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 
@@ -55,6 +56,16 @@ All three defects were found during test-environment setup (before formal execut
 - **Expected**: Only one signature request at a time (ignore or disable "Sign In" while a request is pending); if a stale challenge is signed, show "Login request expired, please sign in again" instead of blaming the wallet.
 - **Workaround**: Reject all pending requests, refresh, and confirm only the single latest request.
 - **Also observed**: Before signing in, F1 (an approved Funder) was shown the Enterprise Onboarding Application page instead of the funder dashboard — to be re-checked after sign-in.
+
+## BUG-05 · Transactions are sent from the previously connected account after switching MetaMask account (P1)
+
+- **Where**: `frontend/static/js/web3-provider.js` — `window.DAppState.contractClient` is created only once (`new window.ContractClient(provider, signer, ...)`, guarded by `if (!window.DAppState.contractClient)`) with the signer of the account connected at that moment. `handleAccountsChanged` updates `DAppState.signer` but never rebuilds `contractClient`, whose `ethers.Contract` instances stay bound to the old signer.
+- **Steps to reproduce**: Connect as F1 and claim from the faucet → in MetaMask switch to F2 (do not reload) → sign in → click "Claim 100,000 mUSD Test Tokens" → repeat for CE.
+- **Observed**: The header showed F2 / CE, but all three faucet transactions were sent **from F1**: [`0xf7dc7a77…`](https://sepolia.etherscan.io/tx/0xf7dc7a770e819ff91731a72185c0d5d7de0ac9c4506c8f98e6c6976f2e919f1c) (block 11897571), [`0xc5c342f2…`](https://sepolia.etherscan.io/tx/0xc5c342f2c116367b68c67c50f1b96e4e4319e00bcd3a9277917672d3012fe171) (11897591), [`0xa08f6c4b…`](https://sepolia.etherscan.io/tx/0xa08f6c4bd33a5807d0d496d8970b0c707166875e6df11ae472242125e0fe79d3) (11897596). On-chain balances afterwards: F1 300,000 mUSD, F2 0, CE 0.
+- **Expected**: Every transaction is signed by the account currently shown in the header / selected in MetaMask.
+- **Impact**: A user believes they act as one party but the transaction executes with another account's role and funds (e.g., paying or approving from the wrong wallet). Classified **P1**.
+- **Suggested fix**: Rebuild `contractClient` (or call `contract.connect(newSigner)`) inside `handleAccountsChanged`; or simply `location.reload()` on `accountsChanged`, as is already done on `chainChanged`.
+- **Workaround used during testing**: Press F5 after every account switch.
 
 ## KI-01 · MetaMask flags the site as "Malicious" (known issue, won't fix)
 
