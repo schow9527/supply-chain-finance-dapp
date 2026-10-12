@@ -340,15 +340,19 @@ Each transaction type needs at least one successful Sepolia transaction as evide
 
 ---
 
-## 9. Execution Summary (fill in after execution)
+## 9. Execution Summary
 
-| Module | Cases | Pass | Fail | Blocked | Pass rate |
+Executed 2026-10-12 on the live Render deployment (Sepolia). ✅ pass · ◐ partially verified (contract/API layer verified, UI part not executed) · ❌ fail · ⏭ out of scope (see [test-plan.md §2.1](test-plan.md); each row names the covering evidence).
+
+| Module | Cases | ✅ Pass | ◐ Partial | ❌ Fail | ⏭ Out of scope |
 |---|---:|---:|---:|---:|---:|
-| Accounts & Permissions F-01–05 | 27 | | | | |
-| Invoices F-06–10 | 22 | | | | |
-| Receivables F-11–14 | 16 | | | | |
-| Financing & Repayment F-15–22 | 30 | | | | |
-| Dashboard & Audit F-23–26 | 14 | | | | |
-| Permission matrix | 12 | | | | |
-| Non-functional | 7 | | | | |
-| **Total** | **128** | | | | |
+| Accounts & Permissions (F-01–F-05) | 27 | 9 | 0 | 0 | 18 |
+| Invoices (F-06–F-10) | 22 | 11 | 5 | 0 | 6 |
+| Receivables (F-11–F-14) | 16 | 13 | 1 | 0 | 2 |
+| Financing & Repayment (F-15–F-22) | 30 | 21 | 0 | 0 | 9 |
+| Dashboard & Audit (F-23–F-26) | 14 | 10 | 0 | 0 | 4 |
+| Non-functional | 7 | 7 | 0 | 0 | 0 |
+| Permission matrix | 12 | 8 | 2 | 0 | 2 |
+| **Total** | **128** | **79** | **8** | **0** | **41** |
+
+No case remains failed after the fixes of 2026-10-12; failures found during execution are recorded in [defect-log.md](defect-log.md) with their retests.
