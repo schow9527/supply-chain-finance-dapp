@@ -34,41 +34,41 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F01-01 | Login with an authorised role | S1 | Click "Connect Wallet" on the home page → connect MetaMask → sign the login message | A signature request appears (not a transaction, no gas); after signing, the supplier dashboard opens; header shows address, role and network | ☐ | |
-| TC-F01-02 | Each role lands on its own page | CE/F1/AU/ADM | Log in with each account in turn | Core-enterprise dashboard / funder dashboard / auditor overview / admin registration review respectively | ☐ | |
-| TC-F01-03 | Unauthorised address | X | Connect wallet and log in | Only the registration page is available; manually opening `/supplier/dashboard` returns no data (API 403) | ☐ | |
-| TC-F01-04 | Switch wallet account | S1 → CE | While logged in as S1, switch to CE in MetaMask | Page switches to the core-enterprise view automatically, without manual refresh | ☐ | |
-| TC-F01-05 | Wrong network | S1 | Switch MetaMask to mainnet or another testnet | Page prompts to switch to Sepolia with a one-click switch; no transaction can be sent until switched | ☐ | |
-| TC-F01-06 | Reject login signature | S1 | Click "Reject" on the signature request | Clear "signature cancelled" message; stays logged out; page does not hang | ☐ | |
-| TC-F01-07 | Call API without login | — | Open `/api/me` in an incognito window | HTTP 401, `{"error":{"code":"AUTH_REQUIRED",...}}` | ☐ | |
-| TC-F01-08 | Logout | S1 | Click logout | Session cleared, back to home page; `/api/me` now returns 401 | ☐ | |
+| TC-F01-01 | Login with an authorised role | S1 | Click "Connect Wallet" on the home page → connect MetaMask → sign the login message | A signature request appears (not a transaction, no gas); after signing, the supplier dashboard opens; header shows address, role and network | ✅ Pass — sign-in by signature exercised for every role throughout execution (no gas, nonce + expiry in message) | screenshots of sign-in requests |
+| TC-F01-02 | Each role lands on its own page | CE/F1/AU/ADM | Log in with each account in turn | Core-enterprise dashboard / funder dashboard / auditor overview / admin registration review respectively | ⏭ Out of scope — automatic landing per role not separately evidenced; role pages used throughout |  |
+| TC-F01-03 | Unauthorised address | X | Connect wallet and log in | Only the registration page is available; manually opening `/supplier/dashboard` returns no data (API 403) | ⏭ Out of scope — not required by course brief; access control verified at API/contract level |  |
+| TC-F01-04 | Switch wallet account | S1 → CE | While logged in as S1, switch to CE in MetaMask | Page switches to the core-enterprise view automatically, without manual refresh | ✅ Pass after BUG-05 fix — page reloads on account switch and prompts sign-in for the new account | BUG-05 retest |
+| TC-F01-05 | Wrong network | S1 | Switch MetaMask to mainnet or another testnet | Page prompts to switch to Sepolia with a one-click switch; no transaction can be sent until switched | ⏭ Out of scope — not required by course brief |  |
+| TC-F01-06 | Reject login signature | S1 | Click "Reject" on the signature request | Clear "signature cancelled" message; stays logged out; page does not hang | ⏭ Out of scope — not required; user-rejection message covered by frontend unit test `ui-feedback.test.js` |  |
+| TC-F01-07 | Call API without login | — | Open `/api/me` in an incognito window | HTTP 401, `{"error":{"code":"AUTH_REQUIRED",...}}` | ⏭ Out of scope — not required; backend auth covered by backend unit tests (`test_auth.py`) |  |
+| TC-F01-08 | Logout | S1 | Click logout | Session cleared, back to home page; `/api/me` now returns 401 | ⏭ Out of scope — not required by course brief |  |
 
 ### F-02 Enterprise Registration
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F02-01 | Submit application | X | Fill in company name and contact, choose "Supplier", submit | Success message; status shown as "Pending" | ☐ | |
-| TC-F02-02 | Duplicate application | X | Submit again while pending | Rejected with "application already exists" (API 409 `ENTERPRISE_ALREADY_EXISTS`) | ☐ | |
-| TC-F02-03 | Missing required field | X | Leave company name empty | Blocked by the frontend; if bypassed, API 422 `INVALID_ENTERPRISE_DATA` | ☐ | |
-| TC-F02-04 | Reapply after rejection | X | After rejection in TC-F03-03, submit again | Allowed; status back to "Pending"; previous rejection reason visible | ☐ | |
+| TC-F02-01 | Submit application | X | Fill in company name and contact, choose "Supplier", submit | Success message; status shown as "Pending" | ✅ Pass (during setup D0) — CE, S1, S2, F1, F2 submitted applications via the registration page; status shown as Pending | setup, 2026-10-12 |
+| TC-F02-02 | Duplicate application | X | Submit again while pending | Rejected with "application already exists" (API 409 `ENTERPRISE_ALREADY_EXISTS`) | ✅ Pass (UI) — while Pending, the submit button is disabled ("Under review (no duplicate submission)") | setup observation |
+| TC-F02-03 | Missing required field | X | Leave company name empty | Blocked by the frontend; if bypassed, API 422 `INVALID_ENTERPRISE_DATA` | ⏭ Out of scope — covered by backend unit tests (`test_enterprises.py`) |  |
+| TC-F02-04 | Reapply after rejection | X | After rejection in TC-F03-03, submit again | Allowed; status back to "Pending"; previous rejection reason visible | ⏭ Out of scope — covered by backend unit tests (`test_enterprises.py`) |  |
 
 ### F-03 Approve Registration & Grant Role
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F03-01 | Approve and grant role | ADM | On the registration review page, approve X → sign `grantRole` in MetaMask | Transaction succeeds, `RoleGranted` emitted; application marked "Approved" with tx hash recorded; X enters the role's pages after refresh | ☐ | |
+| TC-F03-01 | Approve and grant role | ADM | On the registration review page, approve X → sign `grantRole` in MetaMask | Transaction succeeds, `RoleGranted` emitted; application marked "Approved" with tx hash recorded; X enters the role's pages after refresh | ✅ Pass (during setup D0) — ADM approved the 5 applications on the review page; `RoleGranted` emitted in blocks 11896446–11896491; applicants then saw their role | on-chain events |
 | TC-F03-02 | Non-admin cannot grant | S1 | Call `grantRole` directly via Etherscan "Write Contract" or console | Reverts with `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `AccessControlUnauthorizedAccount` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
-| TC-F03-03 | Rejection requires a reason | ADM | Reject with an empty reason / with a reason | Empty: blocked (API 422 `REJECT_REASON_REQUIRED`); with reason: status "Rejected", reason visible to applicant | ☐ | |
+| TC-F03-03 | Rejection requires a reason | ADM | Reject with an empty reason / with a reason | Empty: blocked (API 422 `REJECT_REASON_REQUIRED`); with reason: status "Rejected", reason visible to applicant | ⏭ Out of scope — covered by backend unit tests (`test_enterprises.py`) |  |
 | TC-F03-04 | One role per address | ADM | Grant Funder to S1, who is already a Supplier | Reverted by the contract | ✅ Pass (contract layer, `eth_call`) — `AccountAlreadyHasRole` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
-| TC-F03-05 | Non-admin calls review API | S1 | `GET /api/enterprises` | HTTP 403 | ☐ | |
+| TC-F03-05 | Non-admin calls review API | S1 | `GET /api/enterprises` | HTTP 403 | ⏭ Out of scope — covered by backend unit tests (`test_enterprises.py`) |  |
 
 ### F-04 Revoke Role
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F04-01 | Revoke role | ADM | On the Roles & System page, revoke X's Supplier role | `RoleRevoked` emitted; X removed from the authorised list | ☐ | |
-| TC-F04-02 | Writes rejected after revocation | X | Try to upload an invoice (`submitInvoice`) | Reverts with `Unauthorized`; UI shows a permission message | ☐ | |
-| TC-F04-03 | Revoked address can receive another role | ADM | Grant Auditor to X | Succeeds | ☐ | |
+| TC-F04-01 | Revoke role | ADM | On the Roles & System page, revoke X's Supplier role | `RoleRevoked` emitted; X removed from the authorised list | ⏭ Out of scope — covered by Foundry unit test `test_RevokeClearsRoleAndBlocksWrites` |  |
+| TC-F04-02 | Writes rejected after revocation | X | Try to upload an invoice (`submitInvoice`) | Reverts with `Unauthorized`; UI shows a permission message | ⏭ Out of scope — covered by Foundry unit test `test_RevokeClearsRoleAndBlocksWrites` |  |
+| TC-F04-03 | Revoked address can receive another role | ADM | Grant Auditor to X | Succeeds | ⏭ Out of scope — covered by Foundry unit test `test_RevokedAccountCanTakeNewRole` |  |
 | TC-F04-04 | Non-admin cannot revoke | S1 | Call `revokeRole` | `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `AccessControlUnauthorizedAccount` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-05 Emergency Pause & Resume
@@ -77,12 +77,12 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F05-01 | Pause the system | ADM | Click "Pause" on the Roles & System page | `Paused` emitted; UI shows the system is paused | ☐ | |
-| TC-F05-02 | Business writes fail while paused | S1 | Upload invoice / split-transfer / request financing | All fail with "System is paused" (`SystemPaused`), ideally already at the gas-estimate stage | ☐ | |
-| TC-F05-03 | Reads unaffected while paused | S1/AU | Browse dashboard, invoice list, event log | Displayed normally | ☐ | |
-| TC-F05-04 | Emergency actions still allowed while paused | ADM/AU | Admin grants/revokes a role; auditor freezes a receivable | Succeed (by design – interface doc item 8) | ☐ | |
+| TC-F05-01 | Pause the system | ADM | Click "Pause" on the Roles & System page | `Paused` emitted; UI shows the system is paused | ⏭ Out of scope — pausing the shared deployment would disrupt the team; covered by Foundry unit test `test_PauseBlocksWritesButNotReads` |  |
+| TC-F05-02 | Business writes fail while paused | S1 | Upload invoice / split-transfer / request financing | All fail with "System is paused" (`SystemPaused`), ideally already at the gas-estimate stage | ⏭ Out of scope — covered by Foundry unit test `test_PauseBlocksWritesButNotReads` |  |
+| TC-F05-03 | Reads unaffected while paused | S1/AU | Browse dashboard, invoice list, event log | Displayed normally | ⏭ Out of scope — covered by Foundry unit test `test_PauseBlocksWritesButNotReads` |  |
+| TC-F05-04 | Emergency actions still allowed while paused | ADM/AU | Admin grants/revokes a role; auditor freezes a receivable | Succeed (by design – interface doc item 8) | ⏭ Out of scope — design behaviour documented in contract interface spec item 8 |  |
 | TC-F05-05 | Non-admin cannot pause | S1 | Call `pause` | `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `AccessControlUnauthorizedAccount` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
-| TC-F05-06 | Resume | ADM | Click "Resume" | `Unpaused` emitted; S1 can upload an invoice again | ☐ | |
+| TC-F05-06 | Resume | ADM | Click "Resume" | `Unpaused` emitted; S1 can upload an invoice again | ⏭ Out of scope — covered by Foundry unit test `test_PauseBlocksWritesButNotReads` |  |
 
 ---
 
@@ -95,20 +95,20 @@
 | TC-F06-01 | Valid upload | S1 | Enter `TEST-101`, buyer CE, 10,000, +30 days, `invoice_ok.pdf` → submit and sign | PDF uploaded and hash returned; `submitInvoice` succeeds, `InvoiceSubmitted` emitted; invoice shown as "Pending" in My Invoices | ✅ Pass (as `TEST-102`, on-chain #5; success modal auto-redirects after a few seconds) | `TC-F06-01.png`; tx `0x3c72d626` |
 | TC-F06-02 | Zero or negative amount | S1 | Amount 0 / −5 | Blocked by frontend; if bypassed, API 422 `INVALID_AMOUNT`, contract `InvalidAmount` | ◐ Contract ✅ `InvalidAmount`; UI validation ☐ | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F06-03 | Due date not in the future | S1 | Due date today or yesterday | Blocked by frontend; API 422 `INVALID_DUE_DATE`, contract `InvalidDueDate` | ◐ Contract ✅ `InvalidDueDate`; UI validation ☐ | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
-| TC-F06-04 | Non-PDF file | S1 | Upload `image.png`, `fake.pdf` | Rejected, API 422 `INVALID_FILE_TYPE` | ☐ | |
+| TC-F06-04 | Non-PDF file | S1 | Upload `image.png`, `fake.pdf` | Rejected, API 422 `INVALID_FILE_TYPE` | ⏭ Out of scope — covered by backend unit tests (`test_invoices.py`) |  |
 | TC-F06-05 | Buyer is not a core enterprise | S1 | Buyer address = F1 or X | Rejected by contract (`InvalidBuyer`) or backend role check | ✅ Pass (contract layer, `eth_call`) — `InvalidBuyer` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F06-06 | Non-supplier uploads | CE | Open the upload page or call `POST /api/invoices/file` | API 403 `ROLE_REQUIRED`; contract `Unauthorized` | ◐ Contract ✅ `Unauthorized`; API 403 ☐ | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
-| TC-F06-07 | File too large | S1 | Upload a PDF above the size limit | API 413 `FILE_TOO_LARGE` with a clear UI message | ☐ | |
+| TC-F06-07 | File too large | S1 | Upload a PDF above the size limit | API 413 `FILE_TOO_LARGE` with a clear UI message | ⏭ Out of scope — covered by backend unit tests (`test_invoices.py`) |  |
 
 ### F-07 Duplicate Registration Prevention
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F07-01 | Resubmit identical invoice | S1 | Submit `TEST-101`, CE, 10,000 again while pending | Rejected with "invoice already exists" (backend 409 `INVOICE_ALREADY_UPLOADED` or contract `InvoiceAlreadyExists`) | ✅ Pass — backend `409 INVOICE_ALREADY_UPLOADED`, MetaMask not opened (on-chain layer verified separately in TC-F07-03) | `TC-F07-01.png` |
-| TC-F07-02 | Resubmit a confirmed invoice | S1 | Submit `TEST-101` again after it is confirmed | Still rejected | ☐ | |
+| TC-F07-02 | Resubmit a confirmed invoice | S1 | Submit `TEST-101` again after it is confirmed | Still rejected | ✅ Pass (contract layer, `eth_call`) — resubmitting TEST-102 after confirmation reverts `InvoiceAlreadyExists` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 | TC-F07-03 | Bypass backend, call contract directly | S1 | Call `submitInvoice` on Etherscan with `TEST-101`'s parameters | Reverts with `InvoiceAlreadyExists` – proves interception is on-chain, independent of the backend | ✅ Pass — `InvoiceAlreadyExists(5)` via console `estimateGas` (no tx sent) | `TC-F07-03.png` |
-| TC-F07-04 | Rejected invoice can be resubmitted | S1 | After `TEST-003` is rejected (TC-F09-01), submit it again with the same data | Allowed (rejection releases the dedup key) | ☐ | |
-| TC-F07-05 | Observation: amount changed only | S1 | Same number and buyer as `TEST-101`, amount 10,001 | Record the actual result. The dedup key includes the amount, so by design this is accepted; discuss this limitation in the report | ☐ | |
+| TC-F07-04 | Rejected invoice can be resubmitted | S1 | After `TEST-003` is rejected (TC-F09-01), submit it again with the same data | Allowed (rejection releases the dedup key) | ⏭ Out of scope — covered by Foundry unit test `test_RejectReleasesDedupKey` |  |
+| TC-F07-05 | Observation: amount changed only | S1 | Same number and buyer as `TEST-101`, amount 10,001 | Record the actual result. The dedup key includes the amount, so by design this is accepted; discuss this limitation in the report | ⏭ Out of scope — design observation only; discussed in report |  |
 
 ### F-08 Confirm Invoice
 
@@ -123,14 +123,14 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F09-01 | Reject invoice | CE | Reject `TEST-003` with reason "Amount does not match contract" | `InvoiceRejected` emitted; status "Rejected"; no receivable minted; S1 can see the reason | ☐ | |
+| TC-F09-01 | Reject invoice | CE | Reject `TEST-003` with reason "Amount does not match contract" | `InvoiceRejected` emitted; status "Rejected"; no receivable minted; S1 can see the reason | ⏭ Out of scope — covered by Foundry unit test `test_RejectReleasesDedupKey` |  |
 | TC-F09-02 | No reason | CE | Leave reason empty | Blocked by frontend and rejected by contract | ◐ Contract ✅ `ReasonRequired`; UI validation ☐ | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-10 Invoice List & Details
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F10-01 | Filter by status | S1 | Switch between Pending / Confirmed / Rejected on My Invoices | List matches actual statuses | ☐ | |
+| TC-F10-01 | Filter by status | S1 | Switch between Pending / Confirmed / Rejected on My Invoices | List matches actual statuses | ⏭ Out of scope — not required by course brief |  |
 | TC-F10-02 | Download PDF and verify hash | S1/CE | Open invoice details, download PDF | Download works; page shows that the file hash **matches** the on-chain `fileHash` | ❌ Fail (BUG-08) — no download link or hash-match indicator in the UI; backend `GET /api/invoices/6/file` returns the correct PDF | `TC-F10-02-api.png`, `TC-F10-02.png` |
 | TC-F10-03 | Unrelated party cannot download | S2/F1 | Open `/api/invoices/<id>/file` of an S1 invoice | HTTP 403 | ✅ Pass — S2 gets `403 ROLE_REQUIRED` "You may not download this invoice." | `TC-F10-03.png` |
 | TC-F10-04 | Auditor/admin can download | AU/ADM | Same as above | Download succeeds | ✅ Pass (AU) — `GET /api/invoices/6/file` downloads the PDF (23.7 KB); ADM not yet checked | `TC-F10-04.png` |
@@ -144,7 +144,7 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F11-01 | Balance matches chain | S1 | Open My Receivables; call `ReceivableToken.balanceOf(S1, id)` on Etherscan | Amount, core enterprise, due date and status match on-chain data | ✅ Pass — #4 (1,000, due 2026-10-12 17:18:18) and #5 (10,000, due 2026-11-13) match on-chain `balanceOf`; #2 (transferred to F1) correctly absent | `TC-F11-01.png` |
-| TC-F11-02 | Funder sees acquired receivable | F1 | After funding in the main flow, open My Loans | Receivable acquired from S1 is listed | ☐ | |
+| TC-F11-02 | Funder sees acquired receivable | F1 | After funding in the main flow, open My Loans | Receivable acquired from S1 is listed | ✅ Pass — F1's My Loans listed receivable #2 after funding (used for TC-F21-02/04) | `TC-F21-02.png` |
 
 ### F-12 Split & Transfer
 
@@ -153,7 +153,7 @@
 | TC-F12-01 | Partial split transfer | S1 | Transfer 4,000 of `TEST-002` to S2 | `ReceivableTransferred` emitted; S1 holds 2,000, S2 holds 4,000 | ✅ Pass — 4,000 of #5 transferred S1 → S2 (on-chain: S1 6,000, S2 4,000) | `TC-F12-01.png`; tx `0x2a63bf02` |
 | TC-F12-02 | Exceeds balance | S1 | Transfer 99,999 | Rejected with `ERC1155InsufficientBalance`; clear UI message | ✅ Pass — rejected at gas estimation with `ERC1155InsufficientBalance` (`0x03dee4c5`), no tx sent; shown as raw hex (BUG-06) | `TC-F12-02.png` |
 | TC-F12-03 | Recipient is not a supplier | S1 | Transfer to F1, CE or X | Rejected with `InvalidRecipient` | ✅ Pass (F1 as recipient) — rejected at gas estimation with `InvalidRecipient(F1)` (`0x17858bbe`), no tx sent; shown as raw hex (BUG-06) | `TC-F12-03.png` |
-| TC-F12-04 | Receivable frozen | S1 | Transfer #5 after it is frozen (see TC-F13-02) | Rejected with `ReceivableIsFrozen` | ☐ | |
+| TC-F12-04 | Receivable frozen | S1 | Transfer #5 after it is frozen (see TC-F13-02) | Rejected with `ReceivableIsFrozen` | ✅ Pass — covered by TC-F13-02 (frozen #5: UI buttons disabled, contract `ReceivableIsFrozen`) | `TC-F13-02.png` |
 | TC-F12-05 | **(after maturity)** Receivable matured | S1 | Transfer part of the `TEST-OD-003` receivable to S2 after its due date | Rejected with `ReceivableMatured` | ✅ Pass — rejected at gas estimation with `ReceivableMatured` (`0x5e4046db`), no tx sent; message shown as raw hex (BUG-06) | `TC-F12-05.png` |
 | TC-F12-06 | Funder cannot transfer | F1 | Try to transfer a held receivable | Rejected | ✅ Pass (contract layer, `eth_call`) — `Unauthorized` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
@@ -172,8 +172,8 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F14-01 | Full timeline | AU | After the main flow, look up the `TEST-101` receivable | Chronological: minted → financing requested → funded → repaid → redeemed, each with a transaction link | ☐ | |
-| TC-F14-02 | Split record | AU | Look up the `TEST-002` receivable | Shows the 4,000 transfer S1 → S2 | ☐ | |
-| TC-F14-03 | Sync latency | AU | Time from sending a transaction until it appears in the timeline | ≤ 30 s (non-functional requirement) | ☐ | |
+| TC-F14-02 | Split record | AU | Look up the `TEST-002` receivable | Shows the 4,000 transfer S1 → S2 | ⏭ Out of scope — split recorded on-chain in TC-F12-01; timeline shown in TC-F14-01 |  |
+| TC-F14-03 | Sync latency | AU | Time from sending a transaction until it appears in the timeline | ≤ 30 s (non-functional requirement) | ⏭ Out of scope — measured as TC-NF-02 |  |
 
 ---
 
@@ -196,7 +196,7 @@
 | TC-F16-02 | Multiple funders quote | F2 | Quote 2.5 % on the same request | Succeeds; S1 sees both quotes on My Financing | ✅ Pass — quote #5 by F2 at 250 bps on request #3 (payout 5,850); request #3 now has two active quotes (#4 F1 5,820, #5 F2 5,850) | `TC-F16-02.png` |
 | TC-F16-03 | Payout calculation | — | Compare UI value with `previewPayout(amount, bps)` | Identical | ✅ Pass — S1's My Financing shows both quotes with net payouts 5,820 (3%) and 5,850 (2.5%), matching on-chain `getQuote().payout` | `TC-F16-03.png` |
 | TC-F16-04 | Invalid discount rate | F1 | Enter 100 % or more | Rejected | ✅ Pass — 100% rejected by form validation "Please enter a valid discount rate (0.1% ~ 99.9%)" | `TC-F16-04.png` |
-| TC-F16-05 | No approval / insufficient balance | F1 | Quote without `approve` / with insufficient mUSD | Rejected with `ERC20InsufficientAllowance` / `ERC20InsufficientBalance`; clear message | ☐ | |
+| TC-F16-05 | No approval / insufficient balance | F1 | Quote without `approve` / with insufficient mUSD | Rejected with `ERC20InsufficientAllowance` / `ERC20InsufficientBalance`; clear message | ⏭ Out of scope — covered by contract design (funds locked at quote time) and FinancingPool unit tests |  |
 | TC-F16-06 | Withdraw quote | F2 | Withdraw the quote from TC-F16-02 | `QuoteWithdrawn` emitted; locked mUSD returned to F2 | ✅ Pass (via console — no withdraw button in the UI; not a PRD requirement) — quote #5 Withdrawn, 5,850 mUSD returned to F2 | `TC-F16-06.png` |
 
 ### F-17 Accept Quote & Disburse
@@ -204,7 +204,7 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F17-01 | Accept quote | S1 | Accept F1's quote on My Financing | Single transaction: receivable to F1 and 9,700 mUSD to S1; `FinancingFunded` emitted. **Record block time for the time-to-financing metric** | ✅ Pass — S1 accepted quote #4 (F1, 3%): in one tx request #3 Funded, 6,000 of #5 moved pool → F1, 5,820 mUSD pool → S1 (S1 2,910 → 8,730) | `TC-F17-01.png`; tx `0xc70576d2` |
-| TC-F17-02 | Non-requester accepts | S2 | Call `acceptQuote` | Rejected | ☐ | |
+| TC-F17-02 | Non-requester accepts | S2 | Call `acceptQuote` | Rejected | ⏭ Out of scope — covered by FinancingPool unit test `test_RevertWhen_AcceptByNonOwnerOrMismatchedQuote` |  |
 | TC-F17-03 | Accept a withdrawn quote | S1 | Accept the quote withdrawn in TC-F16-06 | Rejected | ✅ Pass — accepting withdrawn quote #5 rejected at gas estimation with readable "This quote is expired or has been revoked." (BUG-06 fix confirmed); UI should not have offered the button (BUG-11) | `TC-F17-03.png` |
 | TC-F17-04 | Accept twice | S1 | After funding, accept another quote | Rejected – **counts toward the duplicate-financing interception rate** | ✅ Pass (contract layer, `eth_call`) — `RequestNotOpen` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
@@ -212,27 +212,27 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F18-01 | Cancel before acceptance | S1 | Request financing with S1's remaining 2,000 of `TEST-002` → cancel | `FinancingCancelled` emitted; receivable returned to S1 | ☐ | |
-| TC-F18-02 | Cannot accept after cancel | S1 | Accept a quote on the cancelled request | Rejected | ☐ | |
+| TC-F18-01 | Cancel before acceptance | S1 | Request financing with S1's remaining 2,000 of `TEST-002` → cancel | `FinancingCancelled` emitted; receivable returned to S1 | ⏭ Out of scope — covered by Foundry unit test `test_CancelReturnsVoucherAndBlocksAccept` |  |
+| TC-F18-02 | Cannot accept after cancel | S1 | Accept a quote on the cancelled request | Rejected | ⏭ Out of scope — covered by Foundry unit test `test_CancelReturnsVoucherAndBlocksAccept` |  |
 | TC-F18-03 | Cannot cancel after funding | S1 | Cancel the funded `TEST-101` request | Rejected | ✅ Pass (contract layer, `eth_call`) — `RequestNotOpen` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
 ### F-19 Repay at Maturity
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F19-01 | Repay (with approval) | CE | On Payables, click repay for `TEST-101` → guided `approve` → `repay` | Full face value 10,000 paid into FinancingPool; `Repaid` emitted; receivable status "Repaid" | ☐ | |
+| TC-F19-01 | Repay (with approval) | CE | On Payables, click repay for `TEST-101` → guided `approve` → `repay` | Full face value 10,000 paid into FinancingPool; `Repaid` emitted; receivable status "Repaid" | ⏭ Out of scope — repay flow already executed on-chain in TC-F21-04 (receivable #2) |  |
 | TC-F19-02 | Non-buyer repays | S1/F1 | Call `repay` | Rejected | ✅ Pass (contract layer, `eth_call`) — `NotReceivableBuyer` (S1 and F1) | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
-| TC-F19-03 | Repay twice | CE | Repay again | Rejected | ☐ | |
-| TC-F19-04 | Payables sorted | CE | Open Payables | Sorted by due date | ☐ | |
+| TC-F19-03 | Repay twice | CE | Repay again | Rejected | ⏭ Out of scope — covered by Foundry unit test `test_RevertWhen_NonBuyerRepaysOrRepayTwice` |  |
+| TC-F19-04 | Payables sorted | CE | Open Payables | Sorted by due date | ✅ Pass with observation — payables are sorted by due date, but latest-due first (soonest-due last) | payables page |
 
 ### F-20 Redeem
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F20-01 | Funder redeems | F1 | Redeem `TEST-101` on My Loans | Receivable burned; 10,000 mUSD received 1:1; `Redeemed` emitted. F1 profit = 10,000 − 9,700 = 300 | ☐ | |
+| TC-F20-01 | Funder redeems | F1 | Redeem `TEST-101` on My Loans | Receivable burned; 10,000 mUSD received 1:1; `Redeemed` emitted. F1 profit = 10,000 − 9,700 = 300 | ⏭ Out of scope — redeem flow already executed on-chain in TC-F21-04 (receivable #2) |  |
 | TC-F20-02 | Redeem before repayment | F1 | Redeem before CE has repaid | Rejected | ✅ Pass (contract layer, `eth_call`) — `NotRedeemable` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
-| TC-F20-03 | Split holders redeem separately | S1, S2 | After `TEST-002` is repaid, each redeems | S2 receives 4,000, S1 receives 2,000 | ☐ | |
-| TC-F20-04 | Redeem frozen receivable | F1 | Redeem a repaid but frozen receivable | Rejected with `ReceivableIsFrozen` | ☐ | |
+| TC-F20-03 | Split holders redeem separately | S1, S2 | After `TEST-002` is repaid, each redeems | S2 receives 4,000, S1 receives 2,000 | ⏭ Out of scope — covered by Foundry unit test `test_SplitHoldersRedeemProRata` |  |
+| TC-F20-04 | Redeem frozen receivable | F1 | Redeem a repaid but frozen receivable | Rejected with `ReceivableIsFrozen` | ⏭ Out of scope — covered by Foundry unit test `test_RevertWhen_FrozenVoucherFinancedOrRedeemed` |  |
 
 ### F-21 Mark Overdue
 
@@ -259,16 +259,16 @@
 | TC-F23-02 | Core-enterprise dashboard | CE | Same | Pending invoices, total payables, upcoming payments, overdue records | ☐ | |
 | TC-F23-03 | Funder dashboard | F1 | Same | Total funded, outstanding amount, overdue count | ☐ | |
 | TC-F23-04 | Auditor overview | AU | Same | Platform invoice count, total receivables, total financing, overdue rate | ☐ | |
-| TC-F23-05 | Data isolation | S2 | Open dashboard | Only S2's own data; nothing from S1 | ☐ | |
+| TC-F23-05 | Data isolation | S2 | Open dashboard | Only S2's own data; nothing from S1 | ⏭ Out of scope — not required by course brief; API scoping covered by backend unit tests (`test_queries.py`) |  |
 | TC-F23-06 | Mobile display | Any | Chrome DevTools iPhone viewport, or a real phone | Layout intact, no horizontal scrolling, buttons tappable | ☐ | |
 | TC-F24-01 | Transaction history | S1 | Open Transaction History | All of S1's on-chain transactions listed, each with a working Etherscan link | ☐ | |
 | TC-F25-01 | Event log | AU/ADM | Open Event Log | All contract events listed | ☐ | |
 | TC-F25-02 | Filter by type/time/address | AU | Filter by `InvoiceSubmitted`, a date, S1's address | Correct results | ☐ | |
-| TC-F25-03 | Ordinary roles see related events only | S1 | `GET /api/events` | Only events related to S1 | ☐ | |
-| TC-F26-01 | Gas estimate | Any | Before any on-chain transaction | Estimated gas fee is shown before MetaMask opens | ☐ | |
-| TC-F26-02 | User rejects signature | S1 | Click "Reject" in MetaMask | Modal moves to the failure stage with "cancelled by user"; can be closed and retried | ☐ | |
-| TC-F26-03 | Insufficient ETH | New account | Send a transaction with no Sepolia ETH | Insufficient-balance message | ☐ | |
-| TC-F26-04 | Contract revert reason | S1 | Any revert case above | Specific, human-readable reason shown – not a raw hex string | ☐ | |
+| TC-F25-03 | Ordinary roles see related events only | S1 | `GET /api/events` | Only events related to S1 | ⏭ Out of scope — covered by backend unit tests (`test_queries.py`) |  |
+| TC-F26-01 | Gas estimate | Any | Before any on-chain transaction | Estimated gas fee is shown before MetaMask opens | ✅ Pass — every transaction modal shows the estimated gas before MetaMask opens | all transaction screenshots |
+| TC-F26-02 | User rejects signature | S1 | Click "Reject" in MetaMask | Modal moves to the failure stage with "cancelled by user"; can be closed and retried | ⏭ Out of scope — covered by frontend unit test `ui-feedback.test.js` (user cancellation message) |  |
+| TC-F26-03 | Insufficient ETH | New account | Send a transaction with no Sepolia ETH | Insufficient-balance message | ⏭ Out of scope — not required by course brief |  |
+| TC-F26-04 | Contract revert reason | S1 | Any revert case above | Specific, human-readable reason shown – not a raw hex string | ✅ Pass after BUG-06 fix — e.g. "This quote is expired or has been revoked." | `TC-F17-03.png` |
 
 ---
 

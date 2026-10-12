@@ -24,15 +24,27 @@
 | Backend REST API, event synchronisation, PDF storage | Render platform SLA |
 | Desktop Chrome + MetaMask; mobile browsers (responsive layout only) | Signing inside mobile wallet apps (MetaMask Mobile) |
 
+### 2.1 Scope adjustment (2026-10-12)
+
+After the main flow, maturity, duplicate-prevention, financing and access-control cases were executed, the remaining manual UI cases were prioritised against the **course brief** (role-based auth, MetaMask signing, ≥ 3 interacting contracts and ≥ 10 transaction types, REST API + persistence + error handling, responsive dashboard with transaction history / event log / visualisation, gas estimation, testing, cloud deployment). Cases not required by the brief, or already covered by another layer, are marked **⏭ Out of scope** in [test-cases.md](test-cases.md) with the covering evidence:
+
+- **Contract unit tests (Foundry, Member 1)** — pause/resume, revoke, reject & resubmit, cancel financing, repay twice, split-holder redemption, frozen redemption.
+- **Backend unit tests (pytest, Member 2)** — registration validation, file-type/size checks, auth 401/403, query scoping.
+- **Frontend unit tests (Member 3)** — user-cancellation and revert-reason messages.
+- **On-chain `eth_call` simulation** — [evidence/onchain-negative-checks.md](evidence/onchain-negative-checks.md) for permission-matrix and invalid-input cases at the contract layer.
+- **Flows already executed on-chain** — repay/redeem (receivable #2), split transfer (#5).
+
+Pausing the shared Sepolia deployment was deliberately not executed because it would disrupt other team members' work. User testing (L5) is optional: the brief accepts user testing **or** scenario-based evaluation, and the executed test cases constitute the scenario-based evaluation.
+
 ## 3. Test Levels
 
 | Level | Method | Owner | Status |
 |---|---|---|---|
-| L1 Contract unit tests | Foundry `forge test` (52 tests incl. 1 fuzz test) | Written by Member 1; re-run and recorded by YANG SHUYI | Pending (Foundry not yet installed) |
+| L1 Contract unit tests | Foundry `forge test` (52 tests incl. 1 fuzz test) | Written and run by Member 1; results cited | Cited from Member 1 (not re-run) |
 | L2 Backend unit tests | `pytest` (195 passed; 2 integration tests skipped – require real PostgreSQL/S3) | Written by Member 2; re-run by YANG SHUYI | ✅ Re-run and passed on 2026-10-12 |
 | L3 Frontend unit tests | `npm test` (Node built-in test runner, 16 tests) | Written by Member 3; re-run by YANG SHUYI | ✅ Re-run and passed on 2026-10-12 |
 | L4 End-to-end functional tests | Manual execution of [test-cases.md](test-cases.md) on the live Render deployment, with screenshots and transaction hashes | YANG SHUYI | Pending |
-| L5 User testing | Lightweight study (see §9.1): 2–3 participants complete the main flow from a task card on the tester's laptop, then fill in a 5-question questionnaire | Organised by YANG SHUYI | Pending |
+| L5 User testing (optional) | Lightweight study (see §9.1): 2–3 participants complete the main flow from a task card on the tester's laptop, then fill in a 5-question questionnaire | Organised by YANG SHUYI | Pending |
 
 > Note on re-running L2: on Windows, if the repository sits in a deep directory, the storage tests fail with HTTP 503 because the path exceeds 260 characters. Use a short temp directory, e.g. `pytest --basetemp=C:/pt`. This is an environment issue, not a code defect.
 

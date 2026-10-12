@@ -48,5 +48,6 @@ State at execution: receivable #5 held by F1 (6,000, financed via request #3) an
 | 35 | OK submitInvoice by S1 | S1 | ✅ `SUCCESS` |
 | 36 | OK freeze #5 by AU | AU | ✅ `SUCCESS` |
 | 37 | OK grantRole AUDITOR to X by ADM2 | ADM2 | ✅ `SUCCESS` |
+| 38 | TC-F07-02 resubmit TEST-102 after confirmation (S1) | S1 | ✅ `REVERT InvoiceAlreadyExists` |
 
-**Summary**: 37/37 checks behaved as expected — every unauthorised or invalid call reverted with the specific custom error, and the three authorised control calls (`OK …`) simulate successfully, confirming the reverts are caused by the access/business rules rather than by the test harness.
+**Summary**: 38/38 checks behaved as expected — every unauthorised or invalid call reverted with the specific custom error, and the three authorised control calls (`OK …`) simulate successfully, confirming the reverts are caused by the access/business rules rather than by the test harness.
