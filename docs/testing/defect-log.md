@@ -17,7 +17,8 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-06 | Contract revert reasons shown as raw "unknown custom error" hex | P2 | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` (`3a9d48a`) | — |
 | BUG-07 | Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever | **P1** | Member 2 / Member 3 | 2026-10-12 | 🔴 Open | — | — |
 | BUG-08 | No way to view/download the invoice PDF or check the hash in the UI | **P1** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` (`3a9d48a`) | — |
-| BUG-09 | Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload | **P1** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` | — |
+| BUG-09 | Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload | **P1** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` (`be4c359`) | — |
+| BUG-10 | "Apply Financing" button does nothing (calls a non-existent function) | **P0** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` (`ce8bcf2`) | — |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 
@@ -107,6 +108,16 @@ BUG-01 – BUG-03 were found during test-environment setup (before formal execut
 - **Expected**: The page reflects the real on-chain freeze state; the auditor enters the unfreeze reason.
 - **Fix (on branch, not merged)**: read `ReceivableToken.getReceivable(id).frozen` when tracing and render badge/buttons from it; prompt for the unfreeze reason.
 - **Workaround used during testing**: unfreeze #5 from the browser console as AU via `contractClient.unfreezeReceivable(5n, reason)`.
+
+## BUG-10 · "Apply Financing" button does nothing (P0)
+
+- **Where**: `frontend/templates/supplier/receivables.html`, `confirmRequestFinancing()`.
+- **Steps to reproduce**: As S1, open My Receivables → "Apply Financing" on #5 → enter any amount → "Sign & Submit Request".
+- **Observed**: Nothing happens — no MetaMask popup, no message. The function first calls `contractClient.setApprovalForAllReceivables(...)`, which does not exist in `contract-client.js`, so a `TypeError` is thrown and only logged to the console. **Supplier financing (F-15), the core step of the main flow, cannot be done through the UI at all.** A scan of all templates found no other calls to non-existent client methods.
+- **Also**: no client-side check that the amount ≤ token balance (20,000 against a 6,000 balance was accepted by the form).
+- **Expected**: Submitting sends `FinancingPool.requestFinancing`; the interface spec states no approval is needed (`ReceivableToken.isApprovedForAll` always returns true for FinancingPool).
+- **Fix (on branch, not merged)**: remove the non-existent approval call; validate `0 < amount ≤ balance`; show errors as a toast.
+- **Note**: earlier financing in this test run (request #2) was created from the console, which is why this was not hit before.
 
 ## KI-01 · MetaMask flags the site as "Malicious" (known issue, won't fix)
 
