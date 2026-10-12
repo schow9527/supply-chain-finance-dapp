@@ -103,11 +103,11 @@ function renderQuotesList(req) {
                     </div>
                 </div>
                 <div>
-                    ${req.status === 'PENDING_QUOTE' ? `
+                    ${req.status === 'PENDING_QUOTE' && q.status === 'ACTIVE' ? `
                         <button class="btn btn-sm btn-success" onclick="handleAcceptQuote(${req.onchain_request_id || req.id}, ${q.onchain_quote_id || q.id})">
                             🤝 Accept Quote & Receive Funds (F-17)
                         </button>
-                    ` : (req.accepted_quote_id === q.id ? `<span class="badge badge-success">Accepted</span>` : '-')}
+                    ` : (req.accepted_quote_id === q.quote_id ? `<span class="badge badge-success">Accepted</span>` : (q.status === 'WITHDRAWN' ? `<span class="badge badge-secondary">Withdrawn</span>` : '-'))}
                 </div>
             </div>
         `;

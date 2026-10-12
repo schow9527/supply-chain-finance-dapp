@@ -2,6 +2,11 @@
 
 {% block title %}Supplier Dashboard | SCF DApp{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="/static/js/dashboard-charts.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="app-layout">
     {% set active_page = "dashboard" %}
@@ -40,6 +45,11 @@
                 <div class="kpi-value" id="kpi-funded-total" style="color:var(--success);">0.00 <span style="font-size:1rem;">mUSD</span></div>
                 <div class="kpi-sub">Atomically disbursed into wallet</div>
             </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+            <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">📊 Receivable & Financing Position (mUSD)</h3>
+            <div style="position:relative; height:260px;"><canvas id="sup-position-chart"></canvas></div>
         </div>
 
         <!-- Recent Invoices & Quick Actions -->
@@ -83,6 +93,9 @@ async function loadSupplierDashboard() {
             document.getElementById("kpi-pending-invoices").innerHTML = `${data.pending_invoices_count || 0} <span style="font-size:1rem;">Invoices</span>`;
             document.getElementById("kpi-financing-active").innerHTML = `${window.AppConfig.formatTokens(data.financing_active_amount || "0")} <span style="font-size:1rem;">mUSD</span>`;
             document.getElementById("kpi-funded-total").innerHTML = `${window.AppConfig.formatTokens(data.funded_total_amount || "0")} <span style="font-size:1rem;">mUSD</span>`;
+            DashboardCharts.render("sup-position-chart", "bar",
+                ["Held receivables", "In financing (escrowed)", "Cash received from financing"],
+                [data.receivable_total, data.financing_active_amount, data.funded_total_amount].map(v => DashboardCharts.toTokens(v)));
         }
 
         const invs = await window.DAppState.apiClient.getInvoices({ supplier: acc });
@@ -96,7 +109,7 @@ async function loadSupplierDashboard() {
                     <td>${window.AppConfig.formatTimestamp(inv.due_date)}</td>
                     <td>
                         <span class="badge badge-${inv.status === 'CONFIRMED' ? 'success' : (inv.status === 'REJECTED' ? 'danger' : 'warning')}">
-                            ${inv.status === 'CONFIRMED' ? 'Confirmed & Minted' : (inv.status === 'REJECTED' ? 'Rejected' : 'Pending')}
+                            ${inv.status === 'CONFIRMED' ? 'Confirmed & Minted' : (inv.status === 'REJECTED' ? 'Rejected' : (inv.onchain_id == null ? 'Draft (not on-chain)' : 'Pending'))}
                         </span>
                     </td>
                     <td><a href="/supplier/invoices" class="btn btn-sm btn-outline">Details</a></td>
@@ -112,5 +125,7 @@ async function loadSupplierDashboard() {
 document.addEventListener("DOMContentLoaded", () => {
     setTimeout(loadSupplierDashboard, 600);
 });
+// Reload when the wallet/session becomes ready (the 600 ms timer alone can fire before sign-in)
+window.addEventListener("walletAccountChanged", () => setTimeout(loadSupplierDashboard, 300));
 </script>
 {% endblock %}
