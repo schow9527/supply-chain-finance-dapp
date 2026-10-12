@@ -171,7 +171,7 @@
 
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
-| TC-F14-01 | Full timeline | AU | After the main flow, look up the `TEST-101` receivable | Chronological: minted → financing requested → funded → repaid → redeemed, each with a transaction link | ☐ | |
+| TC-F14-01 | Full timeline | AU | After the main flow, look up the `TEST-101` receivable | Chronological: minted → financing requested → funded → repaid → redeemed, each with a transaction link | ✅ Pass — #2 timeline in chronological order (minted → financing requested → …); minor: mint shown twice (TransferSingle + ReceivableMinted) | `TC-F14-01.png` |
 | TC-F14-02 | Split record | AU | Look up the `TEST-002` receivable | Shows the 4,000 transfer S1 → S2 | ⏭ Out of scope — split recorded on-chain in TC-F12-01; timeline shown in TC-F14-01 |  |
 | TC-F14-03 | Sync latency | AU | Time from sending a transaction until it appears in the timeline | ≤ 30 s (non-functional requirement) | ⏭ Out of scope — measured as TC-NF-02 |  |
 
@@ -260,10 +260,10 @@
 | TC-F23-03 | Funder dashboard | F1 | Same | Total funded, outstanding amount, overdue count | ❌ Fail (BUG-12) — total disbursed shown as 0.00 (should be 8,730) | `TC-F23-03.png` |
 | TC-F23-04 | Auditor overview | AU | Same | Platform invoice count, total receivables, total financing, overdue rate | ❌ Fail (BUG-12) — financed principal 0.00, overdue rate 0.00%, invoice count includes drafts | `TC-F23-04.png` |
 | TC-F23-05 | Data isolation | S2 | Open dashboard | Only S2's own data; nothing from S1 | ⏭ Out of scope — not required by course brief; API scoping covered by backend unit tests (`test_queries.py`) |  |
-| TC-F23-06 | Mobile display | Any | Chrome DevTools iPhone viewport, or a real phone | Layout intact, no horizontal scrolling, buttons tappable | ☐ | |
-| TC-F24-01 | Transaction history | S1 | Open Transaction History | All of S1's on-chain transactions listed, each with a working Etherscan link | ☐ | |
-| TC-F25-01 | Event log | AU/ADM | Open Event Log | All contract events listed | ☐ | |
-| TC-F25-02 | Filter by type/time/address | AU | Filter by `InvoiceSubmitted`, a date, S1's address | Correct results | ☐ | |
+| TC-F23-06 | Mobile display | Any | Chrome DevTools iPhone viewport, or a real phone | Layout intact, no horizontal scrolling, buttons tappable | ✅ Pass — at phone width the sidebar and KPI cards stack vertically, no horizontal scrolling | `TC-F23-06.png` |
+| TC-F24-01 | Transaction history | S1 | Open Transaction History | All of S1's on-chain transactions listed, each with a working Etherscan link | ✅ Pass — S1's transactions listed with block number, time and working Etherscan links; minor: action label is derived from the emitted event (e.g. acceptQuote shown as TRANSFER) | `TC-F24-01.png` |
+| TC-F25-01 | Event log | AU/ADM | Open Event Log | All contract events listed | ✅ Pass — all contract events listed with source contract, block, decoded arguments and tx link | `TC-F25-01.png` |
+| TC-F25-02 | Filter by type/time/address | AU | Filter by `InvoiceSubmitted`, a date, S1's address | Correct results | ✅ Pass — filter InvoiceRegistry + InvoiceSubmitted returns exactly invoices #2–#5 | `TC-F25-02.png` |
 | TC-F25-03 | Ordinary roles see related events only | S1 | `GET /api/events` | Only events related to S1 | ⏭ Out of scope — covered by backend unit tests (`test_queries.py`) |  |
 | TC-F26-01 | Gas estimate | Any | Before any on-chain transaction | Estimated gas fee is shown before MetaMask opens | ✅ Pass — every transaction modal shows the estimated gas before MetaMask opens | all transaction screenshots |
 | TC-F26-02 | User rejects signature | S1 | Click "Reject" in MetaMask | Modal moves to the failure stage with "cancelled by user"; can be closed and retried | ⏭ Out of scope — covered by frontend unit test `ui-feedback.test.js` (user cancellation message) |  |
