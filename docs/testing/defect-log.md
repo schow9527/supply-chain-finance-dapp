@@ -13,14 +13,15 @@ Severity: **P0** main flow blocked / funds incorrect · **P1** feature fails acc
 | BUG-02 | Stale session state after switching MetaMask account | P2 | Member 3 | 2026-10-12 | ✅ Closed | `0c54fde` (PR #1) | 2026-10-12 ✅ |
 | BUG-03 | No UI to grant Auditor / Admin roles | P2 | Member 3 | 2026-10-12 | ✅ Closed | `0c54fde` (PR #1) | 2026-10-12 ✅ |
 | BUG-04 | Duplicate login signature requests cause misleading "another wallet" error | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
-| BUG-05 | Transactions are sent from the previously connected account after switching MetaMask account | **P1** | Member 3 | 2026-10-12 | 🔴 Open | — | — |
-| BUG-06 | Contract revert reasons shown as raw "unknown custom error" hex | P2 | Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-05 | Transactions are sent from the previously connected account after switching MetaMask account | **P1** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` (`3a9d48a`) | — |
+| BUG-06 | Contract revert reasons shown as raw "unknown custom error" hex | P2 | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` (`3a9d48a`) | — |
 | BUG-07 | Cancelling the wallet transaction leaves a backend draft that blocks the invoice number forever | **P1** | Member 2 / Member 3 | 2026-10-12 | 🔴 Open | — | — |
-| BUG-08 | No way to view/download the invoice PDF or check the hash in the UI | **P1** | Member 3 | 2026-10-12 | 🔴 Open | — | — |
+| BUG-08 | No way to view/download the invoice PDF or check the hash in the UI | **P1** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` (`3a9d48a`) | — |
+| BUG-09 | Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload | **P1** | Member 3 | 2026-10-12 | 🟡 Fixed on branch, not merged | `fix/frontend-bug05-06-08` | — |
 | KI-01 | MetaMask flags the site as "Malicious" | — (known issue) | Member 2 (informed) | 2026-10-12 | ⚠️ Won't fix | — | — |
 | KI-02 | Transactions fail when MetaMask "smart account" (EIP-7702) is enabled | — (known issue / environment) | Member 3 (error message) | 2026-10-12 | ⚠️ Workaround | — | — |
 
-All three defects were found during test-environment setup (before formal execution), fixed by Member 3 in a single PR merged into `feature/backend-member2` at 14:46, and deployed to Render at 15:23 on 2026-10-12.
+BUG-01 – BUG-03 were found during test-environment setup (before formal execution), fixed by Member 3 in a single PR merged into `feature/backend-member2` at 14:46, and deployed to Render at 15:23 on 2026-10-12.
 
 ---
 
@@ -97,6 +98,15 @@ All three defects were found during test-environment setup (before formal execut
 - **Observed**: "My Invoices" and "Pending Invoices" show only a truncated file hash. There is no "view / download PDF" link and no indicator of whether the stored file's hash matches the on-chain `fileHash`. The backend endpoint works: `GET /api/invoices/6/file` returned the original `invoice_ok.pdf` for S1 (TC-F10-02) and `403 ROLE_REQUIRED` for S2 (TC-F10-03).
 - **Expected**: PRD F-10 — "can download the PDF, and shows whether the file hash matches the on-chain value"; PRD §8 page list — the core enterprise "views the PDF, then confirms or rejects". Without it, the core enterprise confirms invoices without seeing the document.
 - **Suggested fix**: add a "View PDF" link using the `file_url` already returned by `GET /api/invoices`; compute SHA-256 of the downloaded file in the browser and compare with the on-chain `getInvoice(id).fileHash`.
+
+## BUG-09 · Auditor tracing page always shows "Unfrozen"; cannot unfreeze after reload (P1)
+
+- **Where**: `frontend/templates/auditor/tracing.html`.
+- **Steps to reproduce**: As AU, freeze receivable #5 on `/auditor/tracing` (tx `0x3e958edb…`, block 11898633) → reload the page → trace #5 again.
+- **Observed**: Badge shows "Active / Unfrozen" and only the "Freeze" button is visible, although on-chain `getReceivable(5).frozen == true` and the supplier page correctly shows "Frozen" with buttons disabled. The badge is hard-coded in the template and only updated locally right after clicking Freeze/Unfreeze, so after a reload the auditor **cannot unfreeze through the UI**. In addition, Unfreeze sends a hard-coded reason ("Verified and unfrozen") instead of asking the auditor (PRD F-13: a reason is required).
+- **Expected**: The page reflects the real on-chain freeze state; the auditor enters the unfreeze reason.
+- **Fix (on branch, not merged)**: read `ReceivableToken.getReceivable(id).frozen` when tracing and render badge/buttons from it; prompt for the unfreeze reason.
+- **Workaround used during testing**: unfreeze #5 from the browser console as AU via `contractClient.unfreezeReceivable(5n, reason)`.
 
 ## KI-01 · MetaMask flags the site as "Malicious" (known issue, won't fix)
 
