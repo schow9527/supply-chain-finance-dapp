@@ -133,7 +133,7 @@
 | TC-F10-01 | Filter by status | S1 | Switch between Pending / Confirmed / Rejected on My Invoices | List matches actual statuses | ☐ | |
 | TC-F10-02 | Download PDF and verify hash | S1/CE | Open invoice details, download PDF | Download works; page shows that the file hash **matches** the on-chain `fileHash` | ❌ Fail (BUG-08) — no download link or hash-match indicator in the UI; backend `GET /api/invoices/6/file` returns the correct PDF | `TC-F10-02-api.png`, `TC-F10-02.png` |
 | TC-F10-03 | Unrelated party cannot download | S2/F1 | Open `/api/invoices/<id>/file` of an S1 invoice | HTTP 403 | ✅ Pass — S2 gets `403 ROLE_REQUIRED` "You may not download this invoice." | `TC-F10-03.png` |
-| TC-F10-04 | Auditor/admin can download | AU/ADM | Same as above | Download succeeds | ☐ | |
+| TC-F10-04 | Auditor/admin can download | AU/ADM | Same as above | Download succeeds | ✅ Pass (AU) — `GET /api/invoices/6/file` downloads the PDF (23.7 KB); ADM not yet checked | `TC-F10-04.png` |
 
 ---
 
