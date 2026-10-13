@@ -1,0 +1,64 @@
+flowchart TB
+    subgraph U["用户层（5 种角色）"]
+        U1["供应商 Supplier"]
+        U2["核心企业 Core Enterprise"]
+        U3["资金方 Financier"]
+        U4["审计员 Auditor"]
+        U5["管理员 Admin"]
+    end
+
+    subgraph FE["前端层（HTML + CSS + JS，19 个视图）"]
+        FE1["供应商工作台<br/>仪表盘 / 上传发票 / 发票 / 凭证 / 融资"]
+        FE2["核心企业工作台<br/>仪表盘 / 待确认发票 / 应付清册"]
+        FE3["资金方工作台<br/>仪表盘 / 融资市场 / 放款资产"]
+        FE4["审计工作台<br/>审计看板 / 凭证穿透追踪"]
+        FE5["管理工作台<br/>资质审核 / 角色与系统控制"]
+        FE6["公共页面<br/>首页 / 注册申请 / 交易历史 / 事件日志"]
+        FE7["Ethers.js 合约调用<br/>Gas 预估 · 交易状态提示"]
+    end
+
+    subgraph WALLET["钱包"]
+        MM["MetaMask<br/>交易签名"]
+    end
+
+    subgraph CHAIN["区块链层（Sepolia 测试网）"]
+        C1["RoleManager.sol<br/>角色权限 + 紧急暂停"]
+        C2["InvoiceRegistry.sol<br/>发票登记 + 防重复"]
+        C3["ReceivableToken.sol (ERC-1155)<br/>应收凭证 铸造/拆分/冻结"]
+        C4["FinancingPool.sol<br/>融资申请/报价/原子放款/还款/兑付"]
+        C5["MockStablecoin.sol (ERC-20)<br/>测试稳定币 mUSD + faucet"]
+    end
+
+    subgraph BE["后端层（Python Flask，部署于 Render）"]
+        B1["REST API<br/>企业 / 发票 / 凭证 / 融资 / 仪表盘 / 审计"]
+        B2["Web3.py 事件监听器<br/>同步链上事件"]
+        B3["文件存储<br/>发票 PDF（链下）+ SHA-256 哈希"]
+    end
+
+    subgraph DB["数据层（SQLite / PostgreSQL，7 张表）"]
+        D1["enterprises · invoices · holdings<br/>financing_requests · quotes<br/>chain_events · sync_state"]
+    end
+
+    U --> FE
+    FE -->|"Ethers.js 发起交易"| MM
+    MM -->|"签名后广播"| CHAIN
+    FE -->|"REST 查询（链下数据 / 缓存）"| B1
+    CHAIN -->|"链上事件"| B2
+    B2 --> D1
+    B1 --> D1
+    B1 --> B3
+    C1 -.->|"权限检查"| C2
+    C2 -.->|"确认后铸造凭证"| C3
+    C4 -.->|"转账/销毁凭证"| C3
+    C4 -.->|"mUSD 划转"| C5
+
+    classDef user fill:#e8f4fd,stroke:#4a90d9;
+    classDef fe fill:#fff7e6,stroke:#d9a441;
+    classDef chain fill:#e9f7ef,stroke:#3ba272;
+    classDef be fill:#f3e8fd,stroke:#8e5bd9;
+    classDef db fill:#fdeaea,stroke:#d94a4a;
+    class U1,U2,U3,U4,U5 user
+    class FE1,FE2,FE3,FE4,FE5,FE6,FE7 fe
+    class C1,C2,C3,C4,C5 chain
+    class B1,B2,B3 be
+    class D1 db

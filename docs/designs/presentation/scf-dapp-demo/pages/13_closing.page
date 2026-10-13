@@ -1,0 +1,69 @@
+pageType: final
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [70, 120, 500, 20]
+    content:
+      style: "$kicker"
+      wrap: false
+      text: 总结 · SC6113 小组项目
+  - elementId: rule-top
+    elementType: line
+    bounds: [70, 152, 120, 2]
+    viewBox: [120, 2]
+    points: "0,1 120,1"
+    border: {style: solid, width: 3, color: "$accent"}
+  - elementId: title
+    elementType: text
+    bounds: [70, 175, 780, 60]
+    content:
+      fontSize: 34
+      bold: true
+      color: "$ink"
+      wrap: false
+      text: 从确权到兑付，一条链上闭环
+  - elementId: summary
+    elementType: text
+    bounds: [70, 255, 500, 130]
+    content:
+      style: "$body"
+      lineHeight: 1.7
+      text: |
+        <p>· 5 合约 + 20 种链上交易，覆盖登记、确权、流转、融资、还款、兑付全生命周期</p>
+        <p>· 查重、托管、限转三道闸，从机制上杜绝同一张发票重复融资</p>
+        <p>· 26 项功能 × 5 角色 × Sepolia 真实部署，端到端可演示</p>
+  - elementId: team-title
+    elementType: text
+    bounds: [620, 175, 280, 22]
+    content: {fontSize: 14, bold: true, color: "$ink", wrap: false, text: 团队分工}
+  - elementId: team
+    elementType: text
+    bounds: [620, 205, 280, 220]
+    content:
+      fontSize: 12
+      color: "$body"
+      lineHeight: 1.75
+      text: |
+        <p>成员 1 · 智能合约与测试</p>
+        <p>成员 2 · 后端与部署</p>
+        <p>成员 3 · 前端与 Web3</p>
+        <p>成员 4 · 研究与技术报告</p>
+        <p>成员 5 · 架构图 / PPT / 手册</p>
+        <p>成员 6 · 测试与演示视频</p>
+  - elementId: qa
+    elementType: text
+    bounds: [70, 430, 300, 40]
+    content:
+      fontSize: 22
+      bold: true
+      color: "$accent"
+      wrap: false
+      text: Q & A
+  - elementId: repo
+    elementType: text
+    bounds: [380, 440, 520, 20]
+    content:
+      style: "$small"
+      align: [right, top]
+      wrap: false
+      text: github.com/schow9527/supply-chain-finance-dapp

@@ -1,0 +1,84 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 10 · Gas 优化}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: 存储打包 + 减少跨合约调用，主线交易 Gas 下降 15%–21%
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: gas-chart
+    elementType: chart
+    bounds: [60, 124, 520, 340]
+    data:
+      cols: [交易, 优化前, 优化后]
+      rows:
+        - [上传发票, 219256, 173254]
+        - [确认发票, 150356, 124931]
+        - [申请融资, 171930, 145491]
+        - [接受报价放款, 160852, 131343]
+        - [兑付, 66008, 64043]
+    series:
+      - type: bar
+        name: 优化前
+        encode: {x: 交易, y: 优化前}
+        fill: "#B9C2C9"
+      - type: bar
+        name: 优化后
+        encode: {x: 交易, y: 优化后}
+        fill: "$accent"
+    legend: {position: top, fontSize: 12}
+    yAxis:
+      label: {fontSize: 11, numberFormat: "#,##0"}
+      gridLine: {style: solid, color: "#EEEFF1", width: 1}
+    xAxis:
+      label: {fontSize: 12}
+      axisLine: {style: solid, color: "#C9CFD4", width: 1}
+      gridLine: false
+  - elementId: vline
+    elementType: line
+    bounds: [610, 130, 1, 320]
+    viewBox: [1, 320]
+    points: "0,0 0,320"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: s1
+    elementType: text
+    bounds: [640, 140, 260, 70]
+    content:
+      text: |
+        <p><span style="font-size:28px;color:$accent"><strong>-10.2%</strong></span></p>
+        <p><span style="font-size:12px;color:$gray">18 个函数平均 Gas（92,801 → 83,326）</span></p>
+  - elementId: s2
+    elementType: text
+    bounds: [640, 230, 260, 90]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>手段</strong>：存储槽打包（uint96 / uint64）、凭证元数据直接存 Token 减少跨合约读、去重键映射精简。</p>
+  - elementId: s3
+    elementType: text
+    bounds: [640, 330, 260, 110]
+    content:
+      style: "$small"
+      lineHeight: 1.6
+      text: |
+        <p>数据来源：contracts/docs/gas/，Foundry 基准测试，Sepolia 复测口径。</p>
+        <p>优化后合约已重新部署，地址同步至前端与 ABI（提交 9d11af2 / d56bdc4）。</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · 供应链金融 DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "11"}

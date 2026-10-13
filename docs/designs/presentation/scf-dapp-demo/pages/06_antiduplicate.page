@@ -1,0 +1,91 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 05 · 核心机制}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: 防重复融资：登记查重、托管锁定、转让限制三道闸
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: g1-num
+    elementType: text
+    bounds: [60, 132, 240, 60]
+    content:
+      text: |
+        <p><span style="font-size:34px;color:$accent"><strong>闸口一</strong></span></p>
+        <p><span style="font-size:13px;color:$ink"><strong>登记查重 · InvoiceRegistry</strong></span></p>
+  - elementId: g1-body
+    elementType: text
+    bounds: [60, 216, 240, 170]
+    content:
+      style: "$body"
+      text: 合约按「发票号 + 买方 + 卖方 + 金额」生成去重键。同组合再次提交时直接 revert：InvoiceAlreadyExists，交易不会上链。
+  - elementId: vline1
+    elementType: line
+    bounds: [330, 132, 1, 260]
+    viewBox: [1, 260]
+    points: "0,0 0,260"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: g2-num
+    elementType: text
+    bounds: [360, 132, 240, 60]
+    content:
+      text: |
+        <p><span style="font-size:34px;color:$accent"><strong>闸口二</strong></span></p>
+        <p><span style="font-size:13px;color:$ink"><strong>托管锁定 · FinancingPool</strong></span></p>
+  - elementId: g2-body
+    elementType: text
+    bounds: [360, 216, 240, 170]
+    content:
+      style: "$body"
+      text: 申请融资时凭证自动转入池子托管，同一份额无法同时挂在两个申请下——双花质押在合约层被物理阻止。
+  - elementId: vline2
+    elementType: line
+    bounds: [630, 132, 1, 260]
+    viewBox: [1, 260]
+    points: "0,0 0,260"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: g3-num
+    elementType: text
+    bounds: [660, 132, 240, 60]
+    content:
+      text: |
+        <p><span style="font-size:34px;color:$accent"><strong>闸口三</strong></span></p>
+        <p><span style="font-size:13px;color:$ink"><strong>转让限制 · ReceivableToken</strong></span></p>
+  - elementId: g3-body
+    elementType: text
+    bounds: [660, 216, 240, 170]
+    content:
+      style: "$body"
+      text: 资金方受让凭证后不可再转让，只能持有至兑付，杜绝「同一凭证多层转卖重复融资」。
+  - elementId: bottom-rule
+    elementType: line
+    bounds: [60, 420, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: bottom
+    elementType: text
+    bounds: [60, 438, 840, 44]
+    content:
+      style: "$body"
+      text: |
+        <p>不误杀的细节：发票被拒绝后合约<strong>释放去重键</strong>，供应商改正信息后可原号重提；逾期后仍可付款，状态由 Overdue 回到 Repaid。</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · 供应链金融 DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "06"}

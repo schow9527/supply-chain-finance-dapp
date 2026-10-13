@@ -1,0 +1,38 @@
+flowchart TD
+    START([供应商开具发票]) --> UPLOAD["上传发票元数据 + PDF<br/>文件哈希 SHA-256 上链"]
+    UPLOAD --> DEDUP{"链上查重<br/>发票号+买卖双方+金额组合"}
+    DEDUP -->|已存在| REJECT_DUP["合约拒绝<br/>InvoiceAlreadyExists"] --> END1([流程终止])
+    DEDUP -->|通过| PENDING["发票状态：待确认<br/>PDF 存链下，哈希存链上"]
+
+    PENDING --> CE{"核心企业查验发票"}
+    CE -->|拒绝（需填原因）| REJECTED["状态：已拒绝<br/>释放去重键，可修改后重提"] --> END2([流程终止])
+    CE -->|确认| MINT["自动铸造等额应收凭证 ERC-1155<br/>信用确权完成"]
+
+    MINT --> CHOICE{"供应商选择"}
+    CHOICE -->|拆分转让| SPLIT["按份额转给二级供应商<br/>（仅限已注册供应商、未冻结未到期）"] --> CHOICE
+    CHOICE -->|持有到期| HOLD["等待核心企业到期付款"]
+    CHOICE -->|发起融资| RF["申请融资<br/>凭证自动托管进池（不可二次质押）"]
+
+    RF --> QUOTE["资金方报价（贴现率 bps）<br/>报价资金锁定进池"]
+    QUOTE --> ACCEPT{"供应商选择报价"}
+    ACCEPT -->|接受| FUND["原子化放款：一笔交易内<br/>凭证→资金方，贴现后资金→供应商"]
+    ACCEPT -->|取消申请| CANCEL["凭证退回供应商"] --> CHOICE
+
+    FUND --> DUE{"到期日核对"}
+    DUE -->|核心企业按时付款| REPAY["面值全额付入融资池"]
+    DUE -->|逾期未付| OVERDUE["资金方标记逾期<br/>逾期记录链上留痕"] --> REPAY2["逾期后仍可付款"]
+    REPAY2 --> REPAY
+
+    REPAY --> REDEEM["当前凭证持有人销毁凭证<br/>按 1:1 兑付稳定币"]
+    REDEEM --> END3([融资闭环完成])
+
+    FREEZE_NOTE["审计员任意时点可冻结/解冻凭证<br/>冻结后不可转让、融资、兑付"] -.-> MINT
+
+    classDef supplier fill:#e8f4fd,stroke:#4a90d9;
+    classDef core fill:#e9f7ef,stroke:#3ba272;
+    classDef funder fill:#fff7e6,stroke:#d9a441;
+    classDef auditor fill:#fdeaea,stroke:#d94a4a;
+    class UPLOAD,PENDING,SPLIT,RF,HOLD supplier
+    class CE,REJECTED,MINT,REPAY,REPAY2 core
+    class QUOTE,FUND,OVERDUE funder
+    class FREEZE_NOTE auditor

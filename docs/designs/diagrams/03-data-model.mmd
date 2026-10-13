@@ -1,0 +1,73 @@
+erDiagram
+    ENTERPRISES ||--o{ INVOICES : "作为供应商开具"
+    ENTERPRISES ||--o{ INVOICES : "作为核心企业确认"
+    INVOICES ||--|| HOLDINGS : "确认后生成凭证持有记录"
+    HOLDINGS ||--o{ FINANCING_REQUESTS : "凭证发起融资申请"
+    FINANCING_REQUESTS ||--o{ QUOTES : "收到资金方报价"
+    ENTERPRISES ||--o{ QUOTES : "资金方提交报价"
+
+    ENTERPRISES {
+        int id PK
+        string wallet_address "钱包地址（唯一）"
+        string company_name "企业名称"
+        string contact "联系人"
+        string role "申请角色 Supplier/Core/Financier"
+        string status "审核状态 pending/approved/rejected"
+        string reject_reason "驳回原因"
+        string grant_tx_hash "链上授权交易哈希"
+    }
+
+    INVOICES {
+        int id PK
+        int onchain_invoice_id "链上发票 ID"
+        string invoice_no "发票号（事件读取）"
+        string supplier "供应商地址"
+        string buyer "核心企业地址"
+        int amount "金额（mUSD 最小单位）"
+        date due_date "到期日"
+        string file_hash "PDF 的 SHA-256"
+        string file_path "链下文件路径"
+        string status "状态 Pending/Confirmed/Rejected"
+    }
+
+    HOLDINGS {
+        int id PK
+        int receivable_id "链上凭证 ID（ERC-1155 tokenId）"
+        string holder "持有人地址"
+        int balance "持有份额余额"
+    }
+
+    FINANCING_REQUESTS {
+        int id PK
+        int onchain_request_id "链上申请 ID"
+        int receivable_id "凭证 ID"
+        string supplier "申请人地址"
+        int amount "申请融资金额"
+        string status "状态 Open/Funded/Cancelled"
+        int accepted_quote_id "最终成交报价 ID"
+    }
+
+    QUOTES {
+        int id PK
+        int onchain_quote_id "链上报价 ID"
+        int request_id "所属融资申请"
+        string funder "资金方地址"
+        int discount_bps "贴现率（万分之一）"
+        int payout "实际放款金额"
+        string status "状态 Active/Accepted/Withdrawn"
+    }
+
+    CHAIN_EVENTS {
+        int id PK
+        int block_number "区块号"
+        string tx_hash "交易哈希"
+        string contract_name "合约名"
+        string event_name "事件名"
+        json args "解析后参数 JSON"
+        datetime created_at "时间戳"
+    }
+
+    SYNC_STATE {
+        string contract_name PK "合约名"
+        int last_block "已同步到的区块高度"
+    }

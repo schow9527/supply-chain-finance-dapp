@@ -1,0 +1,45 @@
+flowchart TD
+    LANDING["首页 Landing<br/>产品介绍 · 连接 MetaMask"] --> CHECK{"链上角色检查<br/>isRegistered + roleOf"}
+    CHECK -->|未注册| REG["注册申请页<br/>填写企业资料 · 选择角色<br/>等待管理员审核"]
+    REG -.->|审核通过链上授权| CHECK
+    CHECK -->|供应商| S1["供应商仪表盘<br/>凭证总额 / 融资总额 / 待办"]
+    CHECK -->|核心企业| C1["核心企业仪表盘<br/>待确认数 / 应付总额 / 临期预警"]
+    CHECK -->|资金方| F1["资金方仪表盘<br/>放款总额 / 应收本息 / 逾期监控"]
+    CHECK -->|审计员| A1["全局审计看板<br/>发票总数 / 流转总额 / 逾期率"]
+    CHECK -->|管理员| AD1["资质审核管理<br/>链上核准授权 / 驳回"]
+
+    S1 --> S2["上传发票页"]
+    S1 --> S3["我的发票列表<br/>状态筛选 · PDF 核对"]
+    S1 --> S4["我的应收凭证<br/>拆分转让 · 发起融资"]
+    S1 --> S5["我的融资管理<br/>查看报价 · 接受放款 / 取消"]
+    S4 --> S2
+
+    C1 --> C2["待确认发票<br/>预览 PDF · 确认 / 拒绝"]
+    C1 --> C3["应付账款清册<br/>按到期日排序 · 一键付款"]
+
+    F1 --> F2["融资市场<br/>待报价项目 · 输入贴现率"]
+    F1 --> F3["我的放款资产<br/>到期兑付 · 标记逾期"]
+
+    A1 --> A2["凭证穿透追踪<br/>流转树 · 冻结 / 解冻"]
+
+    AD1 --> AD2["角色与系统控制<br/>角色吊销 · 紧急暂停 / 恢复"]
+
+    S1 --> PUB["交易历史中心（全角色）"]
+    C1 --> PUB
+    F1 --> PUB
+    A1 --> PUB
+    AD1 --> PUB
+    PUB --> EV["合约事件日志（管理员 / 审计员）<br/>按类型 / 时间 / 地址筛选"]
+
+    classDef pub fill:#f2f2f2,stroke:#888;
+    classDef role1 fill:#e8f4fd,stroke:#4a90d9;
+    classDef role2 fill:#e9f7ef,stroke:#3ba272;
+    classDef role3 fill:#fff7e6,stroke:#d9a441;
+    classDef role4 fill:#fdeaea,stroke:#d94a4a;
+    classDef role5 fill:#f3e8fd,stroke:#8e5bd9;
+    class LANDING,CHECK pub
+    class REG,S1,S2,S3,S4,S5 role1
+    class C1,C2,C3 role2
+    class F1,F2,F3 role3
+    class A1,A2,EV role4
+    class AD1,AD2 role5

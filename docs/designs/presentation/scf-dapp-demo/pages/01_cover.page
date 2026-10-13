@@ -1,0 +1,57 @@
+pageType: cover
+background:
+  type: solid
+  color: "#FFFFFF"
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [70, 120, 500, 20]
+    content:
+      style: "$kicker"
+      wrap: false
+      text: NTU SC6113 · 小组项目演示
+  - elementId: rule-top
+    elementType: line
+    bounds: [70, 152, 120, 2]
+    viewBox: [120, 2]
+    points: "0,1 120,1"
+    border: {style: solid, width: 3, color: "$accent"}
+  - elementId: title
+    elementType: text
+    bounds: [70, 175, 700, 70]
+    content:
+      fontSize: 46
+      bold: true
+      color: "$ink"
+      wrap: false
+      text: 供应链金融 DApp
+  - elementId: subtitle
+    elementType: text
+    bounds: [70, 255, 760, 30]
+    content:
+      fontSize: 19
+      color: "$body"
+      wrap: false
+      text: 应收账款上链 · 可拆分转让的数字凭证 · 从机制上杜绝重复融资
+  - elementId: meta
+    elementType: text
+    bounds: [70, 320, 700, 70]
+    content:
+      style: "$small"
+      lineHeight: 1.8
+      text: |
+        <p>技术栈：Solidity（ERC-1155 / ERC-20）· Python Flask · Ethers.js / MetaMask</p>
+        <p>部署：以太坊 Sepolia 测试网 · Render 云端服务</p>
+  - elementId: footer-rule
+    elementType: line
+    bounds: [70, 470, 820, 1]
+    viewBox: [820, 1]
+    points: "0,0 820,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: footer
+    elementType: text
+    bounds: [70, 482, 820, 24]
+    content:
+      style: "$small"
+      text: |
+        <p>SC6113 课程项目组 · 2026-10 · 演示主线：上传发票 → 确认 → 融资 → 放款 → 还款 → 兑付</p>

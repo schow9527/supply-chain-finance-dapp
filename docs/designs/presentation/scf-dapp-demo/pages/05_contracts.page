@@ -1,0 +1,64 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 04 · 智能合约设计}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: 五个合约各司其职，权限与暂停由 RoleManager 统一收口
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: ct
+    elementType: table
+    bounds: [60, 124, 840, 290]
+    columnWidths: [0.24, 0.76]
+    rowHeights: [0.166, 0.166, 0.167, 0.167, 0.167, 0.167]
+    style:
+      cellStyle:
+        border: [null, null, {style: solid, width: 1, color: "$line"}, null]
+        align: [left, middle]
+        fontSize: 13
+        color: "$body"
+      firstColumnStyle:
+        bold: true
+        color: "$ink"
+        fontSize: 14
+    rows:
+      - - text: RoleManager.sol
+        - text: 五种角色（供应商 / 核心企业 / 资金方 / 审计员 / 管理员）权限授予与吊销，全局紧急暂停开关
+      - - text: InvoiceRegistry.sol
+        - text: 发票登记与去重键查重；核心企业确认后联动铸造等额应收凭证，拒绝后释放去重键
+      - - text: ReceivableToken.sol
+        - text: ERC-1155 应收凭证：按份额拆分转让、审计员冻结/解冻；仅 Registry 可铸、仅 Pool 可销
+      - - text: FinancingPool.sol
+        - text: 融资申请（凭证托管）、报价锁资、原子化成交、到期还款入池、兑付与逾期标记
+      - - text: MockStablecoin.sol
+        - text: ERC-20 测试稳定币 mUSD，faucet 水龙头供演示领取
+      - - text: 安全基线
+        - text: 全部转账函数 nonReentrant + 先改状态后发事件；Slither 静态检查无高危/中危问题
+  - elementId: note
+    elementType: text
+    bounds: [60, 440, 840, 44]
+    content:
+      style: "$small"
+      lineHeight: 1.6
+      text: |
+        <p>暂停期间：管理员的角色操作与审计员的冻结/解冻仍可执行（应急处置），其余写操作一律拒绝；查询不受影响。</p>
+        <p>合约间调用关系见下一页时序图；ABI 与查询函数定义见 contracts/abi 与 contracts/docs/interface.md。</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · 供应链金融 DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "05"}

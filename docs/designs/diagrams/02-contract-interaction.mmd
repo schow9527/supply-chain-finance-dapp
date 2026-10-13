@@ -1,0 +1,56 @@
+sequenceDiagram
+    autonumber
+    actor S as 供应商
+    actor CE as 核心企业
+    actor F as 资金方
+    participant IR as InvoiceRegistry
+    participant RT as ReceivableToken<br/>(ERC-1155)
+    participant FP as FinancingPool
+    participant USD as MockStablecoin<br/>(ERC-20)
+
+    Note over S,IR: ① 发票登记（防重复融资的第一道闸）
+    S->>IR: submitInvoice(invoiceNo, buyer, amount, dueDate, fileHash)
+    alt 去重键 invoiceNo+buyer+supplier+amount 已存在
+        IR-->>S: revert InvoiceAlreadyExists
+    else 首次登记
+        IR-->>S: emit InvoiceSubmitted
+    end
+
+    Note over CE,RT: ② 核心企业确认，自动铸造等额应收凭证
+    CE->>IR: confirmInvoice(invoiceId)
+    IR->>RT: mint(supplier, receivableId, amount)
+    RT-->>CE: emit InvoiceConfirmed + ReceivableMinted
+
+    Note over S,RT: ③ 凭证拆分转让（可选，信用向下游传递）
+    S->>RT: transferReceivable(to, id, amount)
+    RT-->>S: emit ReceivableTransferred
+
+    Note over S,FP: ④ 申请融资（凭证自动托管进池，杜绝二次质押）
+    S->>FP: requestFinancing(id, amount)
+    FP->>RT: 托管划转凭证（TransferSingle 至池子）
+
+    Note over F,FP: ⑤ 资金方报价（贴现率 bps，报价资金锁定）
+    F->>USD: approve(pool, payout)
+    F->>FP: submitQuote(requestId, discountBps)
+    FP->>USD: 锁定报价资金
+
+    Note over S,USD: ⑥ 接受报价：原子化放款（任一步失败整笔回滚）
+    S->>FP: acceptQuote(requestId, quoteId)
+    FP->>RT: 凭证所有权 → 资金方
+    FP->>USD: 贴现后金额 → 供应商
+    FP-->>S: emit FinancingFunded
+
+    Note over CE,FP: ⑦ 到期付款入池
+    CE->>USD: approve(pool, faceValue)
+    CE->>FP: repay(id)
+    FP-->>CE: emit Repaid
+
+    Note over F,FP: ⑧ 持有人兑付（1:1 销毁凭证领取 mUSD）
+    F->>FP: redeem(id)
+    FP->>RT: burn 凭证
+    FP->>USD: 面值金额 → 持有人
+    FP-->>F: emit Redeemed
+
+    Note over F,FP: ⑨ 逾期未付：资金方标记逾期
+    F->>FP: markOverdue(id)
+    FP-->>F: emit MarkedOverdue（逾期记录仪表盘可见）
