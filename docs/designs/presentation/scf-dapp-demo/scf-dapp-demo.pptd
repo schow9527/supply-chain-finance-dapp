@@ -1,0 +1,44 @@
+version: v2
+title: 供应链金融 DApp · 项目演示
+size: [960, 540]
+theme:
+  colors:
+    ink: "#1B2A32"
+    accent: "#E76F51"
+    teal: "#2A9D8F"
+    blue: "#2A6F97"
+    gray: "#6B7280"
+    line: "#E5E7EB"
+    soft: "#F6F7F8"
+    body: "#3A4A54"
+  textStyles:
+    kicker:
+      fontSize: 12
+      color: "$accent"
+      letterSpacing: 3
+      bold: true
+    title:
+      fontSize: 26
+      color: "$ink"
+      bold: true
+    body:
+      fontSize: 14
+      color: "$body"
+      lineHeight: 1.55
+    small:
+      fontSize: 11
+      color: "$gray"
+pages:
+  - pages/01_cover.page
+  - pages/02_problem.page
+  - pages/03_overview.page
+  - pages/04_architecture.page
+  - pages/05_contracts.page
+  - pages/06_antiduplicate.page
+  - pages/07_sequence.page
+  - pages/08_flow.page
+  - pages/09_ui.page
+  - pages/10_data.page
+  - pages/11_gas.page
+  - pages/12_deployment.page
+  - pages/13_closing.page

@@ -1,0 +1,65 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 08 · UI DESIGN}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: 19 pages for five roles - gas first, failure reasons always
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: wf1
+    elementType: image
+    bounds: [60, 118, 272, 183]
+    src: media/02-supplier-dashboard.png
+    fit: {mode: contain}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: wf1-cap
+    elementType: text
+    bounds: [60, 306, 272, 18]
+    content: {style: "$small", align: [center, top], wrap: false, text: Supplier dashboard · tokens / funding / to-dos}
+  - elementId: wf2
+    elementType: image
+    bounds: [344, 118, 272, 183]
+    src: media/08-core-pending-invoices.png
+    fit: {mode: contain}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: wf2-cap
+    elementType: text
+    bounds: [344, 306, 272, 18]
+    content: {style: "$small", align: [center, top], wrap: false, text: "Core enterprise · verify, then confirm / reject"}
+  - elementId: wf3
+    elementType: image
+    bounds: [628, 118, 272, 183]
+    src: media/11-financier-market.png
+    fit: {mode: contain}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: wf3-cap
+    elementType: text
+    bounds: [628, 306, 272, 18]
+    content: {style: "$small", align: [center, top], wrap: false, text: Financier · live discount quote preview}
+  - elementId: pts
+    elementType: text
+    bounds: [60, 348, 840, 120]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>Interaction rules</strong> — gas estimate before every on-chain action; four-stage feedback (sign -> broadcast -> confirm -> result); failures surface decoded custom errors in plain language.</p>
+        <p style="margin-top:10px"><strong>Design deliverable</strong> — 19 wireframes (docs/design-EN/wireframes/) as the frontend implementation reference, each annotated with acceptance feature IDs.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "09"}

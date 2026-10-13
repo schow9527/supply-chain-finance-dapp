@@ -1,0 +1,73 @@
+erDiagram
+    ENTERPRISES ||--o{ INVOICES : "issues as supplier"
+    ENTERPRISES ||--o{ INVOICES : "confirms as core enterprise"
+    INVOICES ||--|| HOLDINGS : "confirmed invoice becomes holding"
+    HOLDINGS ||--o{ FINANCING_REQUESTS : "financed via request"
+    FINANCING_REQUESTS ||--o{ QUOTES : "receives quotes"
+    ENTERPRISES ||--o{ QUOTES : "submits as financier"
+
+    ENTERPRISES {
+        int id PK
+        string wallet_address "unique wallet address"
+        string company_name
+        string contact
+        string role "applied role Supplier/Core/Financier"
+        string status "pending / approved / rejected"
+        string reject_reason
+        string grant_tx_hash "on-chain grant tx hash"
+    }
+
+    INVOICES {
+        int id PK
+        int onchain_invoice_id
+        string invoice_no "from InvoiceSubmitted event"
+        string supplier
+        string buyer
+        int amount "mUSD smallest unit"
+        date due_date
+        string file_hash "SHA-256 of PDF"
+        string file_path "off-chain file path"
+        string status "Pending / Confirmed / Rejected"
+    }
+
+    HOLDINGS {
+        int id PK
+        int receivable_id "ERC-1155 tokenId"
+        string holder
+        int balance "held share balance"
+    }
+
+    FINANCING_REQUESTS {
+        int id PK
+        int onchain_request_id
+        int receivable_id
+        string supplier
+        int amount
+        string status "Open / Funded / Cancelled"
+        int accepted_quote_id
+    }
+
+    QUOTES {
+        int id PK
+        int onchain_quote_id
+        int request_id
+        string funder
+        int discount_bps "basis points, 1/10000"
+        int payout "actual payout amount"
+        string status "Active / Accepted / Withdrawn"
+    }
+
+    CHAIN_EVENTS {
+        int id PK
+        int block_number
+        string tx_hash
+        string contract_name
+        string event_name
+        json args "decoded event args"
+        datetime created_at
+    }
+
+    SYNC_STATE {
+        string contract_name PK
+        int last_block "last synced block height"
+    }

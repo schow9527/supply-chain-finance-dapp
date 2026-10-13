@@ -1,0 +1,131 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 07 · 业务流程}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: 一条主线，四个可回退分支
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: step1
+    elementType: text
+    bounds: [60, 124, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 1 · 供应商</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>上传发票上链</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">PDF 存链下，哈希上链；查重拦截重复发票</span></p>
+  - elementId: ar1
+    elementType: line
+    bounds: [255, 150, 26, 1]
+    viewBox: [26, 1]
+    points: "0,0 26,0"
+    arrow: [null, arrow]
+    border: {style: solid, width: 1.5, color: "$gray"}
+  - elementId: step2
+    elementType: text
+    bounds: [286, 124, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 2 · 核心企业</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>确认发票</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">核验 PDF 与哈希；确认即铸造等额凭证</span></p>
+  - elementId: ar2
+    elementType: line
+    bounds: [481, 150, 26, 1]
+    viewBox: [26, 1]
+    points: "0,0 26,0"
+    arrow: [null, arrow]
+    border: {style: solid, width: 1.5, color: "$gray"}
+  - elementId: step3
+    elementType: text
+    bounds: [512, 124, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 3 · 供应商</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>拆分 / 融资</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">凭证可拆分转让；融资则托管进池</span></p>
+  - elementId: ar3
+    elementType: line
+    bounds: [707, 150, 26, 1]
+    viewBox: [26, 1]
+    points: "0,0 26,0"
+    arrow: [null, arrow]
+    border: {style: solid, width: 1.5, color: "$gray"}
+  - elementId: step4
+    elementType: text
+    bounds: [738, 124, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 4 · 资金方</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>报价 · 放款</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">贴现率报价并锁资；接受即原子放款</span></p>
+  - elementId: mid-rule
+    elementType: line
+    bounds: [60, 214, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: step5
+    elementType: text
+    bounds: [60, 232, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 5 · 核心企业</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>到期付款入池</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">面值全额付入 FinancingPool</span></p>
+  - elementId: ar5
+    elementType: line
+    bounds: [255, 258, 26, 1]
+    viewBox: [26, 1]
+    points: "0,0 26,0"
+    arrow: [null, arrow]
+    border: {style: solid, width: 1.5, color: "$gray"}
+  - elementId: step6
+    elementType: text
+    bounds: [286, 232, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 6 · 持有人</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>兑付闭环</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">销毁凭证，按 1:1 领取 mUSD</span></p>
+  - elementId: branch-title
+    elementType: text
+    bounds: [540, 232, 360, 22]
+    content: {fontSize: 14, bold: true, color: "$ink", wrap: false, text: 分支与异常路径（链上处理）}
+  - elementId: branches
+    elementType: text
+    bounds: [540, 262, 360, 150]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>拒绝发票</strong> —— 需填原因，释放去重键后可重提</p>
+        <p style="margin-top:8px"><strong>取消申请</strong> —— 接受报价前可取消，凭证退回</p>
+        <p style="margin-top:8px"><strong>逾期未付</strong> —— 资金方标记逾期；逾期仍可付款后兑付</p>
+        <p style="margin-top:8px"><strong>审计冻结</strong> —— 任意时点冻结/解冻，冻结禁止转让融资兑付</p>
+  - elementId: note
+    elementType: text
+    bounds: [60, 440, 840, 40]
+    content:
+      style: "$small"
+      lineHeight: 1.6
+      text: |
+        <p>演示视频按 STEP 1–6 主线推进；完整分支见 docs/designs/diagrams/04-business-flow.mmd（含冻结并发的审计旁路）。</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · 供应链金融 DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "08"}

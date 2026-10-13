@@ -1,0 +1,65 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 08 · 界面设计}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: 19 个页面覆盖五种角色，操作前先看 Gas、失败必给原因
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: wf1
+    elementType: image
+    bounds: [60, 118, 272, 183]
+    src: media/02-supplier-dashboard.png
+    fit: {mode: contain}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: wf1-cap
+    elementType: text
+    bounds: [60, 306, 272, 18]
+    content: {style: "$small", align: [center, top], wrap: false, text: 供应商仪表盘 · 凭证/融资/待办}
+  - elementId: wf2
+    elementType: image
+    bounds: [344, 118, 272, 183]
+    src: media/08-core-pending-invoices.png
+    fit: {mode: contain}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: wf2-cap
+    elementType: text
+    bounds: [344, 306, 272, 18]
+    content: {style: "$small", align: [center, top], wrap: false, text: 核心企业 · 预览核验后确认/拒绝}
+  - elementId: wf3
+    elementType: image
+    bounds: [628, 118, 272, 183]
+    src: media/11-financier-market.png
+    fit: {mode: contain}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: wf3-cap
+    elementType: text
+    bounds: [628, 306, 272, 18]
+    content: {style: "$small", align: [center, top], wrap: false, text: 资金方 · 贴现报价实时预览}
+  - elementId: pts
+    elementType: text
+    bounds: [60, 348, 840, 120]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>交互规范</strong> —— 每次上链前显示 Gas 预估；交易四阶段反馈（签名 → 广播 → 确认 → 结果）；失败时解析合约 custom error 给出人话提示。</p>
+        <p style="margin-top:10px"><strong>设计交付</strong> —— 19 张线框图（docs/designs/wireframes/）作为前端实现参考，每张标注了对应的验收功能编号。</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · 供应链金融 DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "09"}

@@ -1,0 +1,89 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 01 · 背景与问题}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: 中小供应商回款慢、融资难，核心企业信用传不下去
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: p1-num
+    elementType: text
+    bounds: [60, 130, 40, 30]
+    content: {fontSize: 20, bold: true, color: "$accent", wrap: false, text: "01"}
+  - elementId: p1-title
+    elementType: text
+    bounds: [105, 132, 360, 24]
+    content: {fontSize: 16, bold: true, color: "$ink", wrap: false, text: 回款周期长，现金流被占用}
+  - elementId: p1-body
+    elementType: text
+    bounds: [105, 160, 360, 60]
+    content:
+      style: "$body"
+      text: 货卖给核心企业后要等数月才能收款，中小供应商缺乏短期流动资金。
+  - elementId: p2-num
+    elementType: text
+    bounds: [60, 245, 40, 30]
+    content: {fontSize: 20, bold: true, color: "$accent", wrap: false, text: "02"}
+  - elementId: p2-title
+    elementType: text
+    bounds: [105, 247, 360, 24]
+    content: {fontSize: 16, bold: true, color: "$ink", wrap: false, text: 发票真伪无法跨机构核验}
+  - elementId: p2-body
+    elementType: text
+    bounds: [105, 275, 360, 60]
+    content:
+      style: "$body"
+      text: 同一张发票可能被拿到多家银行重复融资，机构之间不共享数据。
+  - elementId: p3-num
+    elementType: text
+    bounds: [60, 360, 40, 30]
+    content: {fontSize: 20, bold: true, color: "$accent", wrap: false, text: "03"}
+  - elementId: p3-title
+    elementType: text
+    bounds: [105, 362, 360, 24]
+    content: {fontSize: 16, bold: true, color: "$ink", wrap: false, text: 核心企业信用传不到下游}
+  - elementId: p3-body
+    elementType: text
+    bounds: [105, 390, 360, 60]
+    content:
+      style: "$body"
+      text: 二级、三级供应商与核心企业没有直接合同，借不到核心企业的信用。
+  - elementId: vline
+    elementType: line
+    bounds: [505, 130, 1, 330]
+    viewBox: [1, 330]
+    points: "0,0 0,330"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: g-title
+    elementType: text
+    bounds: [545, 130, 360, 24]
+    content: {fontSize: 16, bold: true, color: "$ink", wrap: false, text: 产品目标（PRD §1.2）}
+  - elementId: g-body
+    elementType: text
+    bounds: [545, 165, 355, 300]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>快速放款</strong> —— 核心企业链上确认发票后，供应商几分钟内拿到银行放款</p>
+        <p style="margin-top:14px"><strong>防重复融资</strong> —— 同一张发票只能登记一次、融资一次，重复提交一律拦截</p>
+        <p style="margin-top:14px"><strong>信用可拆分转让</strong> —— 应收凭证按份额拆分给下一级供应商，信用向下传递</p>
+        <p style="margin-top:14px"><strong>全流程存证与审计</strong> —— 关键操作链上留痕，审计员可随时穿透查看、冻结可疑凭证</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · 供应链金融 DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "02"}

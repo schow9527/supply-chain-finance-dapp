@@ -1,0 +1,92 @@
+pageType: final
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [70, 96, 500, 20]
+    content:
+      style: "$kicker"
+      wrap: false
+      text: SUMMARY · SC6113 GROUP PROJECT
+  - elementId: rule-top
+    elementType: line
+    bounds: [70, 126, 120, 2]
+    viewBox: [120, 2]
+    points: "0,1 120,1"
+    border: {style: solid, width: 3, color: "$accent"}
+  - elementId: title
+    elementType: text
+    bounds: [70, 146, 600, 46]
+    content:
+      fontSize: 30
+      bold: true
+      color: "$ink"
+      wrap: false
+      text: From confirmation to redemption, one on-chain loop
+  - elementId: summary
+    elementType: text
+    bounds: [70, 216, 330, 180]
+    content:
+      style: "$body"
+      lineHeight: 1.7
+      text: |
+        <p>· 5 contracts + 20 on-chain tx types covering the full lifecycle: register, confirm, transfer, finance, repay, redeem</p>
+        <p>· Dedup, escrow and transfer-lock gates block duplicate financing by mechanism, not by policy</p>
+        <p>· 26 features x 5 roles x real Sepolia deployment, end-to-end demonstrable</p>
+  - elementId: team-title
+    elementType: text
+    bounds: [440, 216, 460, 22]
+    content: {fontSize: 14, bold: true, color: "$ink", wrap: false, text: Team & Division of Labor}
+  - elementId: team-table
+    elementType: table
+    bounds: [440, 244, 460, 214]
+    columnWidths: [0.26, 0.28, 0.46]
+    rowHeights: [0.13, 0.145, 0.145, 0.145, 0.145, 0.145, 0.145]
+    style:
+      cellStyle:
+        border: [null, null, {style: solid, width: 1, color: "$line"}, null]
+        align: [left, middle]
+        fontSize: 10.5
+        color: "$body"
+      firstRowStyle:
+        bold: true
+        color: "$ink"
+        fontSize: 11
+    rows:
+      - - text: Member
+        - text: Role
+        - text: Deliverables
+      - - text: "1 · LAO CHON IN"
+        - text: Smart contracts
+        - text: 5 Solidity contracts, Foundry tests, Sepolia deployment, ABIs
+      - - text: "2 · WANG JINGHAN"
+        - text: Backend & deployment
+        - text: Flask REST API, Web3.py event listener, Render hosting
+      - - text: "3 · LIU SHAOZHENG"
+        - text: Frontend & Web3
+        - text: 19 responsive views, MetaMask / Ethers.js integration
+      - - text: "4 · GE CHEN"
+        - text: Research & report
+        - text: Industry research, 10-15 page technical report
+      - - text: "5 · YU MENGTAO"
+        - text: Design & presentation
+        - text: 5 architecture diagrams, demo deck, user manual
+      - - text: "6 · YANG SHUYI"
+        - text: Testing & video
+        - text: 26 functional test cases, test report, demo video
+  - elementId: qa
+    elementType: text
+    bounds: [70, 440, 200, 40]
+    content:
+      fontSize: 22
+      bold: true
+      color: "$accent"
+      wrap: false
+      text: Q & A
+  - elementId: repo
+    elementType: text
+    bounds: [380, 472, 520, 20]
+    content:
+      style: "$small"
+      align: [right, top]
+      wrap: false
+      text: github.com/schow9527/supply-chain-finance-dapp

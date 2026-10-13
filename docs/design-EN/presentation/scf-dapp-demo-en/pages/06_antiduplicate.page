@@ -1,0 +1,91 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 05 · CORE MECHANISM}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: "Duplicate financing blocked by three gates: dedup, escrow, transfer lock"
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: g1-num
+    elementType: text
+    bounds: [60, 132, 240, 60]
+    content:
+      text: |
+        <p><span style="font-size:34px;color:$accent"><strong>Gate 1</strong></span></p>
+        <p><span style="font-size:13px;color:$ink"><strong>Registration dedup · InvoiceRegistry</strong></span></p>
+  - elementId: g1-body
+    elementType: text
+    bounds: [60, 216, 240, 170]
+    content:
+      style: "$body"
+      text: The contract derives a dedup key from "invoice no. + buyer + seller + amount". Resubmitting the same combo reverts with InvoiceAlreadyExists — the tx never lands.
+  - elementId: vline1
+    elementType: line
+    bounds: [330, 132, 1, 260]
+    viewBox: [1, 260]
+    points: "0,0 0,260"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: g2-num
+    elementType: text
+    bounds: [360, 132, 240, 60]
+    content:
+      text: |
+        <p><span style="font-size:34px;color:$accent"><strong>Gate 2</strong></span></p>
+        <p><span style="font-size:13px;color:$ink"><strong>Escrow lock · FinancingPool</strong></span></p>
+  - elementId: g2-body
+    elementType: text
+    bounds: [360, 216, 240, 170]
+    content:
+      style: "$body"
+      text: Requesting financing escrows the token into the pool, so the same shares cannot back two open requests — double pledging is physically impossible.
+  - elementId: vline2
+    elementType: line
+    bounds: [630, 132, 1, 260]
+    viewBox: [1, 260]
+    points: "0,0 0,260"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: g3-num
+    elementType: text
+    bounds: [660, 132, 240, 60]
+    content:
+      text: |
+        <p><span style="font-size:34px;color:$accent"><strong>Gate 3</strong></span></p>
+        <p><span style="font-size:13px;color:$ink"><strong>Transfer lock · ReceivableToken</strong></span></p>
+  - elementId: g3-body
+    elementType: text
+    bounds: [660, 216, 240, 170]
+    content:
+      style: "$body"
+      text: Tokens acquired by financiers can no longer be transferred — only held to redemption, ruling out multi-layer resale of one token.
+  - elementId: bottom-rule
+    elementType: line
+    bounds: [60, 420, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: bottom
+    elementType: text
+    bounds: [60, 438, 840, 44]
+    content:
+      style: "$body"
+      text: |
+        <p>Precision matters: a rejected invoice <strong>releases its dedup key</strong> so the supplier can fix and resubmit; overdue items can still be repaid, moving Overdue back to Repaid.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "06"}

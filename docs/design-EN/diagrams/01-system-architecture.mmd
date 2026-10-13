@@ -1,0 +1,64 @@
+flowchart TB
+    subgraph U["User Layer (5 Roles)"]
+        U1["Supplier"]
+        U2["Core Enterprise"]
+        U3["Financier"]
+        U4["Auditor"]
+        U5["Admin"]
+    end
+
+    subgraph FE["Frontend Layer (HTML + CSS + JS, 19 views)"]
+        FE1["Supplier Workspace<br/>Dashboard / Upload / Invoices / Receivables / Financing"]
+        FE2["Core Enterprise Workspace<br/>Dashboard / Pending / Payables"]
+        FE3["Financier Workspace<br/>Dashboard / Market / Assets"]
+        FE4["Auditor Workspace<br/>Audit Board / Provenance Tracking"]
+        FE5["Admin Workspace<br/>Registration Review / Roles &amp; System Control"]
+        FE6["Public Pages<br/>Landing / Register / Transactions / Event Logs"]
+        FE7["Ethers.js Contract Calls<br/>Gas Estimation · Tx Status"]
+    end
+
+    subgraph WALLET["Wallet"]
+        MM["MetaMask<br/>Transaction Signing"]
+    end
+
+    subgraph CHAIN["Blockchain Layer (Sepolia Testnet)"]
+        C1["RoleManager.sol<br/>Roles + Emergency Pause"]
+        C2["InvoiceRegistry.sol<br/>Invoice Registration + Deduplication"]
+        C3["ReceivableToken.sol (ERC-1155)<br/>Receivable Mint / Split / Freeze"]
+        C4["FinancingPool.sol<br/>Request / Quote / Atomic Funding / Repay / Redeem"]
+        C5["MockStablecoin.sol (ERC-20)<br/>Test Stablecoin mUSD + faucet"]
+    end
+
+    subgraph BE["Backend Layer (Python Flask, Render)"]
+        B1["REST API<br/>Enterprises / Invoices / Receivables / Financing / Dashboard / Audit"]
+        B2["Web3.py Event Listener<br/>On-chain Event Sync"]
+        B3["File Storage<br/>Invoice PDF (off-chain) + SHA-256 Hash"]
+    end
+
+    subgraph DB["Data Layer (SQLite / PostgreSQL, 7 Tables)"]
+        D1["enterprises · invoices · holdings<br/>financing_requests · quotes<br/>chain_events · sync_state"]
+    end
+
+    U --> FE
+    FE -->|"Ethers.js submits transactions"| MM
+    MM -->|"Signed & broadcast"| CHAIN
+    FE -->|"REST queries (off-chain data / cache)"| B1
+    CHAIN -->|"On-chain events"| B2
+    B2 --> D1
+    B1 --> D1
+    B1 --> B3
+    C1 -.->|"Access control"| C2
+    C2 -.->|"Mint on confirmation"| C3
+    C4 -.->|"Transfer / Burn tokens"| C3
+    C4 -.->|"mUSD settlement"| C5
+
+    classDef user fill:#e8f4fd,stroke:#4a90d9;
+    classDef fe fill:#fff7e6,stroke:#d9a441;
+    classDef chain fill:#e9f7ef,stroke:#3ba272;
+    classDef be fill:#f3e8fd,stroke:#8e5bd9;
+    classDef db fill:#fdeaea,stroke:#d94a4a;
+    class U1,U2,U3,U4,U5 user
+    class FE1,FE2,FE3,FE4,FE5,FE6,FE7 fe
+    class C1,C2,C3,C4,C5 chain
+    class B1,B2,B3 be
+    class D1 db

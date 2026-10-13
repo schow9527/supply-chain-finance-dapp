@@ -1,0 +1,56 @@
+sequenceDiagram
+    autonumber
+    actor S as Supplier
+    actor CE as Core Enterprise
+    actor F as Financier
+    participant IR as InvoiceRegistry
+    participant RT as ReceivableToken<br/>(ERC-1155)
+    participant FP as FinancingPool
+    participant USD as MockStablecoin<br/>(ERC-20)
+
+    Note over S,IR: 1. Invoice Registration (1st gate against duplicate financing)
+    S->>IR: submitInvoice(invoiceNo, buyer, amount, dueDate, fileHash)
+    alt Dedup key invoiceNo+buyer+supplier+amount already exists
+        IR-->>S: revert InvoiceAlreadyExists
+    else First registration
+        IR-->>S: emit InvoiceSubmitted
+    end
+
+    Note over CE,RT: 2. Confirmation mints an equal-value receivable
+    CE->>IR: confirmInvoice(invoiceId)
+    IR->>RT: mint(supplier, receivableId, amount)
+    RT-->>CE: emit InvoiceConfirmed + ReceivableMinted
+
+    Note over S,RT: 3. Split Transfer (optional, credit flows downstream)
+    S->>RT: transferReceivable(to, id, amount)
+    RT-->>S: emit ReceivableTransferred
+
+    Note over S,FP: 4. Financing Request (token escrowed into the pool)
+    S->>FP: requestFinancing(id, amount)
+    FP->>RT: Escrow transfer (TransferSingle to pool)
+
+    Note over F,FP: 5. Quote (discount rate in bps, funds locked)
+    F->>USD: approve(pool, payout)
+    F->>FP: submitQuote(requestId, discountBps)
+    FP->>USD: Lock quote funds
+
+    Note over S,USD: 6. Accept Quote: atomic funding (all-or-nothing)
+    S->>FP: acceptQuote(requestId, quoteId)
+    FP->>RT: Token ownership -> Financier
+    FP->>USD: Discounted payout -> Supplier
+    FP-->>S: emit FinancingFunded
+
+    Note over CE,FP: 7. Repayment at Maturity
+    CE->>USD: approve(pool, faceValue)
+    CE->>FP: repay(id)
+    FP-->>CE: emit Repaid
+
+    Note over F,FP: 8. Redemption (1:1 burn for mUSD)
+    F->>FP: redeem(id)
+    FP->>RT: Burn tokens
+    FP->>USD: Face value -> Holder
+    FP-->>F: emit Redeemed
+
+    Note over F,FP: 9. Overdue: financier marks it on-chain
+    F->>FP: markOverdue(id)
+    FP-->>F: emit MarkedOverdue (visible on dashboards)

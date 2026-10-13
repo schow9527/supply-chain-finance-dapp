@@ -1,0 +1,57 @@
+pageType: cover
+background:
+  type: solid
+  color: "#FFFFFF"
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [70, 120, 500, 20]
+    content:
+      style: "$kicker"
+      wrap: false
+      text: NTU SC6113 · GROUP PROJECT DEMO
+  - elementId: rule-top
+    elementType: line
+    bounds: [70, 152, 120, 2]
+    viewBox: [120, 2]
+    points: "0,1 120,1"
+    border: {style: solid, width: 3, color: "$accent"}
+  - elementId: title
+    elementType: text
+    bounds: [70, 175, 700, 70]
+    content:
+      fontSize: 44
+      bold: true
+      color: "$ink"
+      wrap: false
+      text: Supply Chain Finance DApp
+  - elementId: subtitle
+    elementType: text
+    bounds: [70, 255, 800, 30]
+    content:
+      fontSize: 18
+      color: "$body"
+      wrap: false
+      text: Receivables on-chain · splittable & transferable tokens · duplicate financing blocked by design
+  - elementId: meta
+    elementType: text
+    bounds: [70, 320, 760, 70]
+    content:
+      style: "$small"
+      lineHeight: 1.8
+      text: |
+        <p>Stack: Solidity (ERC-1155 / ERC-20) · Python Flask · Ethers.js / MetaMask</p>
+        <p>Deployment: Ethereum Sepolia testnet · Render cloud</p>
+  - elementId: footer-rule
+    elementType: line
+    bounds: [70, 470, 820, 1]
+    viewBox: [820, 1]
+    points: "0,0 820,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: footer
+    elementType: text
+    bounds: [70, 482, 820, 24]
+    content:
+      style: "$small"
+      text: |
+        <p>SC6113 Group Project · Oct 2026 · Demo storyline: invoice upload -> confirmation -> financing -> funding -> repayment -> redemption</p>

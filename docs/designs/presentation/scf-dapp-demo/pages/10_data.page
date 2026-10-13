@@ -1,0 +1,61 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 09 · 数据模型与后端}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: 7 张业务表回答「谁持有什么」，事件同步回答「链上发生了什么」
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: er-img
+    elementType: image
+    bounds: [70, 116, 300, 386]
+    src: media/03-data-model.png
+    fit: {mode: contain}
+  - elementId: pt1
+    elementType: text
+    bounds: [420, 130, 480, 90]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>enterprises / invoices / financing_requests / quotes</strong> 支撑注册审核、发票管理与融资市场；<strong>holdings</strong> 由 TransferSingle 事件汇总出「某地址持有哪些凭证」——合约不提供列表查询，这是后端的不可替代职责。</p>
+  - elementId: pt2
+    elementType: text
+    bounds: [420, 235, 480, 90]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>chain_events / sync_state</strong> 支撑审计：每条事件记录区块号、交易哈希与解析后的参数，sync_state 游标保证监听器断点续传、不丢不重。</p>
+  - elementId: pt3
+    elementType: text
+    bounds: [420, 340, 480, 90]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>后端不存私钥</strong>，所有写操作由前端经 MetaMask 直连合约；后端只做文件存储（PDF + SHA-256）、事件同步与聚合查询，部署于 Render。</p>
+  - elementId: pt4
+    elementType: text
+    bounds: [420, 445, 480, 40]
+    content:
+      style: "$small"
+      lineHeight: 1.6
+      text: |
+        <p>API 清单见 docs/PRD.md §7.2；ER 图源码见 docs/designs/diagrams/03-data-model.mmd。</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · 供应链金融 DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "10"}

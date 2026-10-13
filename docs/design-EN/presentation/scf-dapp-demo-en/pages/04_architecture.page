@@ -1,0 +1,62 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 03 · SYSTEM ARCHITECTURE}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: On-chain holds money & tokens; off-chain holds files & queries
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: arch-img
+    elementType: image
+    bounds: [70, 116, 330, 386]
+    src: media/01-system-architecture.png
+    fit: {mode: contain}
+  - elementId: pt1
+    elementType: text
+    bounds: [440, 130, 460, 80]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>The frontend never routes transactions through the backend</strong> — users sign directly against Sepolia contracts via MetaMask; the backend never touches private keys.</p>
+  - elementId: pt2
+    elementType: text
+    bounds: [440, 225, 460, 80]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>Invoice PDFs off-chain, hashes on-chain</strong> — anyone can verify the file is untampered before confirming, balancing evidence with gas cost.</p>
+  - elementId: pt3
+    elementType: text
+    bounds: [440, 320, 460, 80]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>A Web3.py event listener syncs continuously</strong> — TransferSingle and other events land in 7 business tables powering dashboards and audit queries.</p>
+  - elementId: pt4
+    elementType: text
+    bounds: [440, 415, 460, 60]
+    content:
+      style: "$small"
+      lineHeight: 1.6
+      text: |
+        <p>Five interconnected contracts meet the course requirement; Flask is hosted on Render.</p>
+        <p>Source: docs/design-EN/diagrams/01-system-architecture.mmd</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "04"}
