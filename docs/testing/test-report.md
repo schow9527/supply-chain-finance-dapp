@@ -4,6 +4,7 @@
 > **Test date**: 2026-10-12 (single test day, Sepolia testnet)
 > **Build tested**: `feature/backend-member2` — final retest on `8c0fc51` (includes all fixes made during testing)
 > **Live system**: <https://supply-chain-finance-dapp-nkkr.onrender.com/>
+> **Demo video**: <https://youtu.be/GeVo2iIh7co>
 > **Detailed records**: [test plan](test-plan.md) · [test cases & results](test-cases.md) · [defect log](defect-log.md) · [on-chain negative checks](evidence/onchain-negative-checks.md) · [screenshots](screenshots/)
 
 ---

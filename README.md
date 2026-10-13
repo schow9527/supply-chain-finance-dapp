@@ -10,7 +10,7 @@
 | Item | Link / location |
 |---|---|
 | Live application (Render) | https://supply-chain-finance-dapp-nkkr.onrender.com/ |
-| Demo video (YouTube) | _to be added_ |
+| Demo video (YouTube) | https://youtu.be/GeVo2iIh7co |
 | Test report | [`docs/testing/test-report.md`](docs/testing/test-report.md) — test plan, 128 test cases, defect log and evidence in [`docs/testing/`](docs/testing/) |
 | Design diagrams (architecture, contract interaction, data model, business flow, UI) | [`docs/design-EN/diagrams/`](docs/design-EN/diagrams/) |
 | UI wireframes | [`docs/design-EN/wireframes/`](docs/design-EN/wireframes/) |
