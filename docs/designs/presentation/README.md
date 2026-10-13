@@ -1,7 +1,7 @@
 # 演示 PPT（成员 5）
 
-- `scf-dapp-demo/`：演示 PPT 源文件（kimi-slides `.pptd` 工程，13 页），页面内容与配图基于本仓库真实数据（合约接口、Gas 基准、Sepolia 部署地址）。
-- 在 Kimi Work 中打开 `.pptd` 卡片可在线编辑，并从编辑器右上角导出 `.pptx` 供课程提交/汇报使用。
+- `scf-dapp-demo.pptx`：**导出的成品 PPT（13 页）**，可直接用于课程提交与汇报。
+- `scf-dapp-demo/`：PPT 源文件工程（kimi-slides `.pptd`），页面内容与配图基于本仓库真实数据（合约接口、Gas 基准、Sepolia 部署地址），可在 Kimi Work 中打开继续编辑后重新导出。
 
 ## 页面结构（13 页）
 
