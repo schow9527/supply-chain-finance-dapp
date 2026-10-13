@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}我的融资与报价 | 供应商{% endblock %}
+{% block title %}My Financing & Quotes | Supplier{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,17 +10,17 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>我的融资申请与报价管理 (F-17 / F-18)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">比选各家银行/资金方贴现报价，一键接受放款并原子化收款</p>
+                <h2>My Financing Requests & Quotes (F-17 / F-18)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Compare discount quotes from banks and funders, accept offers, and receive funds atomically</p>
             </div>
             <div>
-                <a href="/supplier/receivables" class="btn btn-outline">➕ 从凭证发起融资</a>
+                <a href="/supplier/receivables" class="btn btn-outline">➕ Initiate from Receivables</a>
             </div>
         </div>
 
         <div id="financing-requests-container" style="display:flex; flex-direction:column; gap:1.25rem;">
             <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:2rem; text-align:center; color:var(--text-muted);">
-                正在加载融资需求与报价列表...
+                Loading financing requests and quotes list...
             </div>
         </div>
     </main>
@@ -33,7 +33,7 @@ async function loadFinancingRequests() {
     const acc = window.DAppState.account;
     const container = document.getElementById("financing-requests-container");
     if (!acc) {
-        container.innerHTML = `<div style="background:#fff; padding:2rem; text-align:center; border:1px solid var(--border); border-radius:8px; color:var(--text-muted);">请先连接 MetaMask 钱包</div>`;
+        container.innerHTML = `<div style="background:#fff; padding:2rem; text-align:center; border:1px solid var(--border); border-radius:8px; color:var(--text-muted);">Please connect MetaMask wallet first</div>`;
         return;
     }
 
@@ -44,8 +44,8 @@ async function loadFinancingRequests() {
         if (myRequests.length === 0) {
             container.innerHTML = `
                 <div style="background:#fff; padding:3rem 1.5rem; text-align:center; border:1px solid var(--border); border-radius:8px;">
-                    <p style="color:var(--text-muted); margin-bottom:1rem;">当前暂无进行中的融资申请</p>
-                    <a href="/supplier/receivables" class="btn btn-primary">前往“我的应收凭证”发起第一笔融资</a>
+                    <p style="color:var(--text-muted); margin-bottom:1rem;">Currently no active financing requests</p>
+                    <a href="/supplier/receivables" class="btn btn-primary">Go to "My Receivables" to start your first financing request</a>
                 </div>
             `;
             return;
@@ -55,35 +55,37 @@ async function loadFinancingRequests() {
             <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:0.75rem; margin-bottom:1rem;">
                     <div>
-                        <h3 style="font-size:1.125rem;">融资申请 #${req.onchain_request_id || req.id} (凭证 #${req.receivable_id})</h3>
-                        <span style="font-size:0.8125rem; color:var(--text-muted);">申请融资金额：<strong>${window.AppConfig.formatTokens(req.amount)}</strong> mUSDT</span>
+                        <h3 style="font-size:1.125rem;">Financing Request #${req.onchain_request_id || req.id} (Token #${req.receivable_id})</h3>
+                        <span style="font-size:0.8125rem; color:var(--text-muted);">Requested Amount: <strong>${window.AppConfig.formatTokens(req.amount)}</strong> mUSD</span>
                     </div>
                     <div>
                         <span class="badge badge-${req.status === 'FUNDED' ? 'success' : (req.status === 'CANCELLED' ? 'secondary' : 'warning')}">
-                            ${req.status === 'FUNDED' ? '已放款到账' : (req.status === 'CANCELLED' ? '已取消' : '等待报价中')}
+                            ${req.status === 'FUNDED' ? 'Funded & Disbursed' : (req.status === 'CANCELLED' ? 'Cancelled' : 'Awaiting Quotes')}
                         </span>
-                        ${req.status === 'PENDING_QUOTE' ? `<button class="btn btn-sm btn-danger" style="margin-left:0.5rem;" onclick="handleCancelRequest(${req.onchain_request_id || req.id})">取消申请</button>` : ''}
+                        ${req.status === 'PENDING_QUOTE' ? `<button class="btn btn-sm btn-danger" style="margin-left:0.5rem;" onclick="handleCancelRequest(${req.onchain_request_id || req.id})">Cancel Request</button>` : ''}
                     </div>
                 </div>
 
                 <!-- Quotes section -->
                 <div style="background:#f8fafc; border-radius:6px; padding:1rem; border:1px solid var(--border);">
-                    <h4 style="font-size:0.875rem; margin-bottom:0.75rem; color:var(--text-muted);">资金方竞价报价列表</h4>
+                    <h4 style="font-size:0.875rem; margin-bottom:0.75rem; color:var(--text-muted);">Funder Bidding Quotes List</h4>
                     <div id="quotes-box-${req.id}">
                         ${renderQuotesList(req)}
                     </div>
                 </div>
             </div>
         `).join("");
-    } catch (_) {
-        container.innerHTML = `<div style="background:#fff; padding:2rem; text-align:center; border:1px solid var(--border); border-radius:8px; color:var(--text-muted);">暂无融资数据</div>`;
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "Failed to load financing requests", "error");
+        container.innerHTML = `<div style="background:#fff; padding:2rem; text-align:center; border:1px solid var(--border); border-radius:8px; color:var(--text-muted);">No financing data</div>`;
     }
 }
 
 function renderQuotesList(req) {
     const quotes = req.quotes || [];
     if (quotes.length === 0) {
-        return `<p style="font-size:0.8125rem; color:var(--text-muted); text-align:center; padding:0.5rem 0;">暂无资金方报价，请等待银行或保理公司提交贴现率</p>`;
+        return `<p style="font-size:0.8125rem; color:var(--text-muted); text-align:center; padding:0.5rem 0;">No funder quotes yet. Waiting for banks or factoring companies to submit rates.</p>`;
     }
 
     return quotes.map(q => {
@@ -94,18 +96,18 @@ function renderQuotesList(req) {
         return `
             <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:0.75rem 1rem; border-radius:6px; border:1px solid var(--border); margin-bottom:0.5rem;">
                 <div>
-                    <div><strong>资金方：</strong><code>${window.AppConfig.shortAddress(q.financier_address)}</code></div>
+                    <div><strong>Funder: </strong><code>${window.AppConfig.shortAddress(q.financier_address)}</code></div>
                     <div style="font-size:0.8125rem; color:var(--text-muted); margin-top:0.25rem;">
-                        年化贴现率：<b style="color:var(--primary);">${window.AppConfig.formatBps(rateBps)}</b> |
-                        实际到手金额：<b style="color:var(--success);">${netCashTokens}</b> mUSDT
+                        Discount Rate: <b style="color:var(--primary);">${window.AppConfig.formatBps(rateBps)}</b> |
+                        Net Disbursed Cash: <b style="color:var(--success);">${netCashTokens}</b> mUSD
                     </div>
                 </div>
                 <div>
-                    ${req.status === 'PENDING_QUOTE' ? `
+                    ${req.status === 'PENDING_QUOTE' && q.status === 'ACTIVE' ? `
                         <button class="btn btn-sm btn-success" onclick="handleAcceptQuote(${req.onchain_request_id || req.id}, ${q.onchain_quote_id || q.id})">
-                            🤝 接受报价并当场放款 (F-17)
+                            🤝 Accept Quote & Receive Funds (F-17)
                         </button>
-                    ` : (req.accepted_quote_id === q.id ? `<span class="badge badge-success">已成交</span>` : '-')}
+                    ` : (req.accepted_quote_id === q.quote_id ? `<span class="badge badge-success">Accepted</span>` : (q.status === 'WITHDRAWN' ? `<span class="badge badge-secondary">Withdrawn</span>` : '-'))}
                 </div>
             </div>
         `;
@@ -113,11 +115,11 @@ function renderQuotesList(req) {
 }
 
 async function handleAcceptQuote(reqId, quoteId) {
-    if (!confirm("确认接受该资金方的贴现报价并立即放款？一笔交易将同时划转凭证与收取稳定币。")) return;
+    if (!confirm("Are you sure you want to accept this funder's discount quote and receive funds immediately? One atomic transaction will transfer the token and credit stablecoins to your wallet.")) return;
 
     try {
         await window.DAppState.contractClient.acceptQuote(reqId, quoteId);
-        UIFeedback.showToast("放款成功！稳定币已全额打入您的钱包！", "success");
+        UIFeedback.showToast("Funds disbursed successfully! Stablecoins have been transferred to your wallet!", "success");
         await loadFinancingRequests();
     } catch (e) {
         console.error(e);
@@ -125,11 +127,11 @@ async function handleAcceptQuote(reqId, quoteId) {
 }
 
 async function handleCancelRequest(reqId) {
-    if (!confirm("确认取消该笔融资申请？质押中的凭证将原路退回至您的账户。")) return;
+    if (!confirm("Are you sure you want to cancel this financing request? Pledged tokens will be returned to your wallet.")) return;
 
     try {
         await window.DAppState.contractClient.cancelFinancingRequest(reqId);
-        UIFeedback.showToast("融资申请已取消，凭证已释放！", "info");
+        UIFeedback.showToast("Financing request cancelled; tokens released!", "info");
         await loadFinancingRequests();
     } catch (e) {
         console.error(e);

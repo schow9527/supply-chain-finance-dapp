@@ -19,8 +19,13 @@ test("ApiClient - Request generation and error handling", async () => {
     };
 
     // Test getMe
-    await client.getMe("0x1234567890123456789012345678901234567890");
-    assert.strictEqual(lastUrl, "http://127.0.0.1:5000/api/me?address=0x1234567890123456789012345678901234567890");
+    await client.getMe();
+    assert.strictEqual(lastUrl, "http://127.0.0.1:5000/api/me");
+    assert.strictEqual(lastOptions.credentials, "include");
+
+    await client.requestNonce("0x1234567890123456789012345678901234567890");
+    assert.strictEqual(lastUrl, "http://127.0.0.1:5000/api/auth/nonce");
+    assert.strictEqual(lastOptions.credentials, "include");
 
     // Test registerEnterprise
     await client.registerEnterprise({ name: "NTU Corp", role: "SUPPLIER" });
@@ -56,4 +61,16 @@ test("ApiClient - Request generation and error handling", async () => {
         assert.strictEqual(err.status, 400);
         return true;
     });
+});
+
+test("ApiClient - centrally unwraps paginated list responses", async () => {
+    const client = new ApiClient();
+    client.customFetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: [{ id: 7 }], page: 1, page_size: 50, total: 1 })
+    });
+    assert.deepStrictEqual(await client.getInvoices(), [{ id: 7 }]);
+    assert.deepStrictEqual(await client.getFinancingRequests(), [{ id: 7 }]);
+    assert.deepStrictEqual(await client.getEvents(), [{ id: 7 }]);
 });

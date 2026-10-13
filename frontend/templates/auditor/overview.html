@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}全局审计看板 | 审计员{% endblock %}
+{% block title %}Global Audit Overview | Auditor{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="/static/js/dashboard-charts.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,42 +15,47 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>供应链金融监管与审计全局总览 (F-23)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">实时穿透监控全网凭证发行、信用流转深度与信贷资产逾期违约风险</p>
+                <h2>Regulatory & Audit Global Overview (F-23)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Real-time end-to-end monitoring of certificate issuance, credit flow depth, and credit asset default risks</p>
             </div>
             <div>
-                <a href="/auditor/tracing" class="btn btn-primary">🔍 凭证追踪与冻结</a>
+                <a href="/auditor/tracing" class="btn btn-primary">🔍 Token Tracing & Freeze</a>
             </div>
         </div>
 
         <div class="kpi-grid">
             <div class="kpi-card">
-                <div class="kpi-title">平台存证发票总量</div>
-                <div class="kpi-value" id="kpi-total-invoices">0 <span style="font-size:1rem;">张</span></div>
-                <div class="kpi-sub">防重登记哈希 100% 留痕</div>
+                <div class="kpi-title">Total Registered Invoices</div>
+                <div class="kpi-value" id="kpi-total-invoices">0 <span style="font-size:1rem;">Invoices</span></div>
+                <div class="kpi-sub">100% hash trace integrity</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-title">ERC-1155 凭证发行总额</div>
-                <div class="kpi-value" id="kpi-total-receivables">0.00 <span style="font-size:1rem;">mUSDT</span></div>
-                <div class="kpi-sub">核心企业确权承兑资产规模</div>
+                <div class="kpi-title">Total ERC-1155 Tokens Minted</div>
+                <div class="kpi-value" id="kpi-total-receivables">0.00 <span style="font-size:1rem;">mUSD</span></div>
+                <div class="kpi-sub">Core enterprise accepted asset scale</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-title">平台放款融资本金</div>
-                <div class="kpi-value" id="kpi-total-financed" style="color:var(--primary);">0.00 <span style="font-size:1rem;">mUSDT</span></div>
-                <div class="kpi-sub">资金方实际放款流动性</div>
+                <div class="kpi-title">Total Financed Principal</div>
+                <div class="kpi-value" id="kpi-total-financed" style="color:var(--primary);">0.00 <span style="font-size:1rem;">mUSD</span></div>
+                <div class="kpi-sub">Liquidity disbursed by financiers</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-title">全网逾期坏账率</div>
+                <div class="kpi-title">Network Overdue Rate</div>
                 <div class="kpi-value" id="kpi-overdue-rate" style="color:var(--success);">0.00%</div>
-                <div class="kpi-sub">履约状态健康受控</div>
+                <div class="kpi-sub">Settlement performance healthy</div>
             </div>
         </div>
 
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+            <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">📊 Invoice Status Distribution</h3>
+            <div style="position:relative; height:260px;"><canvas id="audit-status-chart"></canvas></div>
+        </div>
+
         <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
-            <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">🛡️ 审计合规与穿透监督职责</h3>
+            <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">🛡️ Audit Compliance & Oversight Responsibilities</h3>
             <p style="color:var(--text-muted); font-size:0.875rem; line-height:1.7;">
-                1. <strong>全生命周期追溯</strong>：任何一张已铸造凭证均可追溯其起源发票、流转拆分至二级/三级供应商的全路径。<br>
-                2. <strong>司法/违规链上紧急冻结</strong>：如发现某发票涉嫌欺诈或核心企业陷入破产纠纷，审计员拥有专属 <code>freeze()</code> 权限冻结指定凭证，使其无法继续转让、贴现或兑付。
+                1. <strong>Full Lifecycle Traceability</strong>: Every minted certificate can be traced back to its root invoice and subsequent multi-tier splits across suppliers.<br>
+                2. <strong>Regulatory / Judicial Emergency Freeze</strong>: If an invoice is suspected of fraud or legal dispute, auditors hold exclusive <code>freeze()</code> authority to freeze the token, blocking transfers, financing, and redemptions.
             </p>
         </div>
     </main>
@@ -56,17 +66,43 @@
 <script>
 async function loadAuditorOverview() {
     try {
-        const invs = await window.DAppState.apiClient.getInvoices() || [];
-        document.getElementById("kpi-total-invoices").innerHTML = `${invs.length} <span style="font-size:1rem;">张</span>`;
+        // Only invoices registered on-chain (exclude drafts without onchain_id)
+        const invs = (await window.DAppState.apiClient.getInvoices() || []).filter(i => i.onchain_id != null);
+        document.getElementById("kpi-total-invoices").innerHTML = `${invs.length} <span style="font-size:1rem;">Invoices</span>`;
 
+        const confirmed = invs.filter(i => i.status === "CONFIRMED");
         let totalAmt = 0n;
-        invs.forEach(i => { if (i.status === 'CONFIRMED') totalAmt += BigInt(i.amount); });
-        document.getElementById("kpi-total-receivables").innerHTML = `${window.AppConfig.formatTokens(totalAmt.toString())} <span style="font-size:1rem;">mUSDT</span>`;
-    } catch (_) {}
+        confirmed.forEach(i => { totalAmt += BigInt(i.amount); });
+        document.getElementById("kpi-total-receivables").innerHTML = `${window.AppConfig.formatTokens(totalAmt.toString())} <span style="font-size:1rem;">mUSD</span>`;
+
+        const funded = await window.DAppState.apiClient.getFinancingRequests("FUNDED") || [];
+        const financed = funded.reduce((total, r) => total + BigInt(r.amount), 0n);
+        document.getElementById("kpi-total-financed").innerHTML = `${window.AppConfig.formatTokens(financed.toString())} <span style="font-size:1rem;">mUSD</span>`;
+
+        const overdue = confirmed.filter(i => i.is_overdue);
+        const rate = confirmed.length ? (overdue.length / confirmed.length) * 100 : 0;
+        const rateEl = document.getElementById("kpi-overdue-rate");
+        rateEl.innerText = `${rate.toFixed(2)}%`;
+        rateEl.style.color = rate > 0 ? "var(--danger)" : "var(--success)";
+
+        const count = pred => invs.filter(pred).length;
+        DashboardCharts.render("audit-status-chart", "doughnut",
+            ["Pending", "Active", "Repaid", "Overdue", "Rejected"],
+            [count(i => i.status === "PENDING"),
+             count(i => i.status === "CONFIRMED" && i.repay_status !== "REPAID" && !i.is_overdue),
+             count(i => i.status === "CONFIRMED" && i.repay_status === "REPAID"),
+             overdue.length,
+             count(i => i.status === "REJECTED")]);
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "Failed to load audit statistics", "error");
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     setTimeout(loadAuditorOverview, 600);
 });
+// Reload when the wallet/session becomes ready (the 600 ms timer alone can fire before sign-in)
+window.addEventListener("walletAccountChanged", () => setTimeout(loadAuditorOverview, 300));
 </script>
 {% endblock %}

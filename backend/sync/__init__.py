@@ -1,0 +1,1 @@
+"""Sepolia event synchronization package."""

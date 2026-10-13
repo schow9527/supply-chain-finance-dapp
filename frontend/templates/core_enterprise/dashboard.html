@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}核心企业仪表盘 | SCF DApp{% endblock %}
+{% block title %}Core Enterprise Dashboard | SCF DApp{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="/static/js/dashboard-charts.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,56 +15,61 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>核心企业财务概览看板 (F-23)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">承兑应付账款管理、供应链上游信用穿透赋能与到期履约清算</p>
+                <h2>Core Enterprise Financial Overview (F-23)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Acceptance payables governance, upstream credit transmission, and maturity settlement</p>
             </div>
             <div>
-                <a href="/core_enterprise/invoices_pending" class="btn btn-primary">🔍 审核待确认发票</a>
+                <a href="/core_enterprise/invoices_pending" class="btn btn-primary">🔍 Review Pending Invoices</a>
             </div>
         </div>
 
         <!-- KPI Grid -->
         <div class="kpi-grid">
             <div class="kpi-card">
-                <div class="kpi-title">待确认上游发票</div>
-                <div class="kpi-value" id="kpi-pending-invoices">0 <span style="font-size:1rem;">笔</span></div>
-                <div class="kpi-sub">需要采购/财务部门核验原件</div>
+                <div class="kpi-title">Pending Upstream Invoices</div>
+                <div class="kpi-value" id="kpi-pending-invoices">0 <span style="font-size:1rem;">Invoices</span></div>
+                <div class="kpi-sub">Requires verification of original invoice</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-title">在途应付账款总额</div>
-                <div class="kpi-value" id="kpi-payables-total">0.00 <span style="font-size:1rem;">mUSDT</span></div>
-                <div class="kpi-sub">已确权并铸造为凭证的款项</div>
+                <div class="kpi-title">Outstanding Payables Total</div>
+                <div class="kpi-value" id="kpi-payables-total">0.00 <span style="font-size:1rem;">mUSD</span></div>
+                <div class="kpi-sub">Confirmed and minted into digital receivables</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-title">临期应付款 (7天内)</div>
-                <div class="kpi-value" id="kpi-due-soon" style="color:var(--warning);">0.00 <span style="font-size:1rem;">mUSDT</span></div>
-                <div class="kpi-sub">需提前备付稳定币防范逾期</div>
+                <div class="kpi-title">Upcoming Due (7 Days)</div>
+                <div class="kpi-value" id="kpi-due-soon" style="color:var(--warning);">0.00 <span style="font-size:1rem;">mUSD</span></div>
+                <div class="kpi-sub">Prepare stablecoin liquidity to avoid default</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-title">累计已结清兑付款</div>
-                <div class="kpi-value" id="kpi-repaid-total" style="color:var(--success);">0.00 <span style="font-size:1rem;">mUSDT</span></div>
-                <div class="kpi-sub">已 100% 履约注入资金池</div>
+                <div class="kpi-title">Cumulative Settled Payables</div>
+                <div class="kpi-value" id="kpi-repaid-total" style="color:var(--success);">0.00 <span style="font-size:1rem;">mUSD</span></div>
+                <div class="kpi-sub">100% fulfilled into liquidity pool</div>
             </div>
+        </div>
+
+        <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+            <h3 style="font-size:1.125rem; margin-bottom:0.75rem;">📊 Payables Breakdown (mUSD)</h3>
+            <div style="position:relative; height:260px;"><canvas id="ce-payables-chart"></canvas></div>
         </div>
 
         <div style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h3 style="font-size:1.125rem;">待处理事项一览</h3>
+                <h3 style="font-size:1.125rem;">Pending Action Items</h3>
             </div>
             <div style="display:flex; gap:1rem; flex-wrap:wrap;">
                 <div style="flex:1; min-width:280px; background:#f8fafc; border:1px solid var(--border); border-radius:6px; padding:1.25rem;">
-                    <h4>📋 待审发票提醒</h4>
+                    <h4>📋 Pending Invoices Alert</h4>
                     <p style="font-size:0.875rem; color:var(--text-muted); margin:0.5rem 0 1rem;">
-                        有上游供应商提交了新的供货发票，确认后将赋予供应商基于我司信用的数字凭证。
+                        Upstream suppliers submitted new invoices. Confirming will issue digital receivable tokens backed by our enterprise credit.
                     </p>
-                    <a href="/core_enterprise/invoices_pending" class="btn btn-sm btn-primary">立即前往核验</a>
+                    <a href="/core_enterprise/invoices_pending" class="btn btn-sm btn-primary">Go to Verify Now</a>
                 </div>
                 <div style="flex:1; min-width:280px; background:#f8fafc; border:1px solid var(--border); border-radius:6px; padding:1.25rem;">
-                    <h4>💳 到期付款提醒</h4>
+                    <h4>💳 Due Payment Settlement</h4>
                     <p style="font-size:0.875rem; color:var(--text-muted); margin:0.5rem 0 1rem;">
-                        支持使用测试稳定币一键向智能合约资金池全额清偿，避免被资金方标记逾期。
+                        Settle due obligations in full using test stablecoins via smart contracts to prevent overdue penalties.
                     </p>
-                    <a href="/core_enterprise/payables" class="btn btn-sm btn-outline">查看应付清册</a>
+                    <a href="/core_enterprise/payables" class="btn btn-sm btn-outline">View Payables</a>
                 </div>
             </div>
         </div>
@@ -74,20 +84,38 @@ async function loadCoreEnterpriseDashboard() {
     if (!acc) return;
 
     try {
-        const invs = await window.DAppState.apiClient.getInvoices({ buyer: acc }) || [];
+        // Only invoices registered on-chain (drafts whose wallet tx was cancelled have no onchain_id)
+        const invs = (await window.DAppState.apiClient.getInvoices({ buyer: acc }) || []).filter(i => i.onchain_id != null);
+        const now = Math.floor(Date.now() / 1000);
         const pending = invs.filter(i => i.status === "PENDING");
         const confirmed = invs.filter(i => i.status === "CONFIRMED");
+        const outstanding = confirmed.filter(i => i.repay_status !== "REPAID");
+        const settled = confirmed.filter(i => i.repay_status === "REPAID");
+        const dueSoon = outstanding.filter(i => i.due_date >= now && i.due_date <= now + 7 * 86400);
+        const overdue = outstanding.filter(i => i.due_date < now);
+        const sum = list => list.reduce((total, i) => total + BigInt(i.amount), 0n);
+        const fmt = v => `${window.AppConfig.formatTokens(v.toString())} <span style="font-size:1rem;">mUSD</span>`;
 
-        document.getElementById("kpi-pending-invoices").innerHTML = `${pending.length} <span style="font-size:1rem;">笔</span>`;
+        document.getElementById("kpi-pending-invoices").innerHTML = `${pending.length} <span style="font-size:1rem;">Invoices</span>`;
+        document.getElementById("kpi-payables-total").innerHTML = fmt(sum(outstanding));
+        document.getElementById("kpi-due-soon").innerHTML = fmt(sum(dueSoon));
+        document.getElementById("kpi-repaid-total").innerHTML = fmt(sum(settled));
+        const payablesSub = document.getElementById("kpi-payables-total").nextElementSibling;
+        if (payablesSub) payablesSub.innerText = `${outstanding.length} unpaid receivable(s), ${overdue.length} overdue`;
 
-        let totalPayables = 0n;
-        confirmed.forEach(i => { totalPayables += BigInt(i.amount); });
-        document.getElementById("kpi-payables-total").innerHTML = `${window.AppConfig.formatTokens(totalPayables.toString())} <span style="font-size:1rem;">mUSDT</span>`;
-    } catch (_) {}
+        DashboardCharts.render("ce-payables-chart", "doughnut",
+            ["Outstanding (not yet due)", "Overdue", "Settled"],
+            [sum(outstanding) - sum(overdue), sum(overdue), sum(settled)].map(v => DashboardCharts.toTokens(v)));
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "Failed to load dashboard data", "error");
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     setTimeout(loadCoreEnterpriseDashboard, 600);
 });
+// Reload when the wallet/session becomes ready (the 600 ms timer alone can fire before sign-in)
+window.addEventListener("walletAccountChanged", () => setTimeout(loadCoreEnterpriseDashboard, 300));
 </script>
 {% endblock %}

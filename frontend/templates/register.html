@@ -1,47 +1,47 @@
 {% extends "base.html" %}
 
-{% block title %}企业入驻申请 | SCF DApp{% endblock %}
+{% block title %}Enterprise Onboarding Application | SCF DApp{% endblock %}
 
 {% block content %}
 <main class="container">
     <div class="form-card">
-        <h2 style="margin-bottom:0.5rem; text-align:center;">🏢 企业入驻注册申请</h2>
+        <h2 style="margin-bottom:0.5rem; text-align:center;">🏢 Enterprise Onboarding Application</h2>
         <p class="form-hint" style="text-align:center; margin-bottom:1.5rem;">
-            完成注册后，管理员将在链上授予对应的智能合约角色。
+            After registration, the administrator will grant the corresponding smart contract role on-chain.
         </p>
 
         <div id="reg-status-banner" class="hidden" style="margin-bottom:1.25rem; padding:0.75rem 1rem; border-radius:6px; font-size:0.875rem;"></div>
 
         <form id="register-form" onsubmit="handleRegister(event)">
             <div class="form-group">
-                <label>企业钱包地址 (以太坊 / MetaMask) <span style="color:var(--danger)">*</span></label>
+                <label>Enterprise Wallet Address (Ethereum / MetaMask) <span style="color:var(--danger)">*</span></label>
                 <div style="display:flex; gap:0.5rem;">
-                    <input type="text" id="wallet-address-input" class="form-control" placeholder="连接 MetaMask 或手动输入 0x... 地址" pattern="^0x[a-fA-F0-9]{40}$" required>
-                    <button type="button" class="btn btn-outline" style="white-space:nowrap;" onclick="fillCurrentWallet()">⚡ 读取当前钱包</button>
+                    <input type="text" id="wallet-address-input" class="form-control" placeholder="Please connect MetaMask first" pattern="^0x[a-fA-F0-9]{40}$" readonly required>
+                    <button type="button" class="btn btn-outline" style="white-space:nowrap;" onclick="fillCurrentWallet()">⚡ Read Current Wallet</button>
                 </div>
-                <div class="form-hint">连接 MetaMask 会自动填入，也可手动粘贴或修改为指定地址</div>
+                <div class="form-hint">The application address must match the currently authenticated MetaMask wallet.</div>
             </div>
 
             <div class="form-group">
-                <label>企业名称 <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="enterprise-name-input" class="form-control" required placeholder="例如：深圳信诺供应链有限公司">
+                <label>Enterprise Name <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="enterprise-name-input" class="form-control" required placeholder="e.g., Apex Global Supply Chain Ltd.">
             </div>
 
             <div class="form-group">
-                <label>联系人姓名 / 邮箱 <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="contact-person-input" class="form-control" required placeholder="例如：张经理 (contact@supplier.com)">
+                <label>Contact Person / Email <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="contact-person-input" class="form-control" required placeholder="e.g., Alex Johnson (contact@supplier.com)">
             </div>
 
             <div class="form-group">
-                <label>申请入驻角色 <span style="color:var(--danger)">*</span></label>
+                <label>Requested Role <span style="color:var(--danger)">*</span></label>
                 <select id="role-select" class="form-control" required>
-                    <option value="SUPPLIER">供应商 (Supplier) - 开具发票并申请应收账款贴现</option>
-                    <option value="CORE_ENTERPRISE">核心企业 (Core Enterprise) - 采购大厂核验应付与到期清算</option>
-                    <option value="FINANCIER">资金方 (Financier) - 商业银行或保理机构提供流动性资金</option>
+                    <option value="SUPPLIER">Supplier - Issue invoices and apply for receivable financing</option>
+                    <option value="CORE_ENTERPRISE">Core Enterprise - Verify payables and settle obligations at maturity</option>
+                    <option value="FINANCIER">Financier - Commercial bank or factoring firm providing liquidity</option>
                 </select>
             </div>
 
-            <button type="submit" id="submit-reg-btn" class="btn btn-primary" style="width:100%; margin-top:0.5rem;">提交入驻审核申请</button>
+            <button type="submit" id="submit-reg-btn" class="btn btn-primary" style="width:100%; margin-top:0.5rem;">Submit Application</button>
         </form>
     </div>
 </main>
@@ -49,6 +49,19 @@
 
 {% block scripts %}
 <script>
+function resetRegistrationStatus() {
+    const banner = document.getElementById("reg-status-banner");
+    const btn = document.getElementById("submit-reg-btn");
+    if (banner) {
+        banner.classList.add("hidden");
+        banner.innerHTML = "";
+    }
+    if (btn) {
+        btn.disabled = false;
+        btn.innerText = "Submit Application";
+    }
+}
+
 // Auto-fill and check registration
 async function syncWalletAddress(account) {
     if (!account) return;
@@ -61,23 +74,40 @@ async function syncWalletAddress(account) {
 
 async function fillCurrentWallet() {
     if (window.DAppState.account) {
-        await syncWalletAddress(window.DAppState.account);
-        UIFeedback.showToast("已自动填入当前连接的钱包地址！", "success");
+        const input = document.getElementById("wallet-address-input");
+        if (input) input.value = window.DAppState.account;
+        if (!window.DAppState.sessionAuthenticated && typeof window.ensureAuthenticated === "function") {
+            try {
+                await window.ensureAuthenticated();
+            } catch (_) {}
+        }
+        await checkMyRegistration(window.DAppState.account);
+        UIFeedback.showToast("Current connected wallet address populated!", "success");
     } else {
-        UIFeedback.showToast("正在连接 MetaMask...", "info");
+        UIFeedback.showToast("Connecting MetaMask...", "info");
         await connectWallet();
         if (window.DAppState.account) {
-            await syncWalletAddress(window.DAppState.account);
+            const input = document.getElementById("wallet-address-input");
+            if (input) input.value = window.DAppState.account;
+            await checkMyRegistration(window.DAppState.account);
         }
     }
 }
 
 async function checkMyRegistration(addressToCheck) {
-    const acc = addressToCheck || document.getElementById("wallet-address-input").value.trim() || window.DAppState.account;
-    if (!acc) return;
+    const acc = addressToCheck || (document.getElementById("wallet-address-input") && document.getElementById("wallet-address-input").value.trim()) || window.DAppState.account;
+    if (!acc) {
+        resetRegistrationStatus();
+        return;
+    }
 
     try {
-        const me = await window.DAppState.apiClient.getMe(acc);
+        const me = await window.DAppState.apiClient.getMe();
+        if (!me || !me.wallet_address || me.wallet_address.toLowerCase() !== acc.toLowerCase()) {
+            resetRegistrationStatus();
+            return;
+        }
+
         const banner = document.getElementById("reg-status-banner");
         const btn = document.getElementById("submit-reg-btn");
         if (me && me.status && me.status !== "NONE") {
@@ -85,36 +115,45 @@ async function checkMyRegistration(addressToCheck) {
             if (me.status === "PENDING") {
                 banner.style.background = "#fef3c7";
                 banner.style.color = "#b45309";
-                banner.innerHTML = `⏳ <strong>审核状态：待审核</strong><br>已提交申请，正在等待平台管理员在区块链上授权角色...`;
+                banner.innerHTML = `⏳ <strong>Status: Pending Review</strong><br>Application submitted. Waiting for platform admin to grant role on-chain...`;
                 btn.disabled = true;
-                btn.innerText = "审核处理中 (不可重复提交)";
+                btn.innerText = "Under Review (Cannot resubmit)";
             } else if (me.status === "APPROVED") {
                 banner.style.background = "#d1fae5";
                 banner.style.color = "#065f46";
-                banner.innerHTML = `✅ <strong>审核状态：已核准</strong><br>企业已成功通过审核，当前链上角色：<b>${window.AppConfig.ROLE_LABELS[me.role] || me.role}</b>`;
+                banner.innerHTML = `✅ <strong>Status: Approved</strong><br>Enterprise successfully approved. Current on-chain role: <b>${window.AppConfig.ROLE_LABELS[me.role] || me.role}</b>`;
                 btn.disabled = true;
-                btn.innerText = "已完成入驻";
+                btn.innerText = "Registration Completed";
             } else if (me.status === "REJECTED") {
                 banner.style.background = "#fee2e2";
                 banner.style.color = "#991b1b";
-                banner.innerHTML = `❌ <strong>审核状态：已驳回</strong><br>原因：${me.reject_reason || "未注明"}。可修改资料后重新提交。`;
+                banner.innerHTML = `❌ <strong>Status: Rejected</strong><br>Reason: ${me.reject_reason || "Not specified"}. You may update details and resubmit.`;
                 btn.disabled = false;
-                btn.innerText = "重新提交申请";
+                btn.innerText = "Resubmit Application";
             }
         } else {
-            banner.classList.add("hidden");
-            btn.disabled = false;
-            btn.innerText = "提交入驻审核申请";
+            resetRegistrationStatus();
         }
-    } catch (_) {}
+    } catch (_) {
+        resetRegistrationStatus();
+    }
 }
 
 async function handleRegister(e) {
     e.preventDefault();
     const walletAddr = document.getElementById("wallet-address-input").value.trim();
     if (!walletAddr) {
-        UIFeedback.showToast("请填写或点击读取钱包地址！", "warning");
+        UIFeedback.showToast("Please provide or click to read your wallet address!", "warning");
         return;
+    }
+
+    if (typeof window.ensureAuthenticated === "function") {
+        try {
+            await window.ensureAuthenticated();
+        } catch (err) {
+            UIFeedback.showToast("Wallet authentication signature is required before submitting.", "warning");
+            return;
+        }
     }
 
     const payload = {
@@ -126,22 +165,32 @@ async function handleRegister(e) {
 
     try {
         await window.DAppState.apiClient.registerEnterprise(payload);
-        UIFeedback.showToast("企业入驻申请已成功提交，请等待管理员审核！", "success");
+        UIFeedback.showToast("Enterprise onboarding application submitted successfully. Awaiting admin review!", "success");
         await checkMyRegistration(walletAddr);
     } catch (err) {
-        UIFeedback.showToast(err.message || "提交失败", "error");
+        UIFeedback.showToast(err.message || "Submission failed", "error");
     }
 }
 
 // Listen to wallet connect / switch events
-window.addEventListener("walletAccountChanged", (e) => {
+window.addEventListener("walletAccountChanged", async (e) => {
     if (e.detail && e.detail.account) {
-        syncWalletAddress(e.detail.account);
+        resetRegistrationStatus();
+        await syncWalletAddress(e.detail.account);
+        if (!window.DAppState.sessionAuthenticated && typeof window.ensureAuthenticated === "function") {
+            try {
+                await window.ensureAuthenticated();
+                await checkMyRegistration(e.detail.account);
+            } catch (_) {
+                resetRegistrationStatus();
+            }
+        }
+    } else {
+        resetRegistrationStatus();
     }
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Check if account already ready
     if (window.DAppState && window.DAppState.account) {
         syncWalletAddress(window.DAppState.account);
     } else {

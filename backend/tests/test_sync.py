@@ -1,0 +1,581 @@
+from types import SimpleNamespace
+import logging
+
+import pytest
+from eth_abi import encode
+from requests import PreparedRequest, Response
+from requests.exceptions import HTTPError
+
+from backend.config import ZERO_ADDRESS
+from backend.extensions import db
+from backend.models import ChainEvent, Holding, Invoice, SyncState
+from backend.sync.engine import (
+    ChainReorgDetected,
+    EventSynchronizer,
+    SyncRpcError,
+    SyncStartupError,
+    create_web3_provider,
+    safe_sync_error,
+)
+from backend.preflight import Check
+from backend.sync.projections import project_event
+from backend.sync.registry import hex_value
+
+ACCOUNT = "0x1111111111111111111111111111111111111111"
+
+
+class FakeEth:
+    def __init__(self, chain_id=11155111, latest=12, logs=None):
+        self.chain_id = chain_id
+        self.block_number = latest
+        self.logs = logs or []
+        self.calls = []
+        self.missing_code = None
+        self.hash_overrides = {}
+        self.get_logs_hook = None
+
+    def get_code(self, address):
+        missing = self.missing_code and address.lower() == self.missing_code.lower()
+        return b"" if missing else b"\x60\x00"
+
+    def get_logs(self, params):
+        self.calls.append((params["fromBlock"], params["toBlock"]))
+        if self.get_logs_hook is not None:
+            return self.get_logs_hook(params)
+        return [log for log in self.logs
+                if params["fromBlock"] <= log["blockNumber"] <= params["toBlock"]]
+
+    def get_block(self, number):
+        block_hash = self.hash_overrides.get(number, number.to_bytes(32, "big"))
+        return {"hash": block_hash, "timestamp": 1_700_000_000 + number}
+
+
+class FakeProvider:
+    def __init__(self, **kwargs):
+        self.eth = FakeEth(**kwargs)
+
+
+def _sync(app, provider=None, projector=None, sleep=None, jitter=None):
+    app.config.update(
+        PROCESS_ROLE="worker",
+        EVENT_SYNC_ENABLED=True,
+        SYNC_START_BLOCK=10,
+        EVENT_SYNC_BATCH_SIZE=500,
+        BLOCK_CONFIRMATIONS=0,
+    )
+    kwargs = {"projector": projector or (lambda _event: None)}
+    if sleep is not None:
+        kwargs["sleep"] = sleep
+    if jitter is not None:
+        kwargs["jitter"] = jitter
+    return EventSynchronizer(app, provider or FakeProvider(), **kwargs)
+
+
+def _http_error(status, body, *, secret="new-secret-api-key"):
+    response = Response()
+    response.status_code = status
+    response._content = body.encode()
+    request = PreparedRequest()
+    request.prepare_url(f"https://rpc.example.invalid/v2/{secret}", None)
+    response.request = request
+    return HTTPError(f"{status} error for {request.url}", response=response, request=request)
+
+
+def _event_log(sync, contract, event_name, values, *, block=10, tx=0, index=0):
+    address = sync.app.config["CONTRACT_ADDRESSES"][contract].lower()
+    topic, definition = next(
+        (topic, definition)
+        for (event_address, topic), definition in sync.registry.events_by_topic.items()
+        if event_address == address and definition.name == event_name
+    )
+    indexed = [item for item in definition.abi["inputs"] if item["indexed"]]
+    plain = [item for item in definition.abi["inputs"] if not item["indexed"]]
+    topics = [bytes.fromhex(topic[2:])]
+    topics.extend(encode([item["type"]], [values[item["name"]]]) for item in indexed)
+    data = encode([item["type"] for item in plain], [values[item["name"]] for item in plain])
+    return {
+        "address": address,
+        "topics": topics,
+        "data": data,
+        "blockNumber": block,
+        "blockHash": block.to_bytes(32, "big"),
+        "transactionIndex": tx,
+        "transactionHash": (tx + 1).to_bytes(32, "big"),
+        "logIndex": index,
+    }
+
+
+def _paused(sync, **position):
+    return _event_log(sync, "RoleManager", "Paused", {"account": ACCOUNT}, **position)
+
+
+def test_worker_startup_validates_chain_and_contract_code(app):
+    sync = _sync(app)
+    assert sync.validate_startup() is True
+    bad_chain = _sync(app, FakeProvider(chain_id=1))
+    with pytest.raises(SyncStartupError, match="CONTRACT_CONFIG_INVALID"):
+        bad_chain.validate_startup()
+    missing = FakeProvider()
+    missing.eth.missing_code = sync.registry.addresses[0]
+    with pytest.raises(SyncStartupError, match="CONTRACT_CONFIG_INVALID"):
+        _sync(app, missing).validate_startup()
+
+
+def test_worker_startup_rejects_disabled_sync_and_wrong_role(app):
+    sync = _sync(app)
+    app.config["EVENT_SYNC_ENABLED"] = False
+    with pytest.raises(SyncStartupError) as disabled:
+        sync.validate_startup()
+    assert disabled.value.code == "CONFIG_INVALID"
+    assert disabled.value.check_id == "EVENT_SYNC_ENABLED"
+
+    app.config.update(EVENT_SYNC_ENABLED=True, PROCESS_ROLE="web")
+    with pytest.raises(SyncStartupError) as wrong_role:
+        sync.validate_startup()
+    assert wrong_role.value.code == "CONFIG_INVALID"
+    assert wrong_role.value.check_id == "PROCESS_ROLE"
+
+
+def test_provider_creation_does_not_probe_web3_client_version(monkeypatch):
+    class Provider:
+        pass
+
+    class Web3WithoutClientVersion:
+        HTTPProvider = staticmethod(lambda *_args, **_kwargs: Provider())
+
+        def __init__(self, provider):
+            self.provider = provider
+
+        def is_connected(self):
+            raise AssertionError("web3_clientVersion must not be probed")
+
+    monkeypatch.setattr("web3.Web3", Web3WithoutClientVersion)
+
+    provider = create_web3_provider("https://rpc.example.invalid/redacted")
+
+    assert isinstance(provider, Web3WithoutClientVersion)
+
+
+def test_production_startup_uses_preflight_result_and_then_fetches_logs(
+        app, monkeypatch):
+    provider = FakeProvider(latest=10)
+    app.config.update(
+        ENV_NAME="production", PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        SYNC_PROVIDER=provider, SYNC_START_BLOCK=10, EVENT_SYNC_BATCH_SIZE=10,
+        BLOCK_CONFIRMATIONS=0,
+    )
+    monkeypatch.setattr(
+        "backend.preflight.collect_preflight",
+        lambda _app, role=None, web3=None: [Check("CHAIN_ID", "PASS")],
+    )
+
+    result = app.test_cli_runner().invoke(args=["sync-events", "--once"])
+
+    assert result.exit_code == 0, result.output
+    assert provider.eth.calls == [(10, 10)]
+    assert SyncState.query.one().last_synced_block == 10
+
+
+def test_production_startup_maps_manifest_failure_without_fetching_logs(
+        app, monkeypatch):
+    provider = FakeProvider(latest=10)
+    app.config.update(
+        ENV_NAME="production", PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        SYNC_PROVIDER=provider, EVENT_SYNC_BATCH_SIZE=10,
+    )
+    monkeypatch.setattr(
+        "backend.preflight.collect_preflight",
+        lambda _app, role=None, web3=None: [
+            Check("SYNC_START_BLOCK", "FAIL", "does not match deployment manifest")
+        ],
+    )
+
+    result = app.test_cli_runner().invoke(args=["sync-events", "--once"])
+
+    assert result.exit_code == 1
+    assert "code=CONTRACT_CONFIG_INVALID" in result.output
+    assert "check=SYNC_START_BLOCK" in result.output
+    assert provider.eth.calls == []
+
+
+@pytest.mark.parametrize(("check_id", "expected_code"), [
+    ("DATABASE", "DATABASE_UNAVAILABLE"),
+    ("MIGRATIONS", "MIGRATION_REQUIRED"),
+    ("SYNC_STATE", "SYNC_STATE_INVALID"),
+    ("CONTRACTS", "CONTRACT_CONFIG_INVALID"),
+])
+def test_production_startup_uses_specific_failure_codes(
+        app, monkeypatch, check_id, expected_code):
+    provider = FakeProvider(latest=10)
+    app.config.update(
+        ENV_NAME="production", PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        EVENT_SYNC_BATCH_SIZE=10,
+    )
+    monkeypatch.setattr(
+        "backend.preflight.collect_preflight",
+        lambda _app, role=None, web3=None: [Check(check_id, "FAIL", "safe failure")],
+    )
+
+    with pytest.raises(SyncStartupError) as failure:
+        EventSynchronizer(app, provider).validate_startup()
+
+    assert failure.value.code == expected_code
+    assert failure.value.check_id == check_id
+    assert provider.eth.calls == []
+
+
+def test_rpc_startup_failure_is_mapped_without_secret(app):
+    secret = "startup-rpc-secret"
+
+    class BrokenEth:
+        @property
+        def chain_id(self):
+            raise _http_error(500, "server failure", secret=secret)
+
+    provider = SimpleNamespace(eth=BrokenEth())
+    sync = _sync(app, provider)
+
+    with pytest.raises(SyncStartupError) as failure:
+        sync.validate_startup()
+    safe = safe_sync_error(failure.value)
+    assert safe["code"] == "RPC_UNAVAILABLE"
+    assert safe["detail"] == "check=CHAIN_ID reason=rpc_request_failed"
+    assert secret not in str(safe)
+    assert "https://" not in str(safe)
+
+
+def test_rpc_startup_cli_has_stable_check_and_no_secret(app):
+    secret = "startup-cli-secret"
+
+    class BrokenEth:
+        @property
+        def chain_id(self):
+            raise _http_error(500, "server failure", secret=secret)
+
+    app.config.update(
+        PROCESS_ROLE="worker", EVENT_SYNC_ENABLED=True,
+        EVENT_SYNC_BATCH_SIZE=10,
+        SYNC_PROVIDER=SimpleNamespace(eth=BrokenEth()),
+        WEB3_PROVIDER_URI=f"https://rpc.example.invalid/v2/{secret}",
+    )
+
+    result = app.test_cli_runner().invoke(args=["sync-events", "--once"])
+
+    assert result.exit_code == 1
+    assert "code=RPC_UNAVAILABLE" in result.output
+    assert "check=CHAIN_ID" in result.output
+    assert "Traceback" not in result.output
+    assert secret not in result.output
+    assert "https://" not in result.output
+
+
+def test_empty_range_does_not_fetch_logs(app):
+    provider = FakeProvider(latest=8)
+    assert _sync(app, provider).run_once() == 0
+    assert provider.eth.calls == []
+
+
+def test_single_event_is_decoded_and_saved(app):
+    provider = FakeProvider(latest=10)
+    sync = _sync(app, provider)
+    provider.eth.logs = [_paused(sync)]
+    assert sync.run_once() == 1
+    event = ChainEvent.query.one()
+    assert event.event_name == "Paused"
+    assert event.event_args == {"account": ACCOUNT}
+
+
+def test_multi_contract_logs_are_globally_sorted(app):
+    seen = []
+    provider = FakeProvider(latest=10)
+    sync = _sync(app, provider, projector=lambda event: seen.append(event.event_name))
+    invoice = _event_log(sync, "InvoiceRegistry", "InvoiceConfirmed",
+                         {"invoiceId": 7, "buyer": ACCOUNT}, block=10, tx=1, index=2)
+    paused = _paused(sync, block=10, tx=0, index=3)
+    provider.eth.logs = [invoice, paused]
+    assert sync.run_once() == 2
+    assert seen == ["Paused", "InvoiceConfirmed"]
+
+
+def test_block_ranges_are_split_into_batches(app):
+    provider = FakeProvider(latest=14)
+    sync = _sync(app, provider)
+    app.config["EVENT_SYNC_BATCH_SIZE"] = 2
+    sync.run_once()
+    assert provider.eth.calls == [(10, 11), (12, 13), (14, 14)]
+
+
+def test_provider_result_limit_shrinks_without_skipping_blocks(app):
+    provider = FakeProvider(latest=13)
+    original = provider.eth.get_logs
+
+    def limited(params):
+        if params["toBlock"] - params["fromBlock"] >= 2:
+            provider.eth.calls.append((params["fromBlock"], params["toBlock"]))
+            raise ValueError("query returned more than provider limit")
+        return original(params)
+
+    provider.eth.get_logs = limited
+    sync = _sync(app, provider)
+    sync.run_once()
+    assert provider.eth.calls == [(10, 13), (10, 11), (12, 13)]
+    assert SyncState.query.one().last_synced_block == 13
+
+
+def test_ten_block_query_passes_without_splitting(app):
+    provider = FakeProvider(latest=19)
+    sync = _sync(app, provider)
+    app.config["EVENT_SYNC_BATCH_SIZE"] = 10
+
+    assert sync.run_once() == 0
+    assert provider.eth.calls == [(10, 19)]
+
+
+def test_http_400_range_limit_splits_without_gaps_or_duplicates(app):
+    provider = FakeProvider(latest=34)
+    accepted = []
+
+    def limited(params):
+        start, end = params["fromBlock"], params["toBlock"]
+        if end - start + 1 > 10:
+            raise _http_error(400, "eth_getLogs block range is too wide; up to a 10 block range")
+        accepted.append((start, end))
+        return []
+
+    provider.eth.get_logs_hook = limited
+    sync = _sync(app, provider)
+    app.config["EVENT_SYNC_BATCH_SIZE"] = 25
+
+    assert sync.run_once() == 0
+    covered = [block for start, end in accepted for block in range(start, end + 1)]
+    assert covered == list(range(10, 35))
+    assert SyncState.query.one().last_synced_block == 34
+
+
+def test_http_429_uses_bounded_exponential_backoff_then_succeeds(app):
+    provider = FakeProvider(latest=10)
+    sleeps = []
+    attempts = 0
+
+    def limited(_params):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise _http_error(429, "rate limit")
+        return []
+
+    provider.eth.get_logs_hook = limited
+    sync = _sync(app, provider, sleep=sleeps.append, jitter=lambda: 0)
+
+    assert sync.run_once() == 0
+    assert sleeps == [0.5, 1.0]
+    assert attempts == 3
+
+
+def test_retry_exhaustion_rolls_back_cursor(app):
+    provider = FakeProvider(latest=10)
+    provider.eth.get_logs_hook = lambda _params: (_ for _ in ()).throw(
+        _http_error(500, "temporary server failure")
+    )
+    sync = _sync(app, provider, sleep=lambda _seconds: None, jitter=lambda: 0)
+
+    with pytest.raises(SyncRpcError, match="RPC_RETRY_EXHAUSTED"):
+        sync.run_once()
+    assert ChainEvent.query.count() == 0
+    assert SyncState.query.count() == 0
+    assert len(provider.eth.calls) == 4
+
+
+def test_non_retryable_http_400_fails_once_without_cursor_progress(app):
+    provider = FakeProvider(latest=10)
+    provider.eth.get_logs_hook = lambda _params: (_ for _ in ()).throw(
+        _http_error(400, "invalid filter object")
+    )
+    sync = _sync(app, provider, sleep=lambda _seconds: None, jitter=lambda: 0)
+
+    with pytest.raises(SyncRpcError, match="RPC_HTTP_ERROR"):
+        sync.run_once()
+    assert provider.eth.calls == [(10, 10)]
+    assert SyncState.query.count() == 0
+
+
+def test_single_block_range_limit_fails_safely(app):
+    provider = FakeProvider(latest=10)
+    provider.eth.get_logs_hook = lambda _params: (_ for _ in ()).throw(
+        _http_error(400, "eth_getLogs block range is too wide; up to a 10 block range")
+    )
+    sync = _sync(app, provider)
+
+    with pytest.raises(SyncRpcError, match="RPC_RANGE_LIMIT"):
+        sync.run_once()
+    assert provider.eth.calls == [(10, 10)]
+    assert SyncState.query.count() == 0
+
+
+def test_restart_uses_saved_cursor(app):
+    provider = FakeProvider(latest=11)
+    first = _sync(app, provider)
+    first.run_once()
+    provider.eth.block_number = 13
+    second = _sync(app, provider)
+    second.run_once()
+    assert provider.eth.calls[-1] == (12, 13)
+
+
+def test_duplicate_log_is_not_projected_twice(app):
+    calls = []
+    provider = FakeProvider(latest=10)
+    sync = _sync(app, provider, projector=lambda event: calls.append(event.tx_hash))
+    provider.eth.logs = [_paused(sync)]
+    sync._sync_batch(10, 10, 10)
+    sync._sync_batch(10, 10, 10)
+    assert ChainEvent.query.count() == 1
+    assert len(calls) == 1
+
+
+def test_restart_at_same_safe_head_is_idempotent_for_events_and_holdings(app):
+    zero = "0x0000000000000000000000000000000000000000"
+    provider = FakeProvider(latest=10)
+    first = _sync(app, provider, projector=project_event)
+    provider.eth.logs = [_event_log(
+        first, "ReceivableToken", "TransferSingle",
+        {"operator": ACCOUNT, "from": zero, "to": ACCOUNT, "id": 7, "value": 25},
+    )]
+
+    assert first.run_once() == 1
+    before = (ChainEvent.query.count(), int(Holding.query.one().balance))
+    second = _sync(app, provider, projector=project_event)
+    assert second.run_once() == 0
+    after = (ChainEvent.query.count(), int(Holding.query.one().balance))
+
+    assert after == before
+
+
+def test_batch_failure_rolls_back_events_and_cursor(app):
+    provider = FakeProvider(latest=10)
+    invoice = Invoice(
+        chain_id=11155111, invoice_no="ROLLBACK", supplier_address=ACCOUNT,
+        buyer_address="0x2222222222222222222222222222222222222222",
+        amount=1, due_date=2_000_000_000, file_hash="0x" + "a" * 64,
+        status="FILE_UPLOADED",
+    )
+    db.session.add(invoice)
+    db.session.commit()
+
+    def failing_projection(_event):
+        invoice.status = "PENDING"
+        db.session.flush()
+        raise RuntimeError("bad projection")
+
+    sync = _sync(app, provider, projector=failing_projection)
+    provider.eth.logs = [_paused(sync)]
+    with pytest.raises(RuntimeError, match="bad projection"):
+        sync.run_once()
+    assert ChainEvent.query.count() == 0
+    assert SyncState.query.count() == 0
+    assert db.session.get(Invoice, invoice.id).status == "FILE_UPLOADED"
+
+
+def test_saved_block_hash_mismatch_stops_sync(app):
+    provider = FakeProvider(latest=10)
+    sync = _sync(app, provider)
+    sync.run_once()
+    provider.eth.block_number = 11
+    provider.eth.hash_overrides[10] = b"x" * 32
+    with pytest.raises(ChainReorgDetected, match="CHAIN_REORG_DETECTED"):
+        sync.run_once()
+    cursor = SyncState.query.filter_by(contract_address=ZERO_ADDRESS).one()
+    assert cursor.status == "degraded"
+    assert cursor.last_synced_block == 10
+
+
+def test_unknown_topic_does_not_break_known_event(app):
+    provider = FakeProvider(latest=10)
+    sync = _sync(app, provider)
+    unknown = _paused(sync, tx=0, index=0)
+    unknown["topics"][0] = b"z" * 32
+    provider.eth.logs = [unknown, _paused(sync, tx=1, index=1)]
+    assert sync.run_once() == 1
+    assert ChainEvent.query.count() == 1
+
+
+def test_temporary_failure_retries_with_backoff(app, monkeypatch):
+    sleeps = []
+    sync = _sync(app, sleep=lambda seconds: sleeps.append(seconds))
+    monkeypatch.setattr(sync, "validate_startup", lambda: True)
+    attempts = iter([RuntimeError("offline"), None])
+
+    def run_once():
+        result = next(attempts)
+        if result:
+            raise result
+        return 0
+
+    monkeypatch.setattr(sync, "run_once", run_once)
+    sync.run_forever(max_cycles=1)
+    assert sleeps == [1]
+
+
+def test_worker_log_uses_safe_fields_without_rpc_secret(app, monkeypatch, caplog):
+    secret = "worker-log-secret-api-key"
+    sync = _sync(app, sleep=lambda _seconds: None)
+    monkeypatch.setattr(sync, "validate_startup", lambda: True)
+    attempts = iter([_http_error(500, "server failure", secret=secret), None])
+
+    def run_once():
+        result = next(attempts)
+        if result:
+            raise result
+        return 0
+
+    monkeypatch.setattr(sync, "run_once", run_once)
+    sync_logger = logging.getLogger("backend.sync.engine")
+    sync_logger.disabled = False
+    with caplog.at_level(logging.ERROR, logger="backend.sync.engine"):
+        sync.run_forever(max_cycles=1)
+
+    assert "code=RPC_HTTP_ERROR http_status=500 category=server_error" in caplog.text
+    assert secret not in caplog.text
+    assert "https://" not in caplog.text
+
+
+def test_sync_cli_runs_once_and_reports_status(app):
+    app.config.update(
+        PROCESS_ROLE="worker",
+        EVENT_SYNC_ENABLED=True,
+        SYNC_PROVIDER=FakeProvider(latest=9),
+        SYNC_START_BLOCK=10,
+        BLOCK_CONFIRMATIONS=0,
+    )
+    runner = app.test_cli_runner()
+    once = runner.invoke(args=["sync-events", "--once"])
+    assert once.exit_code == 0, once.output
+    assert "synced_events=0" in once.output
+    status = runner.invoke(args=["sync-status"])
+    assert status.exit_code == 0
+    assert "status=healthy" in status.output
+
+
+def test_sync_cli_redacts_http_error_and_never_prints_traceback(app):
+    secret = "cli-secret-api-key"
+    provider = FakeProvider(latest=10)
+    provider.eth.get_logs_hook = lambda _params: (_ for _ in ()).throw(
+        _http_error(400, "invalid filter object", secret=secret)
+    )
+    app.config.update(
+        PROCESS_ROLE="worker",
+        EVENT_SYNC_ENABLED=True,
+        SYNC_PROVIDER=provider,
+        SYNC_START_BLOCK=10,
+        EVENT_SYNC_BATCH_SIZE=10,
+        BLOCK_CONFIRMATIONS=0,
+        WEB3_PROVIDER_URI=f"https://rpc.example.invalid/v2/{secret}",
+    )
+
+    result = app.test_cli_runner().invoke(args=["sync-events", "--once"])
+
+    assert result.exit_code == 1
+    assert "SYNC_ERROR code=RPC_HTTP_ERROR http_status=400" in result.output
+    assert "Traceback" not in result.output
+    assert secret not in result.output
+    assert "https://" not in result.output

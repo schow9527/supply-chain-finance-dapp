@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}上传发票登记 | 供应商{% endblock %}
+{% block title %}Upload Invoice | Supplier{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,46 +10,46 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>上传应收发票上链登记 (F-06 / F-07)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">发票 PDF 存储于链下，文件哈希与元数据上链，机制防重登记</p>
+                <h2>Register Receivable Invoice On-Chain (F-06 / F-07)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Invoice PDF is stored off-chain while file hash and metadata are recorded on-chain with duplicate prevention</p>
             </div>
         </div>
 
         <div class="form-card" style="max-width:700px; margin:0 auto;">
             <form id="invoice-upload-form" onsubmit="handleInvoiceSubmit(event)">
                 <div class="form-group">
-                    <label>发票编号 (Invoice No.) <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="invoice-no-input" class="form-control" required placeholder="例如：INV-2026-NTU-001">
-                    <div class="form-hint">企业自编发票流水号，合约将校验防重复性</div>
+                    <label>Invoice No. <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="invoice-no-input" class="form-control" required placeholder="e.g., INV-2026-NTU-001">
+                    <div class="form-hint">Enterprise sequence number; smart contract enforces uniqueness</div>
                 </div>
 
                 <div class="form-group">
-                    <label>买方核心企业钱包地址 <span style="color:var(--danger)">*</span></label>
+                    <label>Buyer (Core Enterprise) Wallet Address <span style="color:var(--danger)">*</span></label>
                     <input type="text" id="buyer-address-input" class="form-control" required placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$">
-                    <div class="form-hint">必须是已获平台管理员链上授权的核心企业地址</div>
+                    <div class="form-hint">Must be an authorized core enterprise address on-chain</div>
                 </div>
 
                 <div class="form-group">
-                    <label>发票面值金额 (mUSDT) <span style="color:var(--danger)">*</span></label>
-                    <input type="number" step="0.01" min="1" id="amount-input" class="form-control" required placeholder="例如：50000">
-                    <div class="form-hint">确认后将按 1:1 铸造等额 ERC-1155 应收凭证</div>
+                    <label>Invoice Face Value (mUSD) <span style="color:var(--danger)">*</span></label>
+                    <input type="number" step="0.01" min="1" id="amount-input" class="form-control" required placeholder="e.g., 50000">
+                    <div class="form-hint">Mints 1:1 equivalent ERC-1155 receivable tokens upon confirmation</div>
                 </div>
 
                 <div class="form-group">
-                    <label>款项到期日 (Due Date) <span style="color:var(--danger)">*</span></label>
+                    <label>Payment Due Date <span style="color:var(--danger)">*</span></label>
                     <input type="date" id="due-date-input" class="form-control" required>
-                    <div class="form-hint">必须晚于当前日期</div>
+                    <div class="form-hint">Must be later than today</div>
                 </div>
 
                 <div class="form-group">
-                    <label>发票 PDF 原件文件 <span style="color:var(--danger)">*</span></label>
+                    <label>Original Invoice PDF <span style="color:var(--danger)">*</span></label>
                     <input type="file" id="pdf-file-input" class="form-control" accept=".pdf" required onchange="handleFileChange(event)">
-                    <div id="file-hash-preview" class="form-hint" style="word-break:break-all;">未选择文件</div>
+                    <div id="file-hash-preview" class="form-hint" style="word-break:break-all;">No file selected</div>
                 </div>
 
                 <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
-                    <a href="/supplier/dashboard" class="btn btn-outline">取消</a>
-                    <button type="submit" id="submit-invoice-btn" class="btn btn-primary">🚀 提交链上登记 (MetaMask 签名)</button>
+                    <a href="/supplier/dashboard" class="btn btn-outline">Cancel</a>
+                    <button type="submit" id="submit-invoice-btn" class="btn btn-primary">🚀 Submit On-Chain (MetaMask)</button>
                 </div>
             </form>
         </div>
@@ -66,23 +66,23 @@ async function handleFileChange(e) {
     const preview = document.getElementById("file-hash-preview");
     if (!file) return;
 
-    preview.innerText = "正在计算 PDF 文件 SHA-256 哈希...";
+    preview.innerText = "Computing PDF file SHA-256 hash...";
     try {
         const buffer = await file.arrayBuffer();
         const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
         computedFileHash = "0x" + hashHex;
-        preview.innerHTML = `<strong>SHA-256 哈希：</strong><code>${computedFileHash}</code> (大小: ${(file.size / 1024).toFixed(1)} KB)`;
+        preview.innerHTML = `<strong>SHA-256 Hash: </strong><code>${computedFileHash}</code> (Size: ${(file.size / 1024).toFixed(1)} KB)`;
     } catch (err) {
-        preview.innerText = "哈希计算失败: " + err.message;
+        preview.innerText = "Hash calculation failed: " + err.message;
     }
 }
 
 async function handleInvoiceSubmit(e) {
     e.preventDefault();
     if (!window.DAppState.account) {
-        UIFeedback.showToast("请先连接 MetaMask 钱包！", "warning");
+        UIFeedback.showToast("Please connect your MetaMask wallet first!", "warning");
         return;
     }
 
@@ -93,48 +93,55 @@ async function handleInvoiceSubmit(e) {
     const fileInput = document.getElementById("pdf-file-input");
 
     if (!dueDateStr) {
-        UIFeedback.showToast("请选择到期日期！", "warning");
+        UIFeedback.showToast("Please select a due date!", "warning");
         return;
     }
 
     const dueDateTs = Math.floor(new Date(dueDateStr).getTime() / 1000);
     const nowTs = Math.floor(Date.now() / 1000);
     if (dueDateTs <= nowTs) {
-        UIFeedback.showToast("发票到期日必须晚于当前时间！", "error");
+        UIFeedback.showToast("Invoice due date must be later than the current time!", "error");
         return;
     }
 
     const amountWei = window.AppConfig.parseTokens(amountVal);
 
-    // 1. Upload file to backend for storage
-    if (fileInput.files.length > 0) {
-        const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
-        formData.append("invoice_no", invoiceNo);
-        formData.append("supplier", window.DAppState.account);
-        formData.append("buyer", buyer);
-        try {
-            await window.DAppState.apiClient.uploadInvoiceFile(formData);
-        } catch (_) {
-            console.warn("Backend offline or upload failed, continuing with on-chain submit");
-        }
+    if (fileInput.files.length === 0) {
+        UIFeedback.showToast("Please select a PDF invoice file!", "warning");
+        return;
     }
 
-    // 2. Submit to InvoiceRegistry Smart Contract with 4-stage lifecycle modal
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    formData.append("invoice_no", invoiceNo);
+    formData.append("supplier", window.DAppState.account);
+    formData.append("buyer", buyer);
+    formData.append("amount", amountWei.toString());
+    formData.append("due_date", dueDateTs.toString());
+
+    // Upload must succeed and both SHA-256 values must agree before MetaMask is invoked.
     try {
-        await window.DAppState.contractClient.submitInvoice(
+        await window.InvoiceUploadFlow.uploadAndSubmit({
+            apiClient: window.DAppState.apiClient,
+            contractClient: window.DAppState.contractClient,
+            formData,
+            expectedHash: computedFileHash,
             invoiceNo,
             buyer,
-            amountWei,
-            dueDateTs,
-            computedFileHash
-        );
-        UIFeedback.showToast("发票登记成功！已提交核心企业审核。", "success");
+            amount: amountWei,
+            dueDate: dueDateTs
+        });
+        UIFeedback.showToast("Invoice registered successfully! Submitted to core enterprise for review.", "success");
         setTimeout(() => {
             window.location.href = "/supplier/invoices";
         }, 1500);
     } catch (err) {
         console.error(err);
+        if (err.code === "FILE_HASH_MISMATCH") {
+            UIFeedback.showToast("FILE_HASH_MISMATCH: Browser and backend file hashes differ; stopped before on-chain submission.", "error");
+        } else if (!err.message || !err.message.includes("transaction")) {
+            UIFeedback.showToast(err.message || "PDF upload failed; no on-chain transaction was initiated.", "error");
+        }
     }
 }
 

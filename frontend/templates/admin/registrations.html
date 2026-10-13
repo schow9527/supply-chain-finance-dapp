@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}企业入驻审核与链上发牌 | 管理员{% endblock %}
+{% block title %}Enterprise Onboarding Review | Admin{% endblock %}
 
 {% block content %}
 <div class="app-layout">
@@ -10,11 +10,11 @@
     <main class="content-area">
         <div class="page-header">
             <div>
-                <h2>企业入驻资质审核与链上角色发牌 (F-03)</h2>
-                <p style="color:var(--text-muted); font-size:0.875rem;">审查企业信息，通过后直接向以太坊 RoleManager 合约发起 grantRole 交易</p>
+                <h2>Enterprise Onboarding Review & Role Granting (F-03)</h2>
+                <p style="color:var(--text-muted); font-size:0.875rem;">Review enterprise qualifications and grant on-chain roles via RoleManager contract</p>
             </div>
             <div>
-                <button class="btn btn-outline" onclick="loadApplications()">🔄 刷新申请列表</button>
+                <button class="btn btn-outline" onclick="loadApplications()">🔄 Refresh Applications</button>
             </div>
         </div>
 
@@ -22,16 +22,16 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>企业名称</th>
-                        <th>联系人</th>
-                        <th>申请角色</th>
-                        <th>申请钱包地址</th>
-                        <th>审核状态</th>
-                        <th>审查操作</th>
+                        <th>Enterprise Name</th>
+                        <th>Contact Person</th>
+                        <th>Requested Role</th>
+                        <th>Wallet Address</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="applications-tbody">
-                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">正在加载入驻申请...</td></tr>
+                    <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">Loading onboarding applications...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -59,7 +59,7 @@ async function loadApplications() {
         appList = list;
 
         if (appList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">当前暂无待审核的企业申请</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">No pending enterprise applications found</td></tr>`;
             return;
         }
 
@@ -71,53 +71,54 @@ async function loadApplications() {
                 <td><code>${window.AppConfig.shortAddress(a.wallet_address)}</code></td>
                 <td>
                     <span class="badge badge-${a.status === 'APPROVED' ? 'success' : (a.status === 'REJECTED' ? 'danger' : 'warning')}">
-                        ${a.status === 'APPROVED' ? '已核准发牌' : (a.status === 'REJECTED' ? '已驳回' : '待审核')}
+                        ${a.status === 'APPROVED' ? 'Approved & Granted' : (a.status === 'REJECTED' ? 'Rejected' : 'Pending Review')}
                     </span>
                 </td>
                 <td>
                     ${a.status === 'PENDING' ? `
                         <button class="btn btn-sm btn-success" onclick="handleApproveApplication(${a.id}, '${a.role_applied}', '${a.wallet_address}')">
-                            ✓ 链上核准发牌 (F-03)
+                            ✓ Grant On-Chain (F-03)
                         </button>
                         <button class="btn btn-sm btn-danger" onclick="handleRejectApplication(${a.id})">
-                            ✕ 驳回
+                            ✕ Reject
                         </button>
-                    ` : (a.tx_hash ? `<a href="https://sepolia.etherscan.io/tx/${a.tx_hash}" target="_blank" class="btn btn-sm btn-outline">查看授权交易</a>` : '-')}
+                    ` : (a.tx_hash ? `<a href="https://sepolia.etherscan.io/tx/${a.tx_hash}" target="_blank" class="btn btn-sm btn-outline">View Grant Tx</a>` : '-')}
                 </td>
             </tr>
         `).join("");
-    } catch (_) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">暂无申请数据</td></tr>`;
+    } catch (error) {
+        console.error(error);
+        UIFeedback.showToast(error.message || "Failed to load enterprise applications", "error");
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No application data</td></tr>`;
     }
 }
 
 async function handleApproveApplication(id, roleKey, walletAddress) {
-    if (!confirm(`确认在区块链上为地址 ${walletAddress} 授予【${window.AppConfig.ROLE_LABELS[roleKey] || roleKey}】权限？`)) return;
+    if (!confirm(`Are you sure you want to grant [${window.AppConfig.ROLE_LABELS[roleKey] || roleKey}] role to address ${walletAddress} on-chain?`)) return;
 
     const roleBytes32 = ROLE_HASHES[roleKey];
     if (!roleBytes32) {
-        UIFeedback.showToast("未识别的角色类型", "error");
+        UIFeedback.showToast("Unrecognized role type", "error");
         return;
     }
 
     try {
         const receipt = await window.DAppState.contractClient.grantRole(roleBytes32, walletAddress);
-        // Sync to backend
-        try {
-            await window.DAppState.apiClient.reviewEnterprise(id, {
-                status: "APPROVED",
-                tx_hash: receipt.hash
-            });
-        } catch (_) {}
-        UIFeedback.showToast("已成功在链上授予企业角色！", "success");
+        // Backend independently verifies the Sepolia receipt and RoleGranted event.
+        await window.DAppState.apiClient.reviewEnterprise(id, {
+            status: "APPROVED",
+            tx_hash: receipt.hash
+        });
+        UIFeedback.showToast("Enterprise role granted on-chain successfully!", "success");
         await loadApplications();
     } catch (e) {
         console.error(e);
+        UIFeedback.showToast(e.message || "On-chain role grant failed", "error");
     }
 }
 
 async function handleRejectApplication(id) {
-    const reason = prompt("请输入驳回申请的具体原因：");
+    const reason = prompt("Please enter the specific reason for rejecting the application:");
     if (!reason) return;
 
     try {
@@ -125,7 +126,7 @@ async function handleRejectApplication(id) {
             status: "REJECTED",
             reject_reason: reason
         });
-        UIFeedback.showToast("已驳回该企业入驻申请", "info");
+        UIFeedback.showToast("Enterprise application rejected.", "info");
         await loadApplications();
     } catch (e) {
         console.error(e);

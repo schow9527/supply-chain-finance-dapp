@@ -25,13 +25,13 @@
     };
 
     const ROLE_LABELS = {
-        ADMIN: "平台管理员",
-        SUPPLIER: "供应商",
-        CORE_ENTERPRISE: "核心企业",
-        FUNDER: "资金方 / 银行",
-        FINANCIER: "资金方 / 银行",
-        AUDITOR: "审计员",
-        NONE: "未入驻企业"
+        ADMIN: "Platform Admin",
+        SUPPLIER: "Supplier",
+        CORE_ENTERPRISE: "Core Enterprise",
+        FUNDER: "Funder / Bank",
+        FINANCIER: "Funder / Bank",
+        AUDITOR: "Auditor",
+        NONE: "Unregistered"
     };
 
     // Deployed addresses on Sepolia (11155111) by Member 1

@@ -35,10 +35,10 @@ supply-chain-finance-dapp/
 │
 ├── backend/                    # 【成员 2 负责】后端 API 与链上同步服务
 │   ├── routes/                 # Flask RESTful API 路由
-│   ├── services/               # 链上事件同步器 (Web3.py) 与 PDF 哈希存证
-│   ├── models.py               # 数据库模型 (7 张表：企业、发票、凭证、融资等)
+│   ├── migrations/             # Flask-Migrate / Alembic 数据库迁移
+│   ├── tests/                  # 后端自动化测试
+│   ├── models.py               # 8 张数据库表及关键约束
 │   ├── config.py               # 环境变量与配置管理
-│   ├── requirements.txt        # Python 依赖清单
 │   └── README.md               # 后端开发与本地调试指南
 │
 ├── frontend/                   # 【成员 3 负责】前端界面与 Web3 交互
@@ -57,6 +57,7 @@ supply-chain-finance-dapp/
 ├── .env.example                # 环境变量配置模板
 ├── .gitignore                  # Git 忽略规则
 ├── app.py                      # 根目录应用入口 (兼容本地启动与 Render 云部署)
+├── requirements.txt            # 唯一 Python 依赖清单
 ├── Procfile                    # Render Web Service 部署指令
 ├── render.yaml                 # Render 云平台 Blueprint 配置
 └── README.md                   # 仓库总览文档（当前文件）
@@ -81,6 +82,8 @@ supply-chain-finance-dapp/
 
 ## 🚀 快速启动指南
 
+本地 Web 开发需要 Python 3.11+ 和 Node.js 20+。Foundry 仅在编译或测试合约时需要。
+
 ### 1. 克隆代码仓库
 ```bash
 git clone <your-repository-url>
@@ -98,26 +101,66 @@ forge test
 ```
 
 ### 3. 后端与全栈服务启动（成员 2 & 成员 3 联调）
-```bash
-# 返回项目根目录
-cd ..
-cp .env.example .env
 
-# 安装 Python 依赖
-pip install -r backend/requirements.txt
+在仓库根目录创建独立环境。PowerShell 使用 `Copy-Item`，macOS/Linux 可将其替换为 `cp`。
 
-# 启动本地服务
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip check
+Copy-Item .env.example .env
+python -m flask --app app:app db upgrade
+python -m flask --app app:app db check
 python app.py
 ```
-浏览器打开 `http://127.0.0.1:5000` 即可看到 DApp 首页并连接 MetaMask。
+
+macOS/Linux 的激活命令是 `source .venv/bin/activate`。浏览器打开 `http://127.0.0.1:5000`。默认配置为 `development` + Web 进程 + 本地文件存储 + SQLite，不会启动事件 Worker。
+
+`.env.example` 只包含开发默认值和占位值：
+
+- `APP_ENV=development`、`PROCESS_ROLE=web`、`DATABASE_URL=sqlite:///scf_dapp.db` 和 `STORAGE_BACKEND=local` 可直接用于离线页面/API 开发。
+- `SECRET_KEY` 在 Production 必须替换为高熵随机值。
+- `WEB3_PROVIDER_URI` 默认留空。需要读取 Sepolia 时，在 Alchemy、Infura 等服务商创建 Sepolia HTTPS RPC，然后仅通过当前进程环境注入，例如 PowerShell: `$env:WEB3_PROVIDER_URI='<your-sepolia-rpc>'`。
+- 真实 RPC URL、API Key、数据库密码、Session Secret、私钥和助记词不得写入 `.env.example` 或提交到 Git。`.env` 已被 `.gitignore` 排除。
+
+本地开发不要直接运行 `python -m backend.worker`。Worker 需要独立的 PostgreSQL、真实 Sepolia RPC 和明确的生产配置；只读单次同步也应先通过 worker preflight。更多后端命令见 [`backend/README.md`](backend/README.md)。
+
+### 4. 运行测试
+
+```powershell
+python -m pytest backend/tests -q
+python -m pytest backend/tests --cov=backend --cov-report=term-missing
+python -m compileall backend app.py
+python -m pip check
+Set-Location frontend
+npm install
+npm test
+Get-ChildItem static/js -Filter *.js | ForEach-Object { node --check $_.FullName }
+```
+
+macOS/Linux 可用 `find static/js -name '*.js' -exec node --check {} \;` 检查 JavaScript 语法。普通单元测试使用隔离的内存 SQLite，不应连接 Render/PostgreSQL 或 RPC。
 
 ---
 
-## ☁️ Render 云端一键部署
+## ☁️ Render 部署
 
-项目已配置好 `Procfile` 与 `render.yaml`，推送代码至 GitHub 并在 Render 创建 Web Service 即可零配置部署：
-- **Build Command**: `pip install -r backend/requirements.txt`
-- **Start Command**: `gunicorn app:app`
+`render.yaml` 定义了 Web、Worker、Web Persistent Disk 和 pre-deploy migration，但不是零配置部署。Blueprint 同步时必须在 Dashboard 中为 Web 和 Worker 分别提供同一个目标 PostgreSQL `DATABASE_URL`、`WEB3_PROVIDER_URI` 和高熵 `SECRET_KEY`；这些值在 Blueprint 中均为 `sync: false`，不得硬编码。Web 使用 `gunicorn app:app`，迁移只由 `preDeployCommand` 执行，Worker 使用 `python -m backend.worker`。部署前按 [`docs/deployment.md`](docs/deployment.md) 执行角色预检。
+
+### Public deployment
+
+- Application: <https://supply-chain-finance-dapp-nkkr.onrender.com/>
+- Readiness: <https://supply-chain-finance-dapp-nkkr.onrender.com/api/health/ready>
+- Network: Sepolia (`CHAIN_ID=11155111`)
+
+The readiness endpoint verifies the production configuration, PostgreSQL
+connection and migrations, Sepolia RPC and contract configuration, persistent
+PDF storage, and the persisted event-sync cursor. A `200` response with
+`"status": "ready"` confirms that the Web service is ready to receive traffic.
+Continuous chain indexing requires the separate Render Worker defined in
+`render.yaml`; the Web process intentionally keeps
+`EVENT_SYNC_ENABLED=false`.
 
 ---
 
