@@ -1,6 +1,7 @@
 # Demo Presentation (Member 5 — English Version)
 
-- `scf-dapp-demo-en/`: source project of the 13-page English deck (kimi-slides `.pptd`). Page content and figures are based on real data from this repository (contract interfaces, Gas benchmarks, Sepolia deployment addresses). The final slide (page 13) includes the full team division-of-work table (Member / Role / Deliverables, Members 1–6). It can be opened in Kimi Work for further editing and re-exported to `.pptx`.
+- `scf-dapp-demo-en/`: source project of the 13-page English deck (kimi-slides `.pptd`). Page content and figures are based on real data from this repository (contract interfaces, Gas benchmarks, Sepolia deployment addresses). The final slide (page 13) includes the full team division-of-work table with all six members' names (Member / Role / Deliverables, Members 1–6). It can be opened in Kimi Work for further editing and re-exported to `.pptx`.
+- `scf-dapp-demo-en/scf-dapp-demo-en.pptx`: **the exported English deck (13 slides)**, ready for submission and presentation; slide 13 carries the division-of-work table with member names.
 - The exported Chinese deck `scf-dapp-demo.pptx` lives in `../../designs/presentation/scf-dapp-demo/`; the English deck can be exported the same way from Kimi Work.
 
 ## Slide Structure (13 pages)
