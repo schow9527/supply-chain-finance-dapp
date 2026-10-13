@@ -1,0 +1,86 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 11 · DEPLOYMENT & VERIFICATION}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: Live on Sepolia, with functional tests and security checks passed
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: addr-title
+    elementType: text
+    bounds: [60, 124, 440, 22]
+    content: {fontSize: 14, bold: true, color: "$ink", wrap: false, text: Sepolia Contract Addresses (chainId 11155111)}
+  - elementId: addr-table
+    elementType: table
+    bounds: [60, 154, 440, 220]
+    columnWidths: [0.4, 0.6]
+    rowHeights: [0.166, 0.167, 0.167, 0.167, 0.167, 0.166]
+    style:
+      cellStyle:
+        border: [null, null, {style: solid, width: 1, color: "$line"}, null]
+        align: [left, middle]
+        fontSize: 12
+        color: "$body"
+      firstColumnStyle:
+        bold: true
+        color: "$ink"
+    rows:
+      - - text: RoleManager
+        - text: "0x82f8...B6a2E"
+      - - text: InvoiceRegistry
+        - text: "0x3960...1eD7a"
+      - - text: ReceivableToken
+        - text: "0x3c9E...0368f"
+      - - text: FinancingPool
+        - text: "0x2bb0...985c6"
+      - - text: MockStablecoin
+        - text: "0xE3C7...1E04F"
+      - - text: Start block
+        - text: "11,869,257"
+  - elementId: addr-note
+    elementType: text
+    bounds: [60, 386, 440, 36]
+    content:
+      style: "$small"
+      lineHeight: 1.5
+      text: |
+        <p>Full addresses in contracts/deployments/11155111.json; admin at 0x0ced...834f.</p>
+  - elementId: vline
+    elementType: line
+    bounds: [530, 124, 1, 300]
+    viewBox: [1, 300]
+    points: "0,0 0,300"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: val-title
+    elementType: text
+    bounds: [560, 124, 340, 22]
+    content: {fontSize: 14, bold: true, color: "$ink", wrap: false, text: Verification Results}
+  - elementId: val-body
+    elementType: text
+    bounds: [560, 156, 340, 270]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>Functional tests</strong> — 26 test cases executed one by one on the live Render build (Member 6, report in docs/testing/)</p>
+        <p style="margin-top:12px"><strong>Contract tests</strong> — Foundry unit tests cover all write functions and revert branches of the 5 contracts</p>
+        <p style="margin-top:12px"><strong>Static analysis</strong> — Slither reports zero high/medium issues; custom errors across all functions, decodable by the frontend</p>
+        <p style="margin-top:12px"><strong>Cloud deployment</strong> — Flask + Gunicorn on Render; the event listener syncs chain data continuously</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "12"}

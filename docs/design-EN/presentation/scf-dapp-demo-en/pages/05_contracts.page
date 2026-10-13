@@ -1,0 +1,64 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 04 · SMART CONTRACT DESIGN}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: Five contracts with clear duties; RoleManager owns access and the pause switch
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: ct
+    elementType: table
+    bounds: [60, 124, 840, 290]
+    columnWidths: [0.26, 0.74]
+    rowHeights: [0.166, 0.166, 0.167, 0.167, 0.167, 0.167]
+    style:
+      cellStyle:
+        border: [null, null, {style: solid, width: 1, color: "$line"}, null]
+        align: [left, middle]
+        fontSize: 13
+        color: "$body"
+      firstColumnStyle:
+        bold: true
+        color: "$ink"
+        fontSize: 14
+    rows:
+      - - text: RoleManager.sol
+        - text: Grants & revokes the five roles (Supplier / Core Enterprise / Financier / Auditor / Admin); global emergency pause
+      - - text: InvoiceRegistry.sol
+        - text: Invoice registration with dedup keys; on confirmation it mints the equal-value receivable; rejection releases the dedup key
+      - - text: ReceivableToken.sol
+        - text: ERC-1155 receivable tokens - splittable transfers, auditor freeze/unfreeze; mintable only by Registry, burnable only by the Pool
+      - - text: FinancingPool.sol
+        - text: Financing requests (token escrow), quote locking, atomic settlement, repayment pool, redemption and overdue marking
+      - - text: MockStablecoin.sol
+        - text: ERC-20 test stablecoin mUSD with a faucet for demos
+      - - text: Security baseline
+        - text: nonReentrant on all value movers + checks-effects-interactions; Slither reports zero high/medium issues
+  - elementId: note
+    elementType: text
+    bounds: [60, 440, 840, 44]
+    content:
+      style: "$small"
+      lineHeight: 1.6
+      text: |
+        <p>While paused: admin role operations and auditor freeze/unfreeze still work (emergency response); all other writes are rejected; reads are unaffected.</p>
+        <p>Contract interactions on the next page; ABIs and query functions in contracts/abi and contracts/docs/interface.md.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "05"}

@@ -1,0 +1,89 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 01 · BACKGROUND & PROBLEM}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: SMEs wait months to get paid, and core-enterprise credit never reaches them
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: p1-num
+    elementType: text
+    bounds: [60, 130, 40, 30]
+    content: {fontSize: 20, bold: true, color: "$accent", wrap: false, text: "01"}
+  - elementId: p1-title
+    elementType: text
+    bounds: [105, 132, 380, 24]
+    content: {fontSize: 16, bold: true, color: "$ink", wrap: false, text: Slow payments lock up cash flow}
+  - elementId: p1-body
+    elementType: text
+    bounds: [105, 160, 370, 60]
+    content:
+      style: "$body"
+      text: After delivering goods to a core enterprise, SMEs wait months for payment and lack short-term liquidity.
+  - elementId: p2-num
+    elementType: text
+    bounds: [60, 245, 40, 30]
+    content: {fontSize: 20, bold: true, color: "$accent", wrap: false, text: "02"}
+  - elementId: p2-title
+    elementType: text
+    bounds: [105, 247, 380, 24]
+    content: {fontSize: 16, bold: true, color: "$ink", wrap: false, text: Invoices cannot be verified across institutions}
+  - elementId: p2-body
+    elementType: text
+    bounds: [105, 275, 370, 60]
+    content:
+      style: "$body"
+      text: The same invoice can be financed at multiple banks, and institutions do not share their data.
+  - elementId: p3-num
+    elementType: text
+    bounds: [60, 360, 40, 30]
+    content: {fontSize: 20, bold: true, color: "$accent", wrap: false, text: "03"}
+  - elementId: p3-title
+    elementType: text
+    bounds: [105, 362, 380, 24]
+    content: {fontSize: 16, bold: true, color: "$ink", wrap: false, text: Core-enterprise credit stops downstream}
+  - elementId: p3-body
+    elementType: text
+    bounds: [105, 390, 370, 60]
+    content:
+      style: "$body"
+      text: Tier-2 and tier-3 suppliers have no direct contract with the core enterprise and cannot borrow its credit.
+  - elementId: vline
+    elementType: line
+    bounds: [505, 130, 1, 330]
+    viewBox: [1, 330]
+    points: "0,0 0,330"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: g-title
+    elementType: text
+    bounds: [545, 130, 360, 24]
+    content: {fontSize: 16, bold: true, color: "$ink", wrap: false, text: Product Goals (PRD 1.2)}
+  - elementId: g-body
+    elementType: text
+    bounds: [545, 165, 355, 300]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>Fast funding</strong> — suppliers receive bank funding within minutes of on-chain invoice confirmation</p>
+        <p style="margin-top:14px"><strong>Duplicate-proof financing</strong> — each invoice can be registered and financed exactly once; duplicates are rejected</p>
+        <p style="margin-top:14px"><strong>Splittable, transferable credit</strong> — receivable tokens split into shares and flow downstream</p>
+        <p style="margin-top:14px"><strong>Full audit trail</strong> — every key action is recorded on-chain; auditors trace and freeze suspicious tokens anytime</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "02"}

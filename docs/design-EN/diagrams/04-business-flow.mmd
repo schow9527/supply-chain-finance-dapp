@@ -1,0 +1,38 @@
+flowchart TD
+    START([Supplier issues invoice]) --> UPLOAD["Upload invoice metadata + PDF<br/>SHA-256 file hash on-chain"]
+    UPLOAD --> DEDUP{"On-chain dedup check<br/>invoiceNo + buyer + seller + amount"}
+    DEDUP -->|Exists| REJECT_DUP["Contract reverts<br/>InvoiceAlreadyExists"] --> END1([Process ends])
+    DEDUP -->|Passed| PENDING["Status: Pending<br/>PDF off-chain, hash on-chain"]
+
+    PENDING --> CE{"Core enterprise verifies"}
+    CE -->|"Reject (reason required)"| REJECTED["Status: Rejected<br/>dedup key released, resubmittable"] --> END2([Process ends])
+    CE -->|Confirm| MINT["Equal-value ERC-1155 receivable minted<br/>credit rights established"]
+
+    MINT --> CHOICE{"Supplier chooses"}
+    CHOICE -->|Split transfer| SPLIT["Transfer shares to a tier-2 supplier<br/>(registered suppliers only; not frozen/matured)"] --> CHOICE
+    CHOICE -->|Hold to maturity| HOLD["Wait for core enterprise payment"]
+    CHOICE -->|Request financing| RF["Request financing<br/>token auto-escrowed (no double pledge)"]
+
+    RF --> QUOTE["Financiers quote (discount bps)<br/>quote funds locked in pool"]
+    QUOTE --> ACCEPT{"Supplier picks a quote"}
+    ACCEPT -->|Accept| FUND["Atomic funding: one tx moves<br/>token -> financier, funds -> supplier"]
+    ACCEPT -->|Cancel request| CANCEL["Token returned to supplier"] --> CHOICE
+
+    FUND --> DUE{"Maturity check"}
+    DUE -->|Repaid on time| REPAY["Face value paid into pool"]
+    DUE -->|Overdue| OVERDUE["Financier marks overdue<br/>recorded on-chain"] --> REPAY2["Payment still accepted after overdue"]
+    REPAY2 --> REPAY
+
+    REPAY --> REDEEM["Current holder burns token<br/>redeems mUSD 1:1"]
+    REDEEM --> END3([Loop closed])
+
+    FREEZE_NOTE["Auditor can freeze/unfreeze anytime<br/>frozen: no transfer, financing, or redemption"] -.-> MINT
+
+    classDef supplier fill:#e8f4fd,stroke:#4a90d9;
+    classDef core fill:#e9f7ef,stroke:#3ba272;
+    classDef funder fill:#fff7e6,stroke:#d9a441;
+    classDef auditor fill:#fdeaea,stroke:#d94a4a;
+    class UPLOAD,PENDING,SPLIT,RF,HOLD supplier
+    class CE,REJECTED,MINT,REPAY,REPAY2 core
+    class QUOTE,FUND,OVERDUE funder
+    class FREEZE_NOTE auditor

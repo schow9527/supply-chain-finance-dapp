@@ -1,0 +1,61 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 09 · DATA MODEL & BACKEND}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: Seven tables answer "who holds what"; event sync answers "what happened"
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: er-img
+    elementType: image
+    bounds: [70, 116, 300, 386]
+    src: media/03-data-model.png
+    fit: {mode: contain}
+  - elementId: pt1
+    elementType: text
+    bounds: [420, 130, 480, 90]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>enterprises / invoices / financing_requests / quotes</strong> power onboarding, invoice management and the financing market; <strong>holdings</strong> is aggregated from TransferSingle events — the contracts offer no list query, an irreplaceable backend duty.</p>
+  - elementId: pt2
+    elementType: text
+    bounds: [420, 235, 480, 90]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>chain_events / sync_state</strong> power the audit: every event carries block number, tx hash and decoded args; the sync_state cursor guarantees resume without gaps or duplicates.</p>
+  - elementId: pt3
+    elementType: text
+    bounds: [420, 340, 480, 90]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>The backend never stores private keys</strong> — all writes go frontend -> MetaMask -> contracts; the backend only stores files (PDF + SHA-256), syncs events and serves aggregation queries, hosted on Render.</p>
+  - elementId: pt4
+    elementType: text
+    bounds: [420, 445, 480, 40]
+    content:
+      style: "$small"
+      lineHeight: 1.6
+      text: |
+        <p>API list in docs/PRD.md Sec.7.2; ER source at docs/design-EN/diagrams/03-data-model.mmd.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "10"}

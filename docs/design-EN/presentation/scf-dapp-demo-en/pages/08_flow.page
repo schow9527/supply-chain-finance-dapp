@@ -1,0 +1,131 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 07 · BUSINESS FLOW}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: One main line, four recoverable branches
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: step1
+    elementType: text
+    bounds: [60, 124, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 1 · SUPPLIER</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>Upload invoice</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">PDF off-chain, hash on-chain; dedup blocks duplicates</span></p>
+  - elementId: ar1
+    elementType: line
+    bounds: [255, 150, 26, 1]
+    viewBox: [26, 1]
+    points: "0,0 26,0"
+    arrow: [null, arrow]
+    border: {style: solid, width: 1.5, color: "$gray"}
+  - elementId: step2
+    elementType: text
+    bounds: [286, 124, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 2 · CORE ENTERPRISE</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>Confirm invoice</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">Verify PDF &amp; hash; confirm mints the token</span></p>
+  - elementId: ar2
+    elementType: line
+    bounds: [481, 150, 26, 1]
+    viewBox: [26, 1]
+    points: "0,0 26,0"
+    arrow: [null, arrow]
+    border: {style: solid, width: 1.5, color: "$gray"}
+  - elementId: step3
+    elementType: text
+    bounds: [512, 124, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 3 · SUPPLIER</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>Split / finance</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">Split shares to transfer; financing escrows the token</span></p>
+  - elementId: ar3
+    elementType: line
+    bounds: [707, 150, 26, 1]
+    viewBox: [26, 1]
+    points: "0,0 26,0"
+    arrow: [null, arrow]
+    border: {style: solid, width: 1.5, color: "$gray"}
+  - elementId: step4
+    elementType: text
+    bounds: [738, 124, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 4 · FINANCIER</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>Quote &amp; fund</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">Discount quotes lock funds; acceptance funds atomically</span></p>
+  - elementId: mid-rule
+    elementType: line
+    bounds: [60, 214, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: step5
+    elementType: text
+    bounds: [60, 232, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 5 · CORE ENTERPRISE</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>Repay into pool</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">Full face value paid into FinancingPool</span></p>
+  - elementId: ar5
+    elementType: line
+    bounds: [255, 258, 26, 1]
+    viewBox: [26, 1]
+    points: "0,0 26,0"
+    arrow: [null, arrow]
+    border: {style: solid, width: 1.5, color: "$gray"}
+  - elementId: step6
+    elementType: text
+    bounds: [286, 232, 190, 70]
+    content:
+      text: |
+        <p><span style="font-size:12px;color:$accent"><strong>STEP 6 · HOLDER</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:15px;color:$ink"><strong>Redeem &amp; close</strong></span></p>
+        <p style="margin-top:4px"><span style="font-size:11px;color:$gray">Burn token, receive mUSD 1:1</span></p>
+  - elementId: branch-title
+    elementType: text
+    bounds: [540, 232, 360, 22]
+    content: {fontSize: 14, bold: true, color: "$ink", wrap: false, text: Branches & exception paths (on-chain)}
+  - elementId: branches
+    elementType: text
+    bounds: [540, 262, 360, 150]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>Reject invoice</strong> — reason required; dedup key released for resubmission</p>
+        <p style="margin-top:8px"><strong>Cancel request</strong> — possible before acceptance; token returned</p>
+        <p style="margin-top:8px"><strong>Overdue</strong> — financier marks it; payment still accepted afterwards</p>
+        <p style="margin-top:8px"><strong>Auditor freeze</strong> — anytime; frozen blocks transfer, financing, redemption</p>
+  - elementId: note
+    elementType: text
+    bounds: [60, 440, 840, 40]
+    content:
+      style: "$small"
+      lineHeight: 1.6
+      text: |
+        <p>The demo video follows Steps 1-6; full branches in docs/design-EN/diagrams/04-business-flow.mmd (including the auditor's freeze side-path).</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "08"}

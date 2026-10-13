@@ -1,0 +1,45 @@
+flowchart TD
+    LANDING["Landing Page<br/>Product intro · Connect MetaMask"] --> CHECK{"On-chain role check<br/>isRegistered + roleOf"}
+    CHECK -->|Not registered| REG["Registration Page<br/>Company profile · Role selection<br/>Awaiting admin review"]
+    REG -.->|"Approved & role granted on-chain"| CHECK
+    CHECK -->|Supplier| S1["Supplier Dashboard<br/>Receivables / Funded / To-dos"]
+    CHECK -->|Core Enterprise| C1["Core Enterprise Dashboard<br/>Pending count / Payables / Due soon alerts"]
+    CHECK -->|Financier| F1["Financier Dashboard<br/>Funded / Receivables / Overdue monitor"]
+    CHECK -->|Auditor| A1["Global Audit Board<br/>Invoices / Transfer volume / Overdue rate"]
+    CHECK -->|Admin| AD1["Registration Review<br/>On-chain approve / reject"]
+
+    S1 --> S2["Upload Invoice"]
+    S1 --> S3["My Invoices<br/>Status filter · PDF verification"]
+    S1 --> S4["My Receivables<br/>Split transfer · Request financing"]
+    S1 --> S5["My Financing<br/>Review quotes · Accept / Cancel"]
+    S4 --> S2
+
+    C1 --> C2["Pending Invoices<br/>Preview PDF · Confirm / Reject"]
+    C1 --> C3["Payables Ledger<br/>Sorted by due date · One-click repay"]
+
+    F1 --> F2["Financing Market<br/>Open requests · Quote with discount rate"]
+    F1 --> F3["My Funded Assets<br/>Redeem at maturity · Mark overdue"]
+
+    A1 --> A2["Receivable Provenance<br/>Lifecycle tree · Freeze / Unfreeze"]
+
+    AD1 --> AD2["Roles & System Control<br/>Revoke roles · Emergency pause / unpause"]
+
+    S1 --> PUB["Transaction History (all roles)"]
+    C1 --> PUB
+    F1 --> PUB
+    A1 --> PUB
+    AD1 --> PUB
+    PUB --> EV["Contract Event Logs (Admin / Auditor)<br/>Filter by type / time / address"]
+
+    classDef pub fill:#f2f2f2,stroke:#888;
+    classDef role1 fill:#e8f4fd,stroke:#4a90d9;
+    classDef role2 fill:#e9f7ef,stroke:#3ba272;
+    classDef role3 fill:#fff7e6,stroke:#d9a441;
+    classDef role4 fill:#fdeaea,stroke:#d94a4a;
+    classDef role5 fill:#f3e8fd,stroke:#8e5bd9;
+    class LANDING,CHECK pub
+    class REG,S1,S2,S3,S4,S5 role1
+    class C1,C2,C3 role2
+    class F1,F2,F3 role3
+    class A1,A2,EV role4
+    class AD1,AD2 role5

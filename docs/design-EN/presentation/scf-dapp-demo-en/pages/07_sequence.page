@@ -1,0 +1,53 @@
+pageType: content
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 34, 300, 18]
+    content: {style: "$kicker", wrap: false, text: 06 · CONTRACT INTERACTION}
+  - elementId: title
+    elementType: text
+    bounds: [60, 54, 840, 40]
+    content:
+      style: "$title"
+      wrap: false
+      text: The full on-chain sequence, from registration to redemption
+  - elementId: rule
+    elementType: line
+    bounds: [60, 102, 840, 1]
+    viewBox: [840, 1]
+    points: "0,0 840,0"
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: seq-img
+    elementType: image
+    bounds: [60, 112, 470, 392]
+    src: media/02-contract-interaction.png
+    fit: {mode: contain}
+  - elementId: pt1
+    elementType: text
+    bounds: [560, 130, 340, 100]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>Confirmation is settlement</strong> — confirmInvoice emits InvoiceConfirmed and ReceivableMinted in one tx; the token lands in the supplier's wallet.</p>
+  - elementId: pt2
+    elementType: text
+    bounds: [560, 245, 340, 100]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>Funding is atomic</strong> — acceptQuote moves "token to financier + mUSD to supplier" in a single transaction; any failure rolls back everything.</p>
+  - elementId: pt3
+    elementType: text
+    bounds: [560, 360, 340, 100]
+    content:
+      style: "$body"
+      text: |
+        <p><strong>Quotes lock funds first</strong> — submitQuote requires the financier to approve and lock mUSD, so acceptance never fails on insufficient balance.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [60, 508, 400, 18]
+    content: {style: "$small", wrap: false, text: SC6113 · Supply Chain Finance DApp}
+  - elementId: page-num
+    elementType: text
+    bounds: [880, 508, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "07"}
