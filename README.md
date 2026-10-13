@@ -4,6 +4,36 @@
 > **PRD 制定**：@YANG SHUYI  
 > **技术栈**：Solidity (ERC-1155 / ERC-20) + Python Flask + Ethers.js + Render 部署  
 
+
+## 🎓 Submission Quick Links (SC6113 Group Project)
+
+| Item | Link / location |
+|---|---|
+| Live application (Render) | https://supply-chain-finance-dapp-nkkr.onrender.com/ |
+| Demo video (YouTube) | https://youtu.be/GeVo2iIh7co |
+| Test report | [`docs/testing/test-report.md`](docs/testing/test-report.md) — test plan, 128 test cases, defect log and evidence in [`docs/testing/`](docs/testing/) |
+| Design diagrams (architecture, contract interaction, data model, business flow, UI) | [`docs/design-EN/diagrams/`](docs/design-EN/diagrams/) |
+| UI wireframes | [`docs/design-EN/wireframes/`](docs/design-EN/wireframes/) |
+| Presentation slides | [`docs/design-EN/presentation/`](docs/design-EN/presentation/) |
+| User manual | [`docs/design-EN/user-manual/User-Manual.md`](docs/design-EN/user-manual/User-Manual.md) |
+| Product requirements (PRD) | [`docs/PRD.md`](docs/PRD.md) |
+| Contract interface & gas report | [`contracts/docs/interface.md`](contracts/docs/interface.md) · [`contracts/docs/gas-optimization.md`](contracts/docs/gas-optimization.md) |
+| Setup & run instructions | [Quick start](#-快速启动指南) below · [`backend/README.md`](backend/README.md) · [`contracts/README.md`](contracts/README.md) |
+
+**Smart contracts — Ethereum Sepolia testnet (chain ID 11155111)**
+
+| Contract | Address |
+|---|---|
+| RoleManager | [`0x82f86a2B31C424b4833b5BAb82464eB7f69B6a2E`](https://sepolia.etherscan.io/address/0x82f86a2B31C424b4833b5BAb82464eB7f69B6a2E) |
+| InvoiceRegistry | [`0x39605C1D4FCE3D85DC14f7f283899b984dd1eD7a`](https://sepolia.etherscan.io/address/0x39605C1D4FCE3D85DC14f7f283899b984dd1eD7a) |
+| ReceivableToken | [`0x3c9EcDdf7e788F7B8e04D4177d04B3c291E0368f`](https://sepolia.etherscan.io/address/0x3c9EcDdf7e788F7B8e04D4177d04B3c291E0368f) |
+| FinancingPool | [`0x2bb0A6e688C331248fe8575121F799B5286985c6`](https://sepolia.etherscan.io/address/0x2bb0A6e688C331248fe8575121F799B5286985c6) |
+| MockStablecoin (mUSD) | [`0xE3C713Db876c97600141Ba34C7Cb68898CF1E04F`](https://sepolia.etherscan.io/address/0xE3C713Db876c97600141Ba34C7Cb68898CF1E04F) |
+
+Addresses and ABIs: [`contracts/deployments/11155111.json`](contracts/deployments/11155111.json), [`contracts/abi/`](contracts/abi/).
+
+> **Using the live app with MetaMask**: switch MetaMask to Sepolia; on each confirmation screen untick **"Added protection"** (otherwise the transaction reverts); MetaMask may show a false "malicious site" warning for the `onrender.com` domain — choose "Continue at your own risk".
+
 ---
 
 ## 📖 项目简介
