@@ -184,7 +184,7 @@
 | ID | Scenario | Account | Steps / Input | Expected Result | Result | Evidence |
 |---|---|---|---|---|---|---|
 | TC-F15-01 | Request financing | S1 | My Receivables → `TEST-101` → request financing for 10,000 | `FinancingRequested` emitted; receivable escrowed in FinancingPool; S1's balance decreases; status "Awaiting quotes" | ✅ Pass (after BUG-10 fix) — request #3 (#5, 6,000) Open; 6,000 escrowed in FinancingPool, S1 balance 0 | `TC-F15-01.png`; tx `0xab24bdac` |
-| TC-F15-02 | Exceeds balance | S1 | Request 20,000 | Rejected | ✅ Pass (after BUG-10 fix) — form rejects 20,000 against a 6,000 balance with a clear warning; no tx sent | `TC-F15-02.png` |
+| TC-F15-02 | Exceeds balance | S1 | Request 20,000 | Rejected | ✅ Pass (after BUG-10 fix) — form rejects 5,000 against a 1,000 balance (#4) with "Financing amount must be greater than 0 and not exceed your token balance."; no tx sent | `TC-F15-02.png` |
 | TC-F15-03 | Same amount cannot back two requests | S1 | Request again on `TEST-101` after the full amount is escrowed | Rejected (escrowed balance is 0) – **counts toward the duplicate-financing interception rate** | ✅ Pass — re-requesting #5 for 6,000 reverts with `ERC1155InsufficientBalance` (verified by `eth_call` as S1); also matured #4 rejected before sending with a readable message | `RETEST-BUG-06.png` |
 | TC-F15-04 | Non-supplier requests | F1 | Call `requestFinancing` | `Unauthorized` | ✅ Pass (contract layer, `eth_call`) — `Unauthorized` | [`onchain-negative-checks.md`](evidence/onchain-negative-checks.md) |
 
